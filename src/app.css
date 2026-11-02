@@ -86,6 +86,7 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 
 /* Settings: cloud account and directional sync */
 .settings-heading{margin-bottom:18px}
+.settings-panel-heading{align-items:center}.settings-panel-heading h3{margin:0}.supabase-link{color:#b7f36a;font-size:12px;font-weight:750;text-decoration:none;white-space:nowrap}.supabase-link:hover{text-decoration:underline}.settings-help{margin:0 0 14px}
 .settings-heading h1{margin-bottom:5px}
 .settings-heading p{margin:0;font-size:14px}
 .cloud-account-card{padding:24px}

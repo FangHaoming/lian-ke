@@ -216,7 +216,15 @@
   <p class="muted small">{databaseStatus}</p>
 </section>
 <section class="panel">
-  <h3>Supabase 云端配置</h3>
+  <div class="row between settings-panel-heading">
+    <h3>Supabase 云端配置</h3>
+    <a class="supabase-link" href="https://supabase.com/dashboard" target="_blank" rel="noreferrer">
+      打开 Supabase 控制台 ↗
+    </a>
+  </div>
+  <p class="muted small settings-help">
+    新手可以先在控制台创建项目，再复制下面的 Project URL 和密钥。
+  </p>
   <label class="field">
     Project URL
     <input type="url" bind:value={config.url} placeholder="https://xxxx.supabase.co" />
