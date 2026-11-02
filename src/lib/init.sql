@@ -1,0 +1,26 @@
+create table if not exists public.exercise_names (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, name text not null, created_at timestamptz not null default now(), unique (user_id, name));
+create table if not exists public.plans (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, name text not null, created_at timestamptz not null default now(), updated_at timestamptz not null default now());
+create table if not exists public.plan_items (id uuid primary key default gen_random_uuid(), plan_id uuid not null references public.plans(id) on delete cascade, exercise_name text not null, mode text not null default 'reps', sets integer not null default 3, reps integer not null default 10, duration integer not null default 40, weight numeric not null default 0, rest integer not null default 60, sort_order integer not null default 0);
+create table if not exists public.training_records (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, plan_id uuid, plan_name text not null, started_at timestamptz, finished_at timestamptz not null default now(), notes text);
+create table if not exists public.training_sets (id uuid primary key default gen_random_uuid(), record_id uuid not null references public.training_records(id) on delete cascade, exercise_name text not null, set_index integer not null, completed boolean not null default true, target_reps integer, target_seconds integer, planned_weight numeric, actual_reps integer, actual_weight numeric, actual_seconds integer);
+create table if not exists public.user_settings (user_id uuid primary key references auth.users(id) on delete cascade, sounds jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());
+alter table public.training_sets add column if not exists planned_weight numeric;
+alter table public.exercise_names enable row level security;
+alter table public.plans enable row level security;
+alter table public.plan_items enable row level security;
+alter table public.training_records enable row level security;
+alter table public.training_sets enable row level security;
+alter table public.user_settings enable row level security;
+
+drop policy if exists "users manage own exercise names" on public.exercise_names;
+create policy "users manage own exercise names" on public.exercise_names for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists "users manage own plans" on public.plans;
+create policy "users manage own plans" on public.plans for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists "users manage own plan items" on public.plan_items;
+create policy "users manage own plan items" on public.plan_items for all to authenticated using (exists (select 1 from public.plans where plans.id = plan_items.plan_id and plans.user_id = auth.uid())) with check (exists (select 1 from public.plans where plans.id = plan_items.plan_id and plans.user_id = auth.uid()));
+drop policy if exists "users manage own training records" on public.training_records;
+create policy "users manage own training records" on public.training_records for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists "users manage own training sets" on public.training_sets;
+create policy "users manage own training sets" on public.training_sets for all to authenticated using (exists (select 1 from public.training_records where training_records.id = training_sets.record_id and training_records.user_id = auth.uid())) with check (exists (select 1 from public.training_records where training_records.id = training_sets.record_id and training_records.user_id = auth.uid()));
+drop policy if exists "users manage own settings" on public.user_settings;
+create policy "users manage own settings" on public.user_settings for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());

@@ -1,0 +1,20 @@
+{
+  "name": "lian-ke",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "format": "prettier --write src --ignore-unknown",
+    "format:check": "prettier --check src --ignore-unknown"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^3.1.2",
+    "prettier": "^3.9.10",
+    "prettier-plugin-svelte": "^3.5.2",
+    "svelte": "^4.2.19",
+    "vite": "^5.4.10"
+  }
+}

@@ -1,0 +1,231 @@
+<script>
+  import { onMount } from 'svelte'
+  import { mk, uid, num } from '../lib/workout-model.js'
+  import { flatten } from '../lib/data.js'
+  import TimePicker from '../components/time-picker.svelte'
+  import Select from '../components/select.svelte'
+  import { trainingModes } from '../lib/select-options.js'
+  import ExerciseNameSelect from '../components/exercise-name-select.svelte'
+  export let data
+  let editing = null
+  let draggingIndex = -1
+  let dragOverIndex = -1
+  let editorHistoryEntry = false
+  $: names = data.exerciseNames || []
+
+  onMount(() => {
+    const handlePopState = () => {
+      if (editing) {
+        editing = null
+        editorHistoryEntry = false
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  })
+
+  function enterEditor(value) {
+    editing = value
+    history.pushState({ ...history.state, planEditor: true }, '', window.location.href)
+    editorHistoryEntry = true
+  }
+  function leaveEditor() {
+    const shouldGoBack = editorHistoryEntry
+    editing = null
+    editorHistoryEntry = false
+    if (shouldGoBack) history.back()
+  }
+  function save() {
+    if (
+      !editing.name.trim() ||
+      !editing.items.length ||
+      editing.items.some((item) => !item.name.trim())
+    )
+      return alert('请填写计划名称和动作')
+    editing.items = editing.items.map((item) => ({
+      ...item,
+      sets: num(item.sets, 1, 30),
+      reps: num(item.reps),
+      duration: num(item.duration, 1, 7200),
+      rest: num(item.rest, 0, 3600),
+      weight: num(item.weight),
+    }))
+    const index = data.plans.findIndex((plan) => plan.id === editing.id)
+    data.plans =
+      index < 0
+        ? [...data.plans, editing]
+        : data.plans.map((plan) => (plan.id === editing.id ? editing : plan))
+    data.exerciseNames = [...new Set([...names, ...editing.items.map((item) => item.name)])]
+    data.selected = editing.id
+    data = data
+    leaveEditor()
+  }
+  function remove(id) {
+    if (!confirm('确定删除此训练计划？历史记录仍会保留。')) return
+    data.plans = data.plans.filter((plan) => plan.id !== id)
+    data.selected = data.plans[0]?.id || null
+    data = data
+  }
+  function removeName(name) {
+    data.exerciseNames = names.filter((item) => item !== name)
+    data = data
+  }
+  function scrollEditor(position) {
+    window.scrollTo({
+      top: position === 'top' ? 0 : document.documentElement.scrollHeight,
+      behavior: 'smooth',
+    })
+  }
+</script>
+
+{#if editing}
+  <div class="row between">
+    <h1>编辑训练计划</h1>
+    <button class="btn ghost" on:click={leaveEditor}>返回</button>
+  </div>
+  <section class="panel">
+    <label class="field">
+      计划名称
+      <input bind:value={editing.name} />
+    </label>
+    <h3 style="margin-top:20px">动作列表（按顺序训练）</h3>
+    {#each editing.items as item, i (item.id)}
+      <div
+        class="exercise"
+        class:dragging={draggingIndex === i}
+        class:drag-over={dragOverIndex === i && draggingIndex !== i}
+        role="listitem"
+        draggable="true"
+        on:dragstart={(event) => {
+          draggingIndex = i
+          dragOverIndex = -1
+          event.dataTransfer.effectAllowed = 'move'
+          event.dataTransfer.setData('text/plain', String(i))
+        }}
+        on:dragover={(event) => {
+          event.preventDefault()
+          event.dataTransfer.dropEffect = 'move'
+          if (draggingIndex !== i) dragOverIndex = i
+        }}
+        on:dragleave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) dragOverIndex = -1
+        }}
+        on:drop={(event) => {
+          event.preventDefault()
+          const from = Number(event.dataTransfer.getData('text/plain'))
+          if (from !== i && from >= 0) {
+            const items = [...editing.items]
+            items.splice(i, 0, items.splice(from, 1)[0])
+            editing = { ...editing, items }
+          }
+          draggingIndex = -1
+          dragOverIndex = -1
+        }}
+        on:dragend={() => {
+          draggingIndex = -1
+          dragOverIndex = -1
+        }}
+      >
+        <div class="row between">
+          <b>⠿ {i + 1}. {item.name}</b>
+          <button
+            class="btn tiny red"
+            on:click={() =>
+              (editing = { ...editing, items: editing.items.filter((_, index) => index !== i) })}
+          >
+            删除
+          </button>
+        </div>
+        <div class="exercise-fields">
+          <div class="field">
+            <span>动作名称</span>
+            <ExerciseNameSelect
+              options={names}
+              bind:value={item.name}
+              deletable
+              on:delete={(event) => removeName(event.detail.name)}
+            />
+          </div>
+          <div class="field">
+            <span>训练类型</span>
+            <Select label="训练类型" options={trainingModes} bind:value={item.mode} />
+          </div>
+          <label class="field">
+            组数
+            <input type="number" min="1" bind:value={item.sets} />
+          </label>
+          {#if item.mode === 'reps'}<label class="field">
+              目标次数
+              <input type="number" min="0" bind:value={item.reps} />
+            </label>{:else}<TimePicker
+              label="训练时长（分:秒）"
+              max={7200}
+              bind:value={item.duration}
+            />{/if}
+          <label class="field">
+            负重 kg
+            <input type="number" min="0" step="0.5" bind:value={item.weight} />
+          </label>
+          <TimePicker label="组后休息（分:秒）" max={3600} bind:value={item.rest} />
+        </div>
+      </div>
+    {/each}
+    <div class="row">
+      <button
+        class="btn"
+        on:click={() => (editing = { ...editing, items: [...editing.items, mk(names[0] || '')] })}
+      >
+        + 添加动作
+      </button>
+      <button class="btn primary" on:click={save}>保存计划</button>
+    </div>
+  </section>
+  <div class="editor-quick-nav" hidden={editing.items.length <= 3} aria-label="编辑器快速导航">
+    <button type="button" aria-label="滚动到顶部" on:click={() => scrollEditor('top')}>↑</button>
+    <button type="button" aria-label="滚动到底部" on:click={() => scrollEditor('bottom')}>↓</button>
+  </div>
+{:else}
+  <div class="row between">
+    <div>
+      <h1>训练计划</h1>
+      <p class="muted">可以创建练腿日、上肢日等多种训练组合。</p>
+    </div>
+    <button
+      class="btn primary"
+      on:click={() => enterEditor({ id: uid(), name: '新训练计划', items: [mk(names[0] || '')] })}
+    >
+      + 新建计划
+    </button>
+  </div>
+  {#each data.plans as plan (plan.id)}<section class="panel">
+      <div class="row between">
+        <div>
+          <h2>{plan.name}</h2>
+          <span class="muted small">{plan.items.length} 个动作 · {flatten(plan).length} 组</span>
+        </div>
+        <div class="row">
+          <button class="btn tiny" on:click={() => enterEditor(structuredClone(plan))}>编辑</button>
+          <button
+            class="btn tiny"
+            on:click={() => {
+              const copy = structuredClone(plan)
+              copy.id = uid()
+              copy.name += '（副本）'
+              copy.items.forEach((item) => (item.id = uid()))
+              data.plans = [...data.plans, copy]
+              data = data
+            }}
+          >
+            复制
+          </button>
+          <button class="btn tiny red" on:click={() => remove(plan.id)}>删除</button>
+        </div>
+      </div>
+      {#each plan.items as item}<div class="setline">
+          <span>{item.name}</span>
+          <span class="muted small">
+            {item.sets}组 · {item.mode === 'reps' ? item.reps + '次' : item.duration + '秒'} · {item.weight}kg
+          </span>
+        </div>{/each}
+    </section>{:else}<div class="panel empty">还没有训练计划</div>{/each}
+{/if}
