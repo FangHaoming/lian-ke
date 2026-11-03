@@ -10,6 +10,8 @@
   let editing = null
   let draggingIndex = -1
   let dragOverIndex = -1
+  let touchDragTimer
+  let touchDragPointer = null
   let editorHistoryEntry = false
   $: names = data.exerciseNames || []
 
@@ -76,6 +78,54 @@
       behavior: 'smooth',
     })
   }
+  function moveItem(from, to) {
+    if (from < 0 || to < 0 || from === to) return
+    const items = [...editing.items]
+    items.splice(to, 0, items.splice(from, 1)[0])
+    editing = { ...editing, items }
+  }
+  function startTouchDrag(event, index) {
+    if (event.pointerType !== 'touch') return
+    if (event.target.closest('input, select, textarea, button, a')) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    touchDragPointer = { id: event.pointerId, index, x: event.clientX, y: event.clientY, active: false }
+    clearTimeout(touchDragTimer)
+    touchDragTimer = setTimeout(() => {
+      if (!touchDragPointer) return
+      touchDragPointer.active = true
+      draggingIndex = touchDragPointer.index
+      if (navigator.vibrate) navigator.vibrate(25)
+    }, 350)
+  }
+  function moveTouchDrag(event) {
+    if (!touchDragPointer || event.pointerId !== touchDragPointer.id) return
+    const dx = event.clientX - touchDragPointer.x
+    const dy = event.clientY - touchDragPointer.y
+    if (!touchDragPointer.active && Math.hypot(dx, dy) > 10) {
+      clearTimeout(touchDragTimer)
+      if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+      touchDragPointer = null
+      return
+    }
+    if (!touchDragPointer.active) return
+    event.preventDefault()
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('.exercise[data-plan-index]')
+    const index = target ? Number(target.dataset.planIndex) : -1
+    dragOverIndex = index
+  }
+  function endTouchDrag(event) {
+    if (!touchDragPointer || event.pointerId !== touchDragPointer.id) return
+    clearTimeout(touchDragTimer)
+    if (touchDragPointer.active && dragOverIndex >= 0) moveItem(touchDragPointer.index, dragOverIndex)
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    touchDragPointer = null
+    draggingIndex = -1
+    dragOverIndex = -1
+  }
 </script>
 
 {#if editing}
@@ -92,10 +142,17 @@
     {#each editing.items as item, i (item.id)}
       <div
         class="exercise"
+        class:plan-exercise={true}
         class:dragging={draggingIndex === i}
         class:drag-over={dragOverIndex === i && draggingIndex !== i}
+        data-plan-index={i}
         role="listitem"
         draggable="true"
+        on:pointerdown={(event) => startTouchDrag(event, i)}
+        on:pointermove={moveTouchDrag}
+        on:pointerup={endTouchDrag}
+        on:pointercancel={endTouchDrag}
+        on:contextmenu|preventDefault
         on:dragstart={(event) => {
           draggingIndex = i
           dragOverIndex = -1
@@ -113,11 +170,7 @@
         on:drop={(event) => {
           event.preventDefault()
           const from = Number(event.dataTransfer.getData('text/plain'))
-          if (from !== i && from >= 0) {
-            const items = [...editing.items]
-            items.splice(i, 0, items.splice(from, 1)[0])
-            editing = { ...editing, items }
-          }
+          if (from !== i && from >= 0) moveItem(from, i)
           draggingIndex = -1
           dragOverIndex = -1
         }}
@@ -127,7 +180,7 @@
         }}
       >
         <div class="row between">
-          <b>⠿ {i + 1}. {item.name}</b>
+            <div class="row"><span class="plan-drag-handle" aria-hidden="true">⠿</span><b>{i + 1}. {item.name}</b></div>
           <button
             class="btn tiny red"
             on:click={() =>

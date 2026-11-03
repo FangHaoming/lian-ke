@@ -129,8 +129,10 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .wheel::-webkit-scrollbar{display:none}
 .wheel-option{height:64px;width:100%;display:flex;align-items:center;justify-content:center;scroll-snap-align:center;font-size:28px;line-height:1;color:#81949e;background:transparent;border:0;border-radius:14px;cursor:pointer;user-select:none;transition:color .12s,background .12s,font-size .12s}
 .wheel-option.active{color:#eff8f8;background:#151e26;box-shadow:0 0 0 1px #49606c;font-size:40px;font-weight:800}
-.wheel-wrap:after{content:'';pointer-events:none;position:absolute;left:0;right:0;top:calc(100% - 128px);height:64px;transform:translateY(-50%);border-top:1px solid #455a66;border-bottom:1px solid #455a66;background:#ffffff09;border-radius:14px;z-index:1}
+.wheel-wrap:after{display:none}
 .time-dialog .row{margin-top:2px}.time-dialog .row .btn{min-width:130px;min-height:64px;font-size:20px}
 @media(max-width:480px){.time-dialog{padding:20px}.time-dialog h3{font-size:24px}.time-pickers{gap:12px}.wheel{height:230px;padding:83px 0}.wheel-option{font-size:25px}.wheel-option.active{font-size:33px}.time-dialog .row .btn{min-width:100px;min-height:54px;font-size:17px}}
 
 .brand-lockup{display:flex;align-items:center;gap:10px}.brand-subtitle{margin-top:6px}.brand-icon-shell{width:42px;height:42px;display:grid;place-items:center;background:#17232c;border:1px solid #3b5361;border-radius:12px;box-shadow:0 0 0 3px #0f171e}.brand-icon{width:34px;height:34px;display:block;object-fit:contain;border-radius:9px}
+.plan-drag-handle{border:0;background:transparent;color:#b7f36a;font-size:22px;line-height:1;padding:8px 4px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}.plan-drag-handle:active{cursor:grabbing}
+.plan-exercise{touch-action:none;user-select:none;-webkit-user-select:none}.plan-exercise input,.plan-exercise select,.plan-exercise button,.plan-exercise textarea{user-select:text;-webkit-user-select:text}
