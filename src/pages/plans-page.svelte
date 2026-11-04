@@ -132,6 +132,10 @@
     draggingIndex = -1
     dragOverIndex = -1
   }
+  function preventPlanTextSelection(event) {
+    if (event.target.closest('input, textarea')) return
+    event.preventDefault()
+  }
 </script>
 
 {#if editing}
@@ -159,6 +163,7 @@
         on:pointerup={endTouchDrag}
         on:pointercancel={endTouchDrag}
         on:contextmenu|preventDefault
+        on:selectstart={preventPlanTextSelection}
         on:dragstart={(event) => {
           draggingIndex = i
           dragOverIndex = -1
