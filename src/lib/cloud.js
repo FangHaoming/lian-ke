@@ -501,52 +501,6 @@ async function uploadCloudData(api, data) {
   }
 }
 
-export async function cleanupIncompleteCloudRecords() {
-  const api = await client()
-  const user = `user_id=eq.${encodeURIComponent(api.userId)}`
-  const records = await readRows(api, 'training_records', `${user}&select=id`)
-  if (!records.length) return { sets: 0, records: 0 }
-  const sets = []
-  for (let index = 0; index < records.length; index += 100) {
-    sets.push(
-      ...(await readRows(
-        api,
-        'training_sets',
-        `${inQuery(
-          'record_id',
-          records.slice(index, index + 100).map((row) => row.id),
-        )}&select=id,record_id,completed`,
-      )),
-    )
-  }
-  const unfinished = sets.filter((row) => row.completed !== true)
-  for (let index = 0; index < unfinished.length; index += 100) {
-    await deleteRows(
-      api,
-      'training_sets',
-      inQuery(
-        'id',
-        unfinished.slice(index, index + 100).map((row) => row.id),
-      ),
-    )
-  }
-  const completedRecordIds = new Set(
-    sets.filter((row) => row.completed === true).map((row) => row.record_id),
-  )
-  const emptyRecords = records.filter((row) => !completedRecordIds.has(row.id))
-  for (let index = 0; index < emptyRecords.length; index += 100) {
-    await deleteRows(
-      api,
-      'training_records',
-      inQuery(
-        'id',
-        emptyRecords.slice(index, index + 100).map((row) => row.id),
-      ),
-    )
-  }
-  return { sets: unfinished.length, records: emptyRecords.length }
-}
-
 export async function syncData(direction, localData) {
   const api = await client()
   if (direction === 'upload') {

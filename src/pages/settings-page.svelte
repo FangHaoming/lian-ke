@@ -4,14 +4,7 @@
   import { playSound } from '../lib/sound.js'
   import Select from '../components/select.svelte'
   import { soundOptions } from '../lib/select-options.js'
-  import {
-    cloudConfig,
-    saveCloudConfig,
-    authenticate,
-    signOut,
-    syncData,
-    cleanupIncompleteCloudRecords,
-  } from '../lib/cloud.js'
+  import { cloudConfig, saveCloudConfig, authenticate, signOut, syncData } from '../lib/cloud.js'
   export let data
   let config = cloudConfig()
   let email = '',
@@ -71,21 +64,6 @@
           : `远端同步到本地成功：${result.plans.length} 个计划、${result.records.length} 条记录、${result.weights.length} 条体重记录、${result.exerciseNames.length} 个动作、提示音已同步`
     } catch (error) {
       status = `同步失败：${error.message}`
-    } finally {
-      busy = false
-    }
-  }
-  async function cleanupCloud() {
-    if (busy) return
-    busy = true
-    status = '正在清理云端未完成组……'
-    try {
-      const result = await cleanupIncompleteCloudRecords()
-      data.records = completedRecords(data.records)
-      data = data
-      status = `清理成功：删除 ${result.sets} 个未完成组、${result.records} 条空训练记录`
-    } catch (error) {
-      status = `清理失败：${error.message}`
     } finally {
       busy = false
     }
@@ -206,9 +184,6 @@
       </span>
     </button>
   </div>
-  <button type="button" class="btn ghost" disabled={busy} on:click={cleanupCloud}>
-    清理云端未完成组
-  </button>
   {#if status}<p
       class:success={status.includes('成功') || status === '已退出'}
       class:error={status.includes('失败')}
