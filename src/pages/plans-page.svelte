@@ -87,6 +87,7 @@
   function startTouchDrag(event, index) {
     if (event.pointerType !== 'touch') return
     if (event.target.closest('input, select, textarea, button, a')) return
+    event.currentTarget.draggable = false
     touchDragPointer = {
       id: event.pointerId,
       index,
@@ -128,6 +129,7 @@
     if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
+    event.currentTarget.draggable = true
     touchDragPointer = null
     draggingIndex = -1
     dragOverIndex = -1
