@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte'
   import { mk, uid, fmt, num } from '../lib/workout-model.js'
   import { flatten } from '../lib/data.js'
-  import { playSound } from '../lib/sound.js'
+  import { playSound, prepareSound } from '../lib/sound.js'
   import Select from '../components/select.svelte'
   import TimePicker from '../components/time-picker.svelte'
   import { trainingModes } from '../lib/select-options.js'
@@ -12,6 +12,7 @@
   let selected = data.selected || data.plans[0]?.id || ''
   export let session
   export let review
+  export let screenAwake = false
   let ticker
   $: plan = data.plans.find((item) => item.id === selected) || data.plans[0]
   $: current = session?.queue[session.index]
@@ -19,14 +20,17 @@
   $: canStartQuick = quickItems.length > 0 && quickItems.every((item) => item.name.trim())
   onMount(() => {
     if (session) {
-      session.last = performance.now()
       ticker = setInterval(tick, 150)
+      tick()
     }
+    document.addEventListener('visibilitychange', tick)
+    return () => document.removeEventListener('visibilitychange', tick)
   })
   onDestroy(() => clearInterval(ticker))
   function start(items, planName, planId) {
     const queue = flatten({ items: structuredClone(items) })
     if (!queue.length) return
+    prepareSound()
     session = {
       planName,
       planId,
@@ -36,7 +40,7 @@
       paused: false,
       remaining: 3,
       elapsed: 0,
-      last: performance.now(),
+      last: Date.now(),
       results: [],
       startedAt: new Date().toISOString(),
     }
@@ -45,27 +49,33 @@
   }
   function tick() {
     if (!session || session.paused) return
-    const now = performance.now(),
-      delta = Math.max(0, (now - session.last) / 1000)
+    const now = Date.now()
+    let delta = Math.max(0, (now - session.last) / 1000)
     session.last = now
-    if (session.phase === 'work') session.elapsed += delta
-    if (session.phase !== 'work' || current.mode === 'time') {
-      session.remaining -= delta
-      if (session.remaining <= 0) {
-        if (session.phase === 'prep') beginWork()
-        else if (session.phase === 'rest') {
-          playSound(data.sounds.rest)
-          advance()
-        } else finishSet()
+    while (session && delta > 0) {
+      if (session.phase === 'work' && session.queue[session.index].mode === 'reps') {
+        session.elapsed += delta
+        break
       }
+      const step = Math.min(delta, Math.max(0, session.remaining))
+      if (session.phase === 'work') session.elapsed += step
+      session.remaining -= step
+      delta -= step
+      if (session.remaining > 0) break
+      if (session.phase === 'prep') beginWork()
+      else if (session.phase === 'rest') {
+        playSound(data.sounds.rest)
+        advance()
+      } else finishSet()
     }
-    session = session
+    if (session) session = session
   }
   function beginWork() {
     session.phase = 'work'
-    session.remaining = current.mode === 'time' ? num(current.duration, 1, 7200) : 0
+    const item = session.queue[session.index]
+    session.remaining = item.mode === 'time' ? num(item.duration, 1, 7200) : 0
     session.elapsed = 0
-    session.last = performance.now()
+    session.last = Date.now()
     session = session
   }
   function advance() {
@@ -73,11 +83,11 @@
     session.phase = 'prep'
     session.remaining = 3
     session.elapsed = 0
-    session.last = performance.now()
+    session.last = Date.now()
     session = session
   }
   function finishSet() {
-    const item = current
+    const item = session.queue[session.index]
     session.results.push({
       name: item.name,
       exerciseId: item.id,
@@ -102,7 +112,7 @@
     session.phase = 'rest'
     session.remaining = num(item.rest, 0, 3600)
     session.elapsed = 0
-    session.last = performance.now()
+    session.last = Date.now()
     if (!session.remaining) advance()
     session = session
   }
@@ -212,6 +222,9 @@
             ? '正计时 · 手动结束本组'
             : '倒计时'}
       </div>
+      {#if !session.paused && !screenAwake}<div class="muted small" style="margin-top:8px">
+          请保持屏幕亮起；息屏后浏览器可能延迟提示音。
+        </div>{/if}
       <div class="progress">
         <div style={`width:${(session.results.length / session.queue.length) * 100}%`}></div>
       </div>
@@ -221,7 +234,8 @@
         class="btn ghost"
         on:click={() => {
           session.paused = !session.paused
-          session.last = performance.now()
+          session.last = Date.now()
+          if (!session.paused) prepareSound()
           session = session
         }}
       >

@@ -1,5 +1,14 @@
 let audio
 
+export function prepareSound() {
+  try {
+    audio ??= new (window.AudioContext || window.webkitAudioContext)()
+    if (audio.state === 'suspended') void audio.resume()
+  } catch (error) {
+    console.warn(error)
+  }
+}
+
 function tone(frequency, delay, duration) {
   try {
     audio ??= new (window.AudioContext || window.webkitAudioContext)()

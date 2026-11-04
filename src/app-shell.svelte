@@ -15,6 +15,43 @@
   let session = null
   let review = null
   let quickItems = []
+  let wakeLock = null
+  let wakeLockPending = false
+  let screenAwake = false
+
+  function syncWakeLock(active) {
+    if (!active || document.visibilityState !== 'visible') {
+      if (wakeLock) {
+        const lock = wakeLock
+        wakeLock = null
+        screenAwake = false
+        void lock.release().catch(() => {})
+      }
+      return
+    }
+    if (!navigator.wakeLock || wakeLock || wakeLockPending) return
+    wakeLockPending = true
+    navigator.wakeLock
+      .request('screen')
+      .then((lock) => {
+        if (session && !session.paused && document.visibilityState === 'visible') {
+          wakeLock = lock
+          screenAwake = true
+          lock.addEventListener('release', () => {
+            if (wakeLock === lock) {
+              wakeLock = null
+              screenAwake = false
+            }
+          })
+        } else void lock.release().catch(() => {})
+      })
+      .catch(() => {
+        screenAwake = false
+      })
+      .finally(() => {
+        wakeLockPending = false
+      })
+  }
   onMount(() => {
     data = loadData()
     today = new Date().toLocaleDateString('zh-CN', {
@@ -23,8 +60,15 @@
       weekday: 'short',
     })
     ready = true
+    const onVisibilityChange = () => syncWakeLock(Boolean(session && !session.paused))
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      if (wakeLock) void wakeLock.release().catch(() => {})
+    }
   })
   $: if (ready) saveData(data)
+  $: if (ready) syncWakeLock(Boolean(session && !session.paused))
 </script>
 
 <div class="app">
@@ -50,7 +94,13 @@
     {/each}
   </nav>
   {#if ready}
-    {#if tab === 'train'}<TrainPage bind:data bind:session bind:review bind:quickItems />
+    {#if tab === 'train'}<TrainPage
+        bind:data
+        bind:session
+        bind:review
+        bind:quickItems
+        {screenAwake}
+      />
     {:else if tab === 'plans'}<PlansPage bind:data />
     {:else if tab === 'weight'}<WeightPage bind:data />
     {:else if tab === 'stats'}<StatsPage bind:data />
