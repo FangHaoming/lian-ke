@@ -81,7 +81,8 @@
 </section>
 <section class="panel">
   <h3>历史训练记录</h3>
-  {#each [...records].reverse() as record (record.id)}<div class="history-record">
+  <div class="history-record-list">
+    {#each [...records].reverse() as record (record.id)}<div class="history-record">
       <div class="setline">
         <div>
           <b>{record.planName}</b>
@@ -116,4 +117,5 @@
         {/each}
       </details>
     </div>{:else}<div class="empty">暂无训练历史</div>{/each}
+  </div>
 </section>

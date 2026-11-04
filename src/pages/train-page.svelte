@@ -92,6 +92,7 @@
       name: item.name,
       exerciseId: item.id,
       setIndex: item.setIndex,
+      sortOrder: session.index,
       mode: item.mode,
       targetReps: item.reps,
       targetSeconds: item.duration,

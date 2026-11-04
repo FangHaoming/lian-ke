@@ -231,6 +231,7 @@ async function readCloudData(api) {
     list.push({
       name: item.exercise_name,
       setIndex: item.set_index,
+      sortOrder: item.sort_order,
       mode: item.mode,
       completed: item.completed,
       targetReps: item.target_reps,
@@ -371,7 +372,7 @@ async function uploadCloudData(api, data) {
     JSON.stringify([
       item.exercise_name,
       Number(item.set_index),
-      Number(item.sort_order),
+      item.sort_order == null ? null : Number(item.sort_order),
       item.mode,
       item.completed,
       item.target_reps == null ? null : Number(item.target_reps),
@@ -395,7 +396,8 @@ async function uploadCloudData(api, data) {
     const sets = record.results.map((item, index) => ({
       exercise_name: item.name,
       set_index: Number(item.setIndex) || 0,
-      sort_order: index,
+      sort_order:
+        item.sortOrder === null ? null : Number.isInteger(item.sortOrder) ? item.sortOrder : index,
       mode: item.mode || null,
       completed: true,
       target_reps: item.targetReps ?? null,
