@@ -1,8 +1,9 @@
 create table if not exists public.exercise_names (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, name text not null, created_at timestamptz not null default now(), unique (user_id, name));
 create table if not exists public.plans (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, name text not null, created_at timestamptz not null default now(), updated_at timestamptz not null default now());
 create table if not exists public.plan_items (id uuid primary key default gen_random_uuid(), plan_id uuid not null references public.plans(id) on delete cascade, exercise_name text not null, mode text not null default 'reps', sets integer not null default 3, reps integer not null default 10, duration integer not null default 40, weight numeric not null default 0, rest integer not null default 60, sort_order integer not null default 0);
+-- plan_id is only an optional reference. Historical records and their sets must survive plan edits and deletion.
 create table if not exists public.training_records (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, plan_id uuid, plan_name text not null, started_at timestamptz, finished_at timestamptz not null default now(), notes text);
-create table if not exists public.training_sets (id uuid primary key default gen_random_uuid(), record_id uuid not null references public.training_records(id) on delete cascade, exercise_name text not null, set_index integer not null, completed boolean not null default true, target_reps integer, target_seconds integer, planned_weight numeric, actual_reps integer, actual_weight numeric, actual_seconds integer);
+create table if not exists public.training_sets (id uuid primary key default gen_random_uuid(), record_id uuid not null references public.training_records(id) on delete cascade, exercise_name text not null, set_index integer not null, sort_order integer, mode text, completed boolean not null default true, target_reps integer, target_seconds integer, planned_weight numeric, planned_rest integer, actual_reps integer, actual_weight numeric, actual_seconds integer);
 create table if not exists public.user_settings (user_id uuid primary key references auth.users(id) on delete cascade, sounds jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());
 create table if not exists public.body_weights (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, recorded_at timestamptz not null default now(), recorded_on date not null default ((now() at time zone 'Asia/Shanghai')::date), kg numeric(5,2) not null check (kg > 0 and kg < 1000), note text);
 alter table public.body_weights add column if not exists recorded_on date;
@@ -11,6 +12,9 @@ with duplicates as (select id, row_number() over (partition by user_id, recorded
 alter table public.body_weights alter column recorded_on set not null;
 create unique index if not exists body_weights_user_recorded_on_key on public.body_weights (user_id, recorded_on);
 alter table public.training_sets add column if not exists planned_weight numeric;
+alter table public.training_sets add column if not exists sort_order integer;
+alter table public.training_sets add column if not exists mode text;
+alter table public.training_sets add column if not exists planned_rest integer;
 alter table public.exercise_names enable row level security;
 alter table public.body_weights enable row level security;
 alter table public.plans enable row level security;

@@ -1,4 +1,10 @@
 export const KEY = 'lianke_v3'
+export const completedResults = (results) =>
+  (results || []).filter((item) => item.completed === true)
+export const completedRecords = (records) =>
+  (records || [])
+    .map((record) => ({ ...record, results: completedResults(record.results) }))
+    .filter((record) => record.results.length > 0)
 export const names = ['引体向上', '俯卧撑', '深蹲', '保加利亚蹲', '上推哑铃', '健腹轮']
 export const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36)
 export const escape = (s) =>
@@ -32,7 +38,8 @@ export const dailyWeights = (items = []) => {
     const key = dayKey(item.recordedAt)
     if (!key || !Number(item.kg)) return
     const current = latestByDay.get(key)
-    if (!current || new Date(item.recordedAt) >= new Date(current.recordedAt)) latestByDay.set(key, item)
+    if (!current || new Date(item.recordedAt) >= new Date(current.recordedAt))
+      latestByDay.set(key, item)
   })
   return [...latestByDay.values()].sort((a, b) => new Date(a.recordedAt) - new Date(b.recordedAt))
 }

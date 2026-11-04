@@ -1,10 +1,17 @@
 <script>
-  import { defaults } from '../lib/workout-model.js'
+  import { defaults, completedRecords } from '../lib/workout-model.js'
   import initSql from '../lib/init.sql?raw'
   import { playSound } from '../lib/sound.js'
   import Select from '../components/select.svelte'
   import { soundOptions } from '../lib/select-options.js'
-  import { cloudConfig, saveCloudConfig, authenticate, signOut, syncData } from '../lib/cloud.js'
+  import {
+    cloudConfig,
+    saveCloudConfig,
+    authenticate,
+    signOut,
+    syncData,
+    cleanupIncompleteCloudRecords,
+  } from '../lib/cloud.js'
   export let data
   let config = cloudConfig()
   let email = '',
@@ -60,10 +67,25 @@
       }
       status =
         direction === 'upload'
-          ? `本地同步到远端成功：${result.plans} 个计划、${result.records} 条记录、${result.weights} 条体重记录、${result.names} 个动作、提示音已同步`
+          ? `本地同步到远端成功：${result.plans} 个计划、训练记录新增/更新 ${result.records} 条；体重新增/更新 ${result.weights} 条、删除 ${result.deletedWeights} 条；${result.names} 个动作、提示音已同步`
           : `远端同步到本地成功：${result.plans.length} 个计划、${result.records.length} 条记录、${result.weights.length} 条体重记录、${result.exerciseNames.length} 个动作、提示音已同步`
     } catch (error) {
       status = `同步失败：${error.message}`
+    } finally {
+      busy = false
+    }
+  }
+  async function cleanupCloud() {
+    if (busy) return
+    busy = true
+    status = '正在清理云端未完成组……'
+    try {
+      const result = await cleanupIncompleteCloudRecords()
+      data.records = completedRecords(data.records)
+      data = data
+      status = `清理成功：删除 ${result.sets} 个未完成组、${result.records} 条空训练记录`
+    } catch (error) {
+      status = `清理失败：${error.message}`
     } finally {
       busy = false
     }
@@ -86,7 +108,7 @@
       if (!Array.isArray(parsed.plans) || !Array.isArray(parsed.records))
         throw Error('备份文件结构不正确')
       if (confirm('导入将覆盖当前全部计划和训练记录，是否继续？')) {
-        data = { ...defaults(), ...parsed }
+        data = { ...defaults(), ...parsed, records: completedRecords(parsed.records) }
         status = '导入成功'
       }
     } catch (error) {
@@ -157,7 +179,9 @@
   <div class="cloud-sync-heading">
     <div>
       <h3>完整数据同步</h3>
-      <p class="muted small">提示音、动作、训练计划和训练记录都会同步。</p>
+      <p class="muted small">
+        提示音、动作、训练计划、训练记录和体重都会同步；上传时仅写入变化的记录。
+      </p>
     </div>
     {#if busy}<span class="cloud-syncing">同步中</span>{/if}
   </div>
@@ -182,6 +206,9 @@
       </span>
     </button>
   </div>
+  <button type="button" class="btn ghost" disabled={busy} on:click={cleanupCloud}>
+    清理云端未完成组
+  </button>
   {#if status}<p
       class:success={status.includes('成功') || status === '已退出'}
       class:error={status.includes('失败')}
@@ -193,7 +220,9 @@
 </section>
 <section class="panel">
   <h3>新手数据库向导</h3>
-  <p class="muted small">检测数据表；若缺少表，可复制初始化 SQL 到 Supabase SQL Editor 执行。</p>
+  <p class="muted small">
+    首次使用或升级已有数据库时，复制初始化 SQL 到 Supabase SQL Editor 执行；重复执行会补齐新字段。
+  </p>
   <div class="row">
     <button class="btn" on:click={checkDatabase}>检测数据库</button>
     <button

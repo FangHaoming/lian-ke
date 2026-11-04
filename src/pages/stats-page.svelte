@@ -81,24 +81,39 @@
 </section>
 <section class="panel">
   <h3>历史训练记录</h3>
-  {#each [...records].reverse() as record (record.id)}<div class="setline">
-      <div>
-        <b>{record.planName}</b>
-        <div class="muted small">
-          {date(record.finishedAt)} · {record.results.filter((item) => item.completed).length} 组
+  {#each [...records].reverse() as record (record.id)}<div class="history-record">
+      <div class="setline">
+        <div>
+          <b>{record.planName}</b>
+          <div class="muted small">
+            {date(record.finishedAt)} · {record.results.filter((item) => item.completed).length} 组
+          </div>
+          <div class="muted small">{record.notes || ''}</div>
         </div>
-        <div class="muted small">{record.notes || ''}</div>
       </div>
-      <button
-        class="btn tiny red"
-        on:click={() => {
-          if (confirm('删除这条训练记录？')) {
-            data.records = data.records.filter((item) => item.id !== record.id)
-            data = data
-          }
-        }}
-      >
-        删除
-      </button>
+      <details class="history-sets">
+        <summary>查看当时的动作组（{record.results.length} 组）</summary>
+        {#each record.results as result}
+          <div class="history-set">
+            <b>{result.name} · 第 {result.setIndex} 组</b>
+            <span class="muted small">{result.completed ? '已完成' : '未完成'}</span>
+            <div class="muted small">
+              目标：{result.mode === 'time'
+                ? `${result.targetSeconds ?? 0} 秒`
+                : result.mode === 'reps'
+                  ? `${result.targetReps ?? 0} 次`
+                  : `${result.targetReps ?? 0} 次 / ${result.targetSeconds ?? 0} 秒`} · {result.plannedWeight ??
+                0} kg
+              {#if result.plannedRest != null}
+                · 休息 {result.plannedRest} 秒{/if}
+            </div>
+            <div class="muted small">
+              实际：{result.actualReps ?? 0} 次 · {result.actualWeight ?? 0} kg · {fmt(
+                num(result.actualSeconds),
+              )}
+            </div>
+          </div>
+        {/each}
+      </details>
     </div>{:else}<div class="empty">暂无训练历史</div>{/each}
 </section>

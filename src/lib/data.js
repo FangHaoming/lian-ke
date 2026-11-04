@@ -1,4 +1,4 @@
-import { KEY, defaults, names, dailyWeights } from './workout-model.js'
+import { KEY, defaults, names, dailyWeights, completedRecords } from './workout-model.js'
 
 export function loadData() {
   let data
@@ -6,6 +6,7 @@ export function loadData() {
     data = JSON.parse(localStorage.getItem(KEY) || localStorage.getItem('lianke_v4'))
   } catch {}
   if (!data || !Array.isArray(data.plans) || !Array.isArray(data.records)) data = defaults()
+  data.records = completedRecords(data.records)
   data.weights = dailyWeights(data.weights || [])
   data.sounds = { ...defaults().sounds, ...data.sounds }
   data.exerciseNames ??= [

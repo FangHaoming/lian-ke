@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte'
-  import { mk, uid, fmt, num } from '../lib/workout-model.js'
+  import { mk, uid, fmt, num, completedResults } from '../lib/workout-model.js'
   import { flatten } from '../lib/data.js'
   import { playSound, prepareSound } from '../lib/sound.js'
   import Select from '../components/select.svelte'
@@ -96,6 +96,7 @@
       targetReps: item.reps,
       targetSeconds: item.duration,
       plannedWeight: item.weight,
+      plannedRest: item.rest,
       actualReps: item.mode === 'reps' ? item.reps : 0,
       actualWeight: item.weight,
       actualSeconds: Math.round(session.elapsed),
@@ -122,24 +123,22 @@
     else finishSet()
   }
   function saveReview() {
-    data.records = [
-      ...data.records,
-      {
-        id: uid(),
-        planId: review.planId,
-        planName: review.planName,
-        startedAt: review.startedAt,
-        finishedAt: review.finishedAt,
-        notes: review.notes,
-        results: review.results,
-      },
-    ]
-    data.exerciseNames = [
-      ...new Set([
-        ...availableNames,
-        ...review.results.filter((item) => item.completed).map((item) => item.name),
-      ]),
-    ]
+    const results = completedResults(review.results)
+    if (results.length) {
+      data.records = [
+        ...data.records,
+        {
+          id: uid(),
+          planId: review.planId,
+          planName: review.planName,
+          startedAt: review.startedAt,
+          finishedAt: review.finishedAt,
+          notes: review.notes,
+          results: structuredClone(results),
+        },
+      ]
+    }
+    data.exerciseNames = [...new Set([...availableNames, ...results.map((item) => item.name)])]
     data = data
     review = null
   }
@@ -156,7 +155,7 @@
   <section class="panel">
     <h1>🎉 训练完成</h1>
     <p class="muted">{review.planName} · {review.results.length} 组。请核对实际完成次数和负重。</p>
-    <div class="notice">未完成的组可取消勾选，统计只计算完成的组。</div>
+    <div class="notice">未完成的组可取消勾选；保存和同步只保留完成的组。</div>
     {#each review.results as result}<div class="review-exercise">
         <div class="review-exercise-header">
           <div>
@@ -191,7 +190,9 @@
       <textarea rows="3" bind:value={review.notes}></textarea>
     </label>
     <button class="btn primary" style="margin-top:12px" on:click={saveReview}>
-      保存本次训练记录
+      {review.results.some((item) => item.completed)
+        ? '保存本次训练记录'
+        : '结束本次训练（无完成组）'}
     </button>
   </section>
 {:else if session}
