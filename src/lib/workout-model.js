@@ -21,6 +21,21 @@ export const date = (d) => {
     ? '时间未知'
     : `${t.getFullYear()}/${String(t.getMonth() + 1).padStart(2, '0')}/${String(t.getDate()).padStart(2, '0')} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}:${String(t.getSeconds()).padStart(2, '0')}`
 }
+export const dayKey = (value) => {
+  const t = new Date(value)
+  if (Number.isNaN(t.getTime())) return ''
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
+}
+export const dailyWeights = (items = []) => {
+  const latestByDay = new Map()
+  items.forEach((item) => {
+    const key = dayKey(item.recordedAt)
+    if (!key || !Number(item.kg)) return
+    const current = latestByDay.get(key)
+    if (!current || new Date(item.recordedAt) >= new Date(current.recordedAt)) latestByDay.set(key, item)
+  })
+  return [...latestByDay.values()].sort((a, b) => new Date(a.recordedAt) - new Date(b.recordedAt))
+}
 export const mk = (
   name,
   sets = 3,
@@ -33,6 +48,7 @@ export const mk = (
 export const defaults = () => ({
   plans: [],
   records: [],
+  weights: [],
   selected: null,
   sounds: { set: 'triple', rest: 'double', finish: 'victory' },
   exerciseNames: [],

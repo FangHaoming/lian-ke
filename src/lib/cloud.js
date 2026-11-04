@@ -1,4 +1,4 @@
-import { defaults } from './workout-model.js'
+import { defaults, dailyWeights, dayKey } from './workout-model.js'
 
 const CONFIG_KEY = 'lianke_supabase_config'
 const SESSION_KEY = 'lianke_supabase_session'
@@ -161,13 +161,18 @@ function inQuery(field, ids) {
 
 async function readCloudData(api) {
   const user = `user_id=eq.${encodeURIComponent(api.userId)}`
-  const [names, plans, records, settings] = await Promise.all([
+  const [names, plans, records, weights, settings] = await Promise.all([
     readRows(api, 'exercise_names', `${user}&select=name&order=name`),
     readRows(api, 'plans', `${user}&select=id,name,updated_at&order=created_at,id`),
     readRows(
       api,
       'training_records',
       `${user}&select=id,plan_id,plan_name,started_at,finished_at,notes&order=finished_at,id`,
+    ),
+    readRows(
+      api,
+      'body_weights',
+      `${user}&select=id,recorded_at,recorded_on,kg,note&order=recorded_at,id`,
     ),
     readRows(api, 'user_settings', `${user}&select=sounds`),
   ])
@@ -240,6 +245,12 @@ async function readCloudData(api) {
       notes: record.notes || '',
       results: setsByRecord.get(record.id) || [],
     })),
+    weights: dailyWeights(weights.map((item) => ({
+      id: item.id,
+      recordedAt: item.recorded_at,
+      kg: Number(item.kg),
+      note: item.note || '',
+    }))),
     sounds: { ...defaults().sounds, ...(settings[0]?.sounds || {}) },
   }
 }
@@ -248,7 +259,9 @@ async function uploadCloudData(api, data) {
   const user = `user_id=eq.${encodeURIComponent(api.userId)}`
   const oldPlans = await readRows(api, 'plans', `${user}&select=id`)
   const oldRecords = await readRows(api, 'training_records', `${user}&select=id`)
+  const oldWeights = await readRows(api, 'body_weights', `${user}&select=id`)
   const oldNames = await readRows(api, 'exercise_names', `${user}&select=id,name`)
+  const weights = dailyWeights(data.weights || [])
 
   const planIds = new Map()
   for (const plan of data.plans || []) {
@@ -301,6 +314,18 @@ async function uploadCloudData(api, data) {
       })),
     )
   }
+  const syncedWeights = await insertRows(
+    api,
+    'body_weights',
+    weights.map((item) => ({
+      user_id: api.userId,
+      recorded_at: item.recordedAt || new Date().toISOString(),
+      recorded_on: dayKey(item.recordedAt || new Date().toISOString()),
+      kg: Number(item.kg),
+      note: item.note || null,
+    })),
+    'on_conflict=user_id,recorded_on',
+  )
   const names = [...new Set((data.exerciseNames || []).filter(Boolean))]
   const sounds = { ...defaults().sounds, ...(data.sounds || {}) }
   await insertRows(
@@ -321,6 +346,9 @@ async function uploadCloudData(api, data) {
         oldRecords.map((row) => row.id),
       ),
     )
+  const syncedWeightIds = new Set(syncedWeights.map((row) => row.id))
+  const staleWeightIds = oldWeights.map((row) => row.id).filter((id) => !syncedWeightIds.has(id))
+  if (staleWeightIds.length) await deleteRows(api, 'body_weights', inQuery('id', staleWeightIds))
   if (oldRecords.length)
     await deleteRows(
       api,
@@ -361,6 +389,7 @@ async function uploadCloudData(api, data) {
   return {
     plans: data.plans?.length || 0,
     records: data.records?.length || 0,
+    weights: weights.length,
     names: names.length,
     sounds: Object.keys(sounds).length,
   }

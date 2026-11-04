@@ -21,6 +21,7 @@
       'training_records',
       'training_sets',
       'user_settings',
+      'body_weights',
     ]
     const results = await Promise.all(
       tables.map(async (table) => {
@@ -59,8 +60,8 @@
       }
       status =
         direction === 'upload'
-          ? `本地同步到远端成功：${result.plans} 个计划、${result.records} 条记录、${result.names} 个动作、提示音已同步`
-          : `远端同步到本地成功：${result.plans.length} 个计划、${result.records.length} 条记录、${result.exerciseNames.length} 个动作、提示音已同步`
+          ? `本地同步到远端成功：${result.plans} 个计划、${result.records} 条记录、${result.weights} 条体重记录、${result.names} 个动作、提示音已同步`
+          : `远端同步到本地成功：${result.plans.length} 个计划、${result.records.length} 条记录、${result.weights.length} 条体重记录、${result.exerciseNames.length} 个动作、提示音已同步`
     } catch (error) {
       status = `同步失败：${error.message}`
     } finally {

@@ -6,6 +6,7 @@
   import PlansPage from './pages/plans-page.svelte'
   import StatsPage from './pages/stats-page.svelte'
   import SettingsPage from './pages/settings-page.svelte'
+  import WeightPage from './pages/weight-page.svelte'
 
   let data = defaults()
   let tab = 'train'
@@ -44,13 +45,14 @@
     <span class="pill">{today}</span>
   </header>
   <nav class="tabs" aria-label="主导航">
-    {#each [['train', '◉ 训练'], ['plans', '▦ 训练计划'], ['stats', '▥ 数据分析'], ['settings', '⚙ 设置/备份']] as [id, label]}
+    {#each [['train', '◉ 训练'], ['plans', '▦ 训练计划'], ['weight', '◒ 体重'], ['stats', '▥ 数据分析'], ['settings', '⚙ 设置/备份']] as [id, label]}
       <button class:active={tab === id} class="tab" on:click={() => (tab = id)}>{label}</button>
     {/each}
   </nav>
   {#if ready}
     {#if tab === 'train'}<TrainPage bind:data bind:session bind:review bind:quickItems />
     {:else if tab === 'plans'}<PlansPage bind:data />
+    {:else if tab === 'weight'}<WeightPage bind:data />
     {:else if tab === 'stats'}<StatsPage bind:data />
     {:else}<SettingsPage bind:data />{/if}
   {/if}
