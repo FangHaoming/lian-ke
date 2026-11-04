@@ -26,10 +26,18 @@
     const handleSelectionChange = () => {
       if (touchDragPointer) clearPlanSelection()
     }
+    const handleContextMenu = (event) => {
+      if (editing && event.target.closest?.('.plan-exercise')) {
+        event.preventDefault()
+        clearPlanSelection()
+      }
+    }
     document.addEventListener('selectionchange', handleSelectionChange)
+    document.addEventListener('contextmenu', handleContextMenu)
     return () => {
       window.removeEventListener('popstate', handlePopState)
       document.removeEventListener('selectionchange', handleSelectionChange)
+      document.removeEventListener('contextmenu', handleContextMenu)
     }
   })
 
