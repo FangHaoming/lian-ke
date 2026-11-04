@@ -99,6 +99,11 @@
     items.splice(to, 0, items.splice(from, 1)[0])
     editing = { ...editing, items }
   }
+  function setItemOrder(id, event) {
+    const from = editing.items.findIndex((item) => item.id === id)
+    const to = Math.min(editing.items.length - 1, Math.max(0, Number(event.currentTarget.value) - 1))
+    if (Number.isFinite(to)) moveItem(from, to)
+  }
   function startTouchDrag(event, index) {
     if (event.pointerType !== 'touch') return
     if (event.target.closest('input, select, textarea, button, a')) return
@@ -189,12 +194,13 @@
         data-plan-index={i}
         role="listitem"
         draggable="true"
-        on:pointerdown={(event) => startTouchDrag(event, i)}
-        on:pointermove={moveTouchDrag}
-        on:pointerup={endTouchDrag}
-        on:pointercancel={endTouchDrag}
+        on:pointerdown={(event) => {
+          if (event.pointerType === 'touch') event.currentTarget.draggable = false
+        }}
+        on:pointerup={(event) => {
+          if (event.pointerType === 'touch') event.currentTarget.draggable = true
+        }}
         on:contextmenu|preventDefault
-        on:selectstart={preventPlanTextSelection}
         on:dragstart={(event) => {
           draggingIndex = i
           dragOverIndex = -1
@@ -222,7 +228,7 @@
         }}
       >
         <div class="row between">
-            <div class="row"><span class="plan-drag-handle" aria-hidden="true">⠿</span><b>{i + 1}. {item.name}</b></div>
+            <div class="row plan-title"><span class="plan-drag-handle" aria-hidden="true">⠿</span><input class="plan-order-input" type="number" min="1" max={editing.items.length} value={i + 1} aria-label="动作序号" on:change={(event) => setItemOrder(item.id, event)} /><b>{item.name}</b></div>
           <button
             class="btn tiny red"
             on:click={() =>
