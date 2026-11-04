@@ -87,8 +87,6 @@
   function startTouchDrag(event, index) {
     if (event.pointerType !== 'touch') return
     if (event.target.closest('input, select, textarea, button, a')) return
-    event.preventDefault()
-    event.currentTarget.setPointerCapture(event.pointerId)
     touchDragPointer = {
       id: event.pointerId,
       index,
@@ -97,11 +95,13 @@
       lastY: event.clientY,
       active: false,
       cancelled: false,
+      target: event.currentTarget,
     }
     clearTimeout(touchDragTimer)
     touchDragTimer = setTimeout(() => {
       if (!touchDragPointer || touchDragPointer.cancelled) return
       touchDragPointer.active = true
+      touchDragPointer.target.setPointerCapture(touchDragPointer.id)
       draggingIndex = touchDragPointer.index
       if (navigator.vibrate) navigator.vibrate(25)
     }, 350)
@@ -110,17 +110,11 @@
     if (!touchDragPointer || event.pointerId !== touchDragPointer.id) return
     const dx = event.clientX - touchDragPointer.x
     const dy = event.clientY - touchDragPointer.y
-    const scrollDelta = event.clientY - touchDragPointer.lastY
-    touchDragPointer.lastY = event.clientY
     if (!touchDragPointer.active && !touchDragPointer.cancelled && Math.hypot(dx, dy) > 10) {
       clearTimeout(touchDragTimer)
       touchDragPointer.cancelled = true
     }
-    if (touchDragPointer.cancelled) {
-      event.preventDefault()
-      window.scrollBy(0, -scrollDelta)
-      return
-    }
+    if (touchDragPointer.cancelled) return
     if (!touchDragPointer.active) return
     event.preventDefault()
     const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('.exercise[data-plan-index]')
