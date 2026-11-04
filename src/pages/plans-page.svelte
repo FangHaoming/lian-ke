@@ -23,7 +23,14 @@
       }
     }
     window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    const handleSelectionChange = () => {
+      if (touchDragPointer) clearPlanSelection()
+    }
+    document.addEventListener('selectionchange', handleSelectionChange)
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+      document.removeEventListener('selectionchange', handleSelectionChange)
+    }
   })
 
   function enterEditor(value) {
@@ -88,6 +95,7 @@
     if (event.pointerType !== 'touch') return
     if (event.target.closest('input, select, textarea, button, a')) return
     event.currentTarget.draggable = false
+    clearPlanSelection()
     touchDragPointer = {
       id: event.pointerId,
       index,
@@ -103,12 +111,14 @@
       if (!touchDragPointer || touchDragPointer.cancelled) return
       touchDragPointer.active = true
       touchDragPointer.target.setPointerCapture(touchDragPointer.id)
+      clearPlanSelection()
       draggingIndex = touchDragPointer.index
       if (navigator.vibrate) navigator.vibrate(25)
     }, 350)
   }
   function moveTouchDrag(event) {
     if (!touchDragPointer || event.pointerId !== touchDragPointer.id) return
+    clearPlanSelection()
     const dx = event.clientX - touchDragPointer.x
     const dy = event.clientY - touchDragPointer.y
     if (!touchDragPointer.active && !touchDragPointer.cancelled && Math.hypot(dx, dy) > 10) {
@@ -137,6 +147,10 @@
   function preventPlanTextSelection(event) {
     if (event.target.closest('input, textarea')) return
     event.preventDefault()
+  }
+  function clearPlanSelection() {
+    const selection = window.getSelection?.()
+    if (selection?.rangeCount) selection.removeAllRanges()
   }
 </script>
 
