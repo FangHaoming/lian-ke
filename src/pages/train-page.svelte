@@ -14,6 +14,11 @@
   export let review
   export let screenAwake = false
   let ticker
+  let focusMode = false
+  let nativeFullscreenActive = false
+  let holding = false
+  let unlockTimer
+  let unlockButton
   $: plan = data.plans.find((item) => item.id === selected) || data.plans[0]
   $: current = session?.queue[session.index]
   $: availableNames = data.exerciseNames || []
@@ -24,9 +29,56 @@
       tick()
     }
     document.addEventListener('visibilitychange', tick)
-    return () => document.removeEventListener('visibilitychange', tick)
+    const onFullscreenChange = () => {
+      if (focusMode && nativeFullscreenActive && !document.fullscreenElement) exitFocus()
+    }
+    document.addEventListener('fullscreenchange', onFullscreenChange)
+    return () => {
+      document.removeEventListener('visibilitychange', tick)
+      document.removeEventListener('fullscreenchange', onFullscreenChange)
+    }
   })
-  onDestroy(() => clearInterval(ticker))
+  onDestroy(() => {
+    clearInterval(ticker)
+    cancelUnlock()
+    if (focusMode && document.fullscreenElement === document.documentElement)
+      void document.exitFullscreen().catch(() => {})
+  })
+  function enterFocus() {
+    focusMode = true
+    // The request must run in the button's user gesture. The fixed view is
+    // still available on browsers that do not support the Fullscreen API.
+    if (!document.fullscreenElement) {
+      const request = document.documentElement.requestFullscreen?.()
+      if (request) void request.then(() => { nativeFullscreenActive = true }).catch(() => {})
+    }
+  }
+  function exitFocus() {
+    const wasFocused = focusMode
+    cancelUnlock()
+    focusMode = false
+    nativeFullscreenActive = false
+    if (wasFocused && document.fullscreenElement === document.documentElement)
+      void document.exitFullscreen().catch(() => {})
+  }
+  function beginUnlock() {
+    if (holding) return
+    holding = true
+    unlockTimer = setTimeout(() => {
+      holding = false
+      exitFocus()
+    }, 1200)
+  }
+  function cancelUnlock() {
+    clearTimeout(unlockTimer)
+    holding = false
+  }
+  function handleLockedKeydown(event) {
+    if (focusMode && event.key === 'Tab') {
+      event.preventDefault()
+      unlockButton?.focus()
+    }
+  }
   function start(items, planName, planId) {
     const queue = flatten({ items: structuredClone(items) })
     if (!queue.length) return
@@ -106,6 +158,7 @@
     if (session.index === session.queue.length - 1) {
       playSound(data.sounds.finish)
       review = { ...session, finishedAt: new Date().toISOString(), notes: '' }
+      exitFocus()
       session = null
       clearInterval(ticker)
       return
@@ -152,6 +205,8 @@
   }
 </script>
 
+<svelte:window on:keydown={handleLockedKeydown} />
+
 {#if review}
   <section class="panel">
     <h1>🎉 训练完成</h1>
@@ -197,6 +252,38 @@
     </button>
   </section>
 {:else if session}
+  <div class:training-focus={focusMode} class="training-session">
+  {#if focusMode}
+    <div class="training-lock-screen" role="dialog" aria-modal="true" aria-label="训练防误触锁屏">
+      <div class="row between training-lock-top">
+        <span class="pill">防误触已开启</span>
+        <span class="muted small">第 {session.index + 1} / {session.queue.length} 组</span>
+      </div>
+      <div class="training-lock-center">
+        <div class="muted">{session.phase === 'prep' ? '准备开始' : session.phase === 'rest' ? '组间休息' : '正在训练'}</div>
+        <h1>{current.name} · 第 {current.setIndex} 组</h1>
+        <div class="clock" class:orange={session.phase !== 'work'} class:accent={session.phase === 'work'}>
+          {fmt(session.phase === 'work' && current.mode === 'reps' ? session.elapsed : Math.ceil(session.remaining))}
+        </div>
+        <div class="muted">{session.paused ? '已暂停' : session.phase === 'work' && current.mode === 'reps' ? '正计时' : '倒计时'}</div>
+        <div class="progress"><div style={`width:${(session.results.length / session.queue.length) * 100}%`}></div></div>
+        <div class="muted small">已完成 {session.results.length} / {session.queue.length} 组</div>
+      </div>
+      <button
+        bind:this={unlockButton}
+        class="unlock-hold"
+        class:is-holding={holding}
+        on:pointerdown={beginUnlock}
+        on:pointerup={cancelUnlock}
+        on:pointercancel={cancelUnlock}
+        on:pointerleave={cancelUnlock}
+        on:keydown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); beginUnlock() } }}
+        on:keyup={(event) => { if (event.key === 'Enter' || event.key === ' ') cancelUnlock() }}
+        on:blur={cancelUnlock}
+        on:contextmenu={(event) => event.preventDefault()}
+      >长按退出防误触</button>
+    </div>
+  {:else}
   <section class="panel">
     <div class="row between">
       <span class="pill">
@@ -232,6 +319,7 @@
       </div>
     </div>
     <div class="row" style="justify-content:center">
+      <button class="btn ghost" on:click={enterFocus}>开启防误触</button>
       <button
         class="btn ghost"
         on:click={() => {
@@ -255,6 +343,7 @@
         on:click={() => {
           if (confirm('放弃本次训练？')) {
             clearInterval(ticker)
+            exitFocus()
             session = null
           }
         }}
@@ -273,6 +362,8 @@
         <span class="muted small">{item.weight} kg</span>
       </div>{/each}
   </section>
+  {/if}
+  </div>
 {:else}
   <section class="panel">
     <h2>快速训练</h2>
