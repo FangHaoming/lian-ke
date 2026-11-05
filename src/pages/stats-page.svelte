@@ -86,10 +86,11 @@
       <div class="setline">
         <div>
           <b>{record.planName}</b>
-          <div class="muted small">
-            {date(record.finishedAt)} · {record.results.filter((item) => item.completed).length} 组
+          <div class="history-meta">
+            <time class="muted small">{date(record.finishedAt)}</time>
+            <span class="history-set-count">完成 {record.results.filter((item) => item.completed).length} 组</span>
           </div>
-          <div class="muted small">{record.notes || ''}</div>
+          {#if record.notes}<div class="muted small history-note">{record.notes}</div>{/if}
         </div>
       </div>
       <details class="history-sets">

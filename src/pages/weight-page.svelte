@@ -33,6 +33,13 @@
     return new Date(value).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
   }
 
+  function formatRecordedAt(value) {
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return '时间未知'
+    const weekday = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][date.getDay()]
+    return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} ${weekday} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  }
+
   function addWeight() {
     const value = Number(kg)
     if (!Number.isFinite(value) || value < 0.01 || value > 999.99) {
@@ -105,6 +112,6 @@
 <section class="panel weight-history-panel">
   <h3>历史记录</h3>
   {#each [...weights].reverse() as item (item.id)}
-    <div class="setline weight-history-row"><div><b>{Number(item.kg).toFixed(2)} kg</b><div class="muted small">{new Date(item.recordedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}{item.note ? ` · ${item.note}` : ''}</div></div></div>
+    <div class="setline weight-history-row"><div><b>{Number(item.kg).toFixed(2)} kg</b><div class="muted small">{formatRecordedAt(item.recordedAt)}{item.note ? ` · ${item.note}` : ''}</div></div></div>
   {:else}<div class="empty">暂无记录</div>{/each}
 </section>
