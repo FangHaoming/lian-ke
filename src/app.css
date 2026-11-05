@@ -114,6 +114,7 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .cloud-status{margin:14px 0 0;padding:10px 12px;border-radius:10px;color:#b9c8cf;background:#101921;border:1px solid #2d3e48;font-size:12px}
 .cloud-status.success{color:#cef3ad;background:#1c2d1c;border-color:#354e2e}
 .cloud-status.error{color:#ffd0d2;background:#352226;border-color:#5b343b}
+.confirm-dialog{width:min(calc(100% - 30px),420px);margin:auto;padding:24px;border:1px solid #405a68;border-radius:18px;background:#151e26;color:#eaf2f4;box-shadow:0 24px 70px #000b}.confirm-dialog::backdrop{background:#000b}.confirm-dialog h2{margin:0 0 10px;font-size:20px}.confirm-dialog p{margin:0;color:#aebfc8;line-height:1.6;white-space:pre-line}.confirm-dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}.confirm-dialog-actions .btn{min-width:92px}
 @media(max-width:650px){.cloud-account-card{padding:18px}.cloud-auth-fields,.cloud-sync-actions{grid-template-columns:1fr}.cloud-sign-out{margin-left:0}.cloud-auth-actions .btn{flex:1}.cloud-sync-button{min-height:72px}}
 @media(max-width:400px){.cloud-account-heading{display:block}.cloud-provider{margin-top:12px}.cloud-auth-actions .btn{flex:1 1 100%}}
 
@@ -141,11 +142,17 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 @media(max-width:650px){.plan-order-input{width:48px!important;height:42px!important}}
 .weight-heading{margin-bottom:18px}.weight-summary{margin-bottom:15px}.weight-entry-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:12px;align-items:end}.weight-add-button{height:48px;white-space:nowrap}.weight-chart-wrap{position:relative;padding:14px 16px 28px 50px}.weight-chart{display:block;width:100%;height:260px;overflow:visible;background:linear-gradient(180deg,rgba(183,243,106,.04),transparent 70%);border-radius:12px}.chart-y-labels{position:absolute;left:0;top:14px;bottom:28px;display:flex;flex-direction:column;justify-content:space-between;color:#7f939d;font-size:11px}.chart-x-labels{position:absolute;left:50px;right:16px;bottom:3px;height:16px;color:#7f939d;font-size:11px}.chart-x-labels span{position:absolute;transform:translateX(-50%);white-space:nowrap}.weight-history-row{padding:14px 0}.weight-history-row b{font-size:18px}@media(max-width:760px){.weight-entry-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.weight-add-button{width:100%}}@media(max-width:470px){.weight-entry-grid{grid-template-columns:1fr}.weight-chart-wrap{padding-left:44px;padding-right:8px}.chart-x-labels{left:44px;right:8px}}
 .weight-chart-canvas{position:relative}.weight-chart-point{position:absolute;width:12px;height:12px;border:2px solid #17232c;border-radius:50%;background:#b7f36a;box-shadow:0 0 0 2px rgba(183,243,106,.18);transform:translate(-50%,-50%);pointer-events:auto}
+.chart-y-labels{top:14px;bottom:auto;height:260px;display:block}.chart-y-labels span{position:absolute;left:0;transform:translateY(-50%);white-space:nowrap}.chart-y-labels span:nth-child(1){top:12%}.chart-y-labels span:nth-child(2){top:50%}.chart-y-labels span:nth-child(3){top:88%}
+.weight-history-panel{padding:28px 32px}.weight-history-panel h3{margin-bottom:22px;font-size:20px}.weight-history-row{min-height:94px;padding:22px 8px;align-items:center}.weight-history-row b{font-size:28px;line-height:1.2}.weight-history-row .muted{margin-top:7px;font-size:14px}@media(max-width:520px){.weight-history-panel{padding:24px 28px}.weight-history-panel h3{margin-bottom:20px}.weight-history-row{min-height:86px;padding:19px 6px}.weight-history-row b{font-size:26px}}
 .history-record{border-bottom:1px solid #293741;padding-bottom:10px}.history-record:last-child{border-bottom:0}.history-record .setline{border-bottom:0}.history-sets{padding:0 0 4px}.history-sets summary{color:#b7f36a;font-size:13px;cursor:pointer}.history-set{padding:11px 12px;margin-top:8px;background:#101921;border:1px solid #293943;border-radius:10px}.history-set b{display:block;margin-bottom:4px}.history-set .small{margin-top:3px}
-.history-record-list{max-height:420px;overflow-y:auto;overscroll-behavior:contain;scrollbar-color:#536874 #151e26;scrollbar-width:thin;padding-right:8px}
+.history-record-list{max-height:420px;overflow-y:auto;scrollbar-color:#536874 #151e26;scrollbar-width:thin;padding-right:8px}
+.action-stat-list{max-height:420px;overflow-y:auto;scrollbar-color:#536874 #151e26;scrollbar-width:thin;padding-right:8px}
 .history-record-list::-webkit-scrollbar{width:8px}
+.action-stat-list::-webkit-scrollbar{width:8px}
 .history-record-list::-webkit-scrollbar-thumb{background:#536874;border-radius:8px}
+.action-stat-list::-webkit-scrollbar-thumb{background:#536874;border-radius:8px}
 .history-record-list::-webkit-scrollbar-track{background:#151e26}
+.action-stat-list::-webkit-scrollbar-track{background:#151e26}
 
 /* Immersive workout screen and deliberate unlock gesture */
 .training-session.training-focus{position:fixed;inset:0;z-index:100;background:#0b1015;overflow-y:auto;overscroll-behavior:contain;padding:calc(20px + env(safe-area-inset-top,0px)) max(18px,calc((100vw - 1050px)/2)) calc(28px + env(safe-area-inset-bottom,0px))}

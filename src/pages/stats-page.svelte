@@ -63,7 +63,7 @@
 </div>
 <section class="panel">
   <h3>动作统计</h3>
-  {#if names.length}<div class="grid">
+  {#if names.length}<div class="grid action-stat-list">
       {#each names as name}{@const items = sets.filter((item) => item.name === name)}
         <div class="metric">
           <b>{name}</b>

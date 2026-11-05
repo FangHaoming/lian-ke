@@ -2,6 +2,29 @@ import { defaults, dailyWeights, dayKey, completedRecords } from './workout-mode
 
 const CONFIG_KEY = 'lianke_supabase_config'
 const SESSION_KEY = 'lianke_supabase_session'
+const SYNC_SELECTION_KEY = 'lianke_sync_selection'
+const defaultSyncSelection = {
+  exerciseNames: true,
+  plans: true,
+  records: true,
+  weights: true,
+  sounds: true,
+}
+
+export function loadSyncSelection() {
+  try {
+    return { ...defaultSyncSelection, ...JSON.parse(localStorage.getItem(SYNC_SELECTION_KEY)) }
+  } catch {
+    return { ...defaultSyncSelection }
+  }
+}
+
+export function saveSyncSelection(selection) {
+  localStorage.setItem(
+    SYNC_SELECTION_KEY,
+    JSON.stringify({ ...defaultSyncSelection, ...selection }),
+  )
+}
 
 export function cloudConfig() {
   const fallback = {
@@ -274,7 +297,7 @@ async function readCloudData(api) {
   }
 }
 
-async function uploadCloudData(api, data) {
+async function uploadCloudData(api, data, selection) {
   const user = `user_id=eq.${encodeURIComponent(api.userId)}`
   const [oldPlans, oldRecords, oldWeights, oldNames] = await Promise.all([
     readRows(api, 'plans', `${user}&select=id,name`),
@@ -311,6 +334,11 @@ async function uploadCloudData(api, data) {
   const weights = dailyWeights(data.weights || [])
   const planIds = new Map()
   const usedPlanIds = new Set()
+  for (const plan of data.plans || []) {
+    const existing =
+      oldPlans.find((row) => row.id === plan.id) || oldPlans.find((row) => row.name === plan.name)
+    if (existing) planIds.set(plan.id, existing.id)
+  }
   const planItemKey = (item) =>
     JSON.stringify([
       item.exercise_name,
@@ -323,48 +351,49 @@ async function uploadCloudData(api, data) {
       Number(item.sort_order),
     ])
 
-  for (const plan of data.plans || []) {
-    const existing =
-      oldPlans.find((row) => !usedPlanIds.has(row.id) && row.id === plan.id) ||
-      oldPlans.find((row) => !usedPlanIds.has(row.id) && row.name === plan.name)
-    const remoteId =
-      existing?.id ||
-      (
-        await insertOne(api, 'plans', {
-          user_id: api.userId,
-          name: plan.name,
-          updated_at: new Date().toISOString(),
-        })
-      ).id
-    usedPlanIds.add(remoteId)
-    planIds.set(plan.id, remoteId)
-    const items = (plan.items || []).map((item, index) => ({
-      plan_id: remoteId,
-      exercise_name: item.name,
-      mode: item.mode,
-      sets: Number(item.sets) || 1,
-      reps: Number(item.reps) || 0,
-      duration: Number(item.duration) || 0,
-      weight: Number(item.weight) || 0,
-      rest: Number(item.rest) || 0,
-      sort_order: index,
-    }))
-    const previousItems = oldItems
-      .filter((item) => item.plan_id === remoteId)
-      .sort((a, b) => a.sort_order - b.sort_order)
-    if (
-      existing?.name !== plan.name ||
-      JSON.stringify(items.map(planItemKey)) !== JSON.stringify(previousItems.map(planItemKey))
-    ) {
-      if (existing)
-        await updateRow(api, 'plans', remoteId, {
-          name: plan.name,
-          updated_at: new Date().toISOString(),
-        })
-      if (previousItems.length) await deleteRows(api, 'plan_items', `plan_id=eq.${remoteId}`)
-      await insertRows(api, 'plan_items', items)
+  if (selection.plans)
+    for (const plan of data.plans || []) {
+      const existing =
+        oldPlans.find((row) => !usedPlanIds.has(row.id) && row.id === plan.id) ||
+        oldPlans.find((row) => !usedPlanIds.has(row.id) && row.name === plan.name)
+      const remoteId =
+        existing?.id ||
+        (
+          await insertOne(api, 'plans', {
+            user_id: api.userId,
+            name: plan.name,
+            updated_at: new Date().toISOString(),
+          })
+        ).id
+      usedPlanIds.add(remoteId)
+      planIds.set(plan.id, remoteId)
+      const items = (plan.items || []).map((item, index) => ({
+        plan_id: remoteId,
+        exercise_name: item.name,
+        mode: item.mode,
+        sets: Number(item.sets) || 1,
+        reps: Number(item.reps) || 0,
+        duration: Number(item.duration) || 0,
+        weight: Number(item.weight) || 0,
+        rest: Number(item.rest) || 0,
+        sort_order: index,
+      }))
+      const previousItems = oldItems
+        .filter((item) => item.plan_id === remoteId)
+        .sort((a, b) => a.sort_order - b.sort_order)
+      if (
+        existing?.name !== plan.name ||
+        JSON.stringify(items.map(planItemKey)) !== JSON.stringify(previousItems.map(planItemKey))
+      ) {
+        if (existing)
+          await updateRow(api, 'plans', remoteId, {
+            name: plan.name,
+            updated_at: new Date().toISOString(),
+          })
+        if (previousItems.length) await deleteRows(api, 'plan_items', `plan_id=eq.${remoteId}`)
+        await insertRows(api, 'plan_items', items)
+      }
     }
-  }
 
   const usedRecordIds = new Set()
   let changedRecords = 0
@@ -384,67 +413,72 @@ async function uploadCloudData(api, data) {
       item.actual_seconds == null ? null : Number(item.actual_seconds),
     ])
   const setKeys = (items) => items.map(setKey).join('\n')
-  for (const record of completedRecords(data.records)) {
-    const values = {
-      user_id: api.userId,
-      plan_id: planIds.get(record.planId) || null,
-      plan_name: record.planName || '训练记录',
-      started_at: record.startedAt || null,
-      finished_at: record.finishedAt || new Date().toISOString(),
-      notes: record.notes || null,
-    }
-    const sets = record.results.map((item, index) => ({
-      exercise_name: item.name,
-      set_index: Number(item.setIndex) || 0,
-      sort_order:
-        item.sortOrder === null ? null : Number.isInteger(item.sortOrder) ? item.sortOrder : index,
-      mode: item.mode || null,
-      completed: true,
-      target_reps: item.targetReps ?? null,
-      target_seconds: item.targetSeconds ?? null,
-      planned_weight: item.plannedWeight ?? null,
-      planned_rest: item.plannedRest ?? null,
-      actual_reps: item.actualReps ?? null,
-      actual_weight: item.actualWeight ?? null,
-      actual_seconds: item.actualSeconds ?? null,
-    }))
-    const existing =
-      oldRecords.find((row) => !usedRecordIds.has(row.id) && row.id === record.id) ||
-      oldRecords.find(
-        (row) =>
-          !usedRecordIds.has(row.id) &&
-          sameTime(row.finished_at, values.finished_at) &&
-          sameTime(row.started_at, values.started_at),
-      )
-    const previousSets = existing ? oldSets.filter((item) => item.record_id === existing.id) : []
-    const setsChanged = setKeys(sets) !== setKeys(previousSets)
-    const headerChanged =
-      !existing ||
-      ['plan_id', 'plan_name', 'notes'].some((key) => existing[key] !== values[key]) ||
-      !sameTime(existing.started_at, values.started_at) ||
-      !sameTime(existing.finished_at, values.finished_at)
-    if (existing) {
-      usedRecordIds.add(existing.id)
-      if (headerChanged) await updateRow(api, 'training_records', existing.id, values)
-      if (setsChanged) {
-        if (previousSets.length)
-          await deleteRows(api, 'training_sets', `record_id=eq.${existing.id}`)
+  if (selection.records)
+    for (const record of completedRecords(data.records)) {
+      const values = {
+        user_id: api.userId,
+        plan_id: planIds.get(record.planId) || null,
+        plan_name: record.planName || '训练记录',
+        started_at: record.startedAt || null,
+        finished_at: record.finishedAt || new Date().toISOString(),
+        notes: record.notes || null,
+      }
+      const sets = record.results.map((item, index) => ({
+        exercise_name: item.name,
+        set_index: Number(item.setIndex) || 0,
+        sort_order:
+          item.sortOrder === null
+            ? null
+            : Number.isInteger(item.sortOrder)
+              ? item.sortOrder
+              : index,
+        mode: item.mode || null,
+        completed: true,
+        target_reps: item.targetReps ?? null,
+        target_seconds: item.targetSeconds ?? null,
+        planned_weight: item.plannedWeight ?? null,
+        planned_rest: item.plannedRest ?? null,
+        actual_reps: item.actualReps ?? null,
+        actual_weight: item.actualWeight ?? null,
+        actual_seconds: item.actualSeconds ?? null,
+      }))
+      const existing =
+        oldRecords.find((row) => !usedRecordIds.has(row.id) && row.id === record.id) ||
+        oldRecords.find(
+          (row) =>
+            !usedRecordIds.has(row.id) &&
+            sameTime(row.finished_at, values.finished_at) &&
+            sameTime(row.started_at, values.started_at),
+        )
+      const previousSets = existing ? oldSets.filter((item) => item.record_id === existing.id) : []
+      const setsChanged = setKeys(sets) !== setKeys(previousSets)
+      const headerChanged =
+        !existing ||
+        ['plan_id', 'plan_name', 'notes'].some((key) => existing[key] !== values[key]) ||
+        !sameTime(existing.started_at, values.started_at) ||
+        !sameTime(existing.finished_at, values.finished_at)
+      if (existing) {
+        usedRecordIds.add(existing.id)
+        if (headerChanged) await updateRow(api, 'training_records', existing.id, values)
+        if (setsChanged) {
+          if (previousSets.length)
+            await deleteRows(api, 'training_sets', `record_id=eq.${existing.id}`)
+          await insertRows(
+            api,
+            'training_sets',
+            sets.map((item) => ({ ...item, record_id: existing.id })),
+          )
+        }
+      } else {
+        const remote = await insertOne(api, 'training_records', values)
         await insertRows(
           api,
           'training_sets',
-          sets.map((item) => ({ ...item, record_id: existing.id })),
+          sets.map((item) => ({ ...item, record_id: remote.id })),
         )
       }
-    } else {
-      const remote = await insertOne(api, 'training_records', values)
-      await insertRows(
-        api,
-        'training_sets',
-        sets.map((item) => ({ ...item, record_id: remote.id })),
-      )
+      if (headerChanged || setsChanged) changedRecords++
     }
-    if (headerChanged || setsChanged) changedRecords++
-  }
 
   const weightByDay = new Map(oldWeights.map((item) => [item.recorded_on, item]))
   const weightRows = weights.map((item) => ({
@@ -463,27 +497,32 @@ async function uploadCloudData(api, data) {
       (previous.note || null) !== item.note
     )
   })
-  await insertRows(api, 'body_weights', changedWeights, 'on_conflict=user_id,recorded_on')
+  if (selection.weights)
+    await insertRows(api, 'body_weights', changedWeights, 'on_conflict=user_id,recorded_on')
 
   const names = [...new Set((data.exerciseNames || []).filter(Boolean))]
   const sounds = { ...defaults().sounds, ...(data.sounds || {}) }
-  await insertRows(
-    api,
-    'exercise_names',
-    names.map((name) => ({ user_id: api.userId, name })),
-    'on_conflict=user_id,name',
-  )
-  await insertRows(api, 'user_settings', [{ user_id: api.userId, sounds }], 'on_conflict=user_id')
+  if (selection.exerciseNames)
+    await insertRows(
+      api,
+      'exercise_names',
+      names.map((name) => ({ user_id: api.userId, name })),
+      'on_conflict=user_id,name',
+    )
+  if (selection.sounds)
+    await insertRows(api, 'user_settings', [{ user_id: api.userId, sounds }], 'on_conflict=user_id')
 
   const localDays = new Set(weightRows.map((item) => item.recorded_on))
   const staleWeightIds = oldWeights
     .filter((row) => !localDays.has(row.recorded_on))
     .map((row) => row.id)
-  if (staleWeightIds.length) await deleteRows(api, 'body_weights', inQuery('id', staleWeightIds))
+  if (selection.weights && staleWeightIds.length)
+    await deleteRows(api, 'body_weights', inQuery('id', staleWeightIds))
   const stalePlanIds = oldPlans.filter((row) => !usedPlanIds.has(row.id)).map((row) => row.id)
-  if (stalePlanIds.length) await deleteRows(api, 'plans', inQuery('id', stalePlanIds))
+  if (selection.plans && stalePlanIds.length)
+    await deleteRows(api, 'plans', inQuery('id', stalePlanIds))
   const extraNames = oldNames.filter((row) => !names.includes(row.name))
-  if (extraNames.length)
+  if (selection.exerciseNames && extraNames.length)
     await deleteRows(
       api,
       'exercise_names',
@@ -494,32 +533,50 @@ async function uploadCloudData(api, data) {
     )
 
   return {
-    plans: data.plans?.length || 0,
-    records: changedRecords,
-    weights: changedWeights.length,
-    deletedWeights: staleWeightIds.length,
-    names: names.length,
-    sounds: Object.keys(sounds).length,
+    plans: selection.plans ? data.plans?.length || 0 : 0,
+    records: selection.records ? changedRecords : 0,
+    weights: selection.weights ? changedWeights.length : 0,
+    deletedWeights: selection.weights ? staleWeightIds.length : 0,
+    names: selection.exerciseNames ? names.length : 0,
+    sounds: selection.sounds ? Object.keys(sounds).length : 0,
   }
 }
 
-export async function syncData(direction, localData) {
+export async function syncData(direction, localData, selection = defaultSyncSelection) {
+  selection = { ...defaultSyncSelection, ...selection }
   const api = await client()
   if (direction === 'upload') {
-    return uploadCloudData(api, localData)
+    return uploadCloudData(api, localData, selection)
   }
   const remote = await readCloudData(api)
-  const selected = remote.plans.some((plan) => plan.id === localData.selected)
-    ? localData.selected
-    : remote.plans[0]?.id || null
-  return { ...defaults(), ...remote, selected }
+  const selected = selection.plans
+    ? remote.plans.some((plan) => plan.id === localData.selected)
+      ? localData.selected
+      : remote.plans[0]?.id || null
+    : localData.selected
+  return {
+    ...localData,
+    ...(selection.exerciseNames && { exerciseNames: remote.exerciseNames }),
+    ...(selection.plans && { plans: remote.plans }),
+    ...(selection.records && { records: remote.records }),
+    ...(selection.weights && { weights: remote.weights }),
+    ...(selection.sounds && { sounds: remote.sounds }),
+    selected,
+  }
 }
 
 export async function syncNames(direction, localNames) {
   const data = { ...defaults(), exerciseNames: localNames }
+  const namesOnly = {
+    exerciseNames: true,
+    plans: false,
+    records: false,
+    weights: false,
+    sounds: false,
+  }
   if (direction === 'upload') {
-    await syncData(direction, data)
+    await syncData(direction, data, namesOnly)
     return localNames
   }
-  return (await syncData(direction, data)).exerciseNames
+  return (await syncData(direction, data, namesOnly)).exerciseNames
 }

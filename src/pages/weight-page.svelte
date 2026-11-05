@@ -35,8 +35,8 @@
 
   function addWeight() {
     const value = Number(kg)
-    if (!value || value <= 0 || value >= 1000) {
-      error = '请输入 0～1000 之间的体重'
+    if (!Number.isFinite(value) || value < 0.01 || value > 999.99) {
+      error = '请输入 0.01～999.99 kg 的体重'
       return
     }
     const recordedIso = new Date(recordedAt).toISOString()
@@ -53,11 +53,6 @@
     error = ''
   }
 
-  function removeWeight(id) {
-    if (!confirm('删除这条体重记录？')) return
-    data.weights = (data.weights || []).filter((item) => item.id !== id)
-    data = data
-  }
 </script>
 
 <div class="row between weight-heading">
@@ -66,15 +61,15 @@
 </div>
 
 <div class="weight-summary grid">
-  <div class="metric"><span class="muted">当前体重</span><strong>{latest ? `${Number(latest.kg).toFixed(1)} kg` : '—'}</strong></div>
-  <div class="metric"><span class="muted">最近变化</span><strong class:accent={change !== null && change <= 0} class:orange={change !== null && change > 0}>{change === null ? '—' : `${change > 0 ? '+' : ''}${change.toFixed(1)} kg`}</strong></div>
+  <div class="metric"><span class="muted">当前体重</span><strong>{latest ? `${Number(latest.kg).toFixed(2)} kg` : '—'}</strong></div>
+  <div class="metric"><span class="muted">最近变化</span><strong class:accent={change !== null && change <= 0} class:orange={change !== null && change > 0}>{change === null ? '—' : `${change > 0 ? '+' : ''}${change.toFixed(2)} kg`}</strong></div>
   <div class="metric"><span class="muted">记录天数</span><strong>{new Set(weights.map((item) => item.recordedAt.slice(0, 10))).size}</strong></div>
 </div>
 
 <section class="panel weight-entry-panel">
   <div><h3>新增记录</h3><p class="muted small">保存后会进入本地备份，也可在“设置/备份”中同步到远端。</p></div>
   <div class="weight-entry-grid">
-    <label class="field">体重（kg）<input type="number" min="0.1" max="999" step="0.1" placeholder="例如 68.5" bind:value={kg} on:keydown={(event) => event.key === 'Enter' && addWeight()} /></label>
+    <label class="field">体重（kg）<input type="number" min="0.01" max="999.99" step="0.01" placeholder="例如 68.55" bind:value={kg} on:keydown={(event) => event.key === 'Enter' && addWeight()} /></label>
     <label class="field">记录时间<input type="datetime-local" bind:value={recordedAt} /></label>
     <label class="field">备注（可选）<input type="text" maxlength="60" placeholder="晨起 / 训练后" bind:value={note} on:keydown={(event) => event.key === 'Enter' && addWeight()} /></label>
     <button class="btn primary weight-add-button" on:click={addWeight}>＋ 添加体重</button>
@@ -83,7 +78,7 @@
 </section>
 
 <section class="panel">
-  <div class="row between"><div><h3>体重趋势</h3><p class="muted small">按天统计 · 最近 {Math.min(weights.length, 30)} 天</p></div>{#if latest}<span class="pill">最新 {Number(latest.kg).toFixed(1)} kg</span>{/if}</div>
+  <div class="row between"><div><h3>体重趋势</h3><p class="muted small">按天统计 · 最近 {Math.min(weights.length, 30)} 天</p></div>{#if latest}<span class="pill">最新 {Number(latest.kg).toFixed(2)} kg</span>{/if}</div>
   {#if chartPoints.length}
     <div class="weight-chart-wrap">
       <div class="weight-chart-canvas">
@@ -98,18 +93,18 @@
         <defs><linearGradient id="weight-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#b7f36a" stop-opacity=".22" /><stop offset="100%" stop-color="#b7f36a" stop-opacity="0" /></linearGradient></defs>
       </svg>
       {#each chartPoints as point}
-        <span class="weight-chart-point" style={`left:${point.x}%;top:${point.y}%`} title={`${formatDate(point.recordedAt)} · ${Number(point.kg).toFixed(1)} kg`}></span>
+        <span class="weight-chart-point" style={`left:${point.x}%;top:${point.y}%`} title={`${formatDate(point.recordedAt)} · ${Number(point.kg).toFixed(2)} kg`}></span>
       {/each}
       </div>
-      <div class="chart-y-labels"><span>{maxKg} kg</span><span>{Math.round((maxKg + minKg) / 2)} kg</span><span>{minKg} kg</span></div>
+      <div class="chart-y-labels"><span>{maxKg.toFixed(2)} kg</span><span>{((maxKg + minKg) / 2).toFixed(2)} kg</span><span>{minKg.toFixed(2)} kg</span></div>
       <div class="chart-x-labels">{#each chartTicks as tick}<span style={`left:${tick.x}%`}>{formatDate(tick.recordedAt)}</span>{/each}</div>
     </div>
   {:else}<div class="empty">还没有体重记录，先添加今天的体重吧。</div>{/if}
 </section>
 
-<section class="panel">
+<section class="panel weight-history-panel">
   <h3>历史记录</h3>
   {#each [...weights].reverse() as item (item.id)}
-    <div class="setline weight-history-row"><div><b>{Number(item.kg).toFixed(1)} kg</b><div class="muted small">{new Date(item.recordedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}{item.note ? ` · ${item.note}` : ''}</div></div><button class="btn tiny red" on:click={() => removeWeight(item.id)}>删除</button></div>
+    <div class="setline weight-history-row"><div><b>{Number(item.kg).toFixed(2)} kg</b><div class="muted small">{new Date(item.recordedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}{item.note ? ` · ${item.note}` : ''}</div></div></div>
   {:else}<div class="empty">暂无记录</div>{/each}
 </section>

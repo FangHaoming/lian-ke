@@ -3,8 +3,18 @@
   import initSql from '../lib/init.sql?raw'
   import { playSound } from '../lib/sound.js'
   import Select from '../components/select.svelte'
+  import CheckboxGroup from '../components/checkbox-group.svelte'
+  import ConfirmDialog from '../components/confirm-dialog.svelte'
   import { soundOptions } from '../lib/select-options.js'
-  import { cloudConfig, saveCloudConfig, authenticate, signOut, syncData } from '../lib/cloud.js'
+  import {
+    cloudConfig,
+    saveCloudConfig,
+    authenticate,
+    signOut,
+    syncData,
+    loadSyncSelection,
+    saveSyncSelection,
+  } from '../lib/cloud.js'
   export let data
   let config = cloudConfig()
   let email = '',
@@ -12,6 +22,15 @@
     status = '',
     busy = false
   let databaseStatus = '尚未检测'
+  let syncConfirmation = null
+  let syncSelection = loadSyncSelection()
+  const syncOptions = [
+    { value: 'exerciseNames', label: '动作' },
+    { value: 'plans', label: '训练计划' },
+    { value: 'records', label: '训练记录' },
+    { value: 'weights', label: '体重' },
+    { value: 'sounds', label: '提示音' },
+  ]
   async function checkDatabase() {
     databaseStatus = '正在检查数据表……'
     const tables = [
@@ -54,19 +73,59 @@
     busy = true
     status = '正在同步……'
     try {
-      const result = await syncData(direction, data)
+      const result = await syncData(direction, data, syncSelection)
       if (direction === 'download') {
         data = result
       }
-      status =
-        direction === 'upload'
-          ? `本地同步到远端成功：${result.plans} 个计划、训练记录新增/更新 ${result.records} 条；体重新增/更新 ${result.weights} 条、删除 ${result.deletedWeights} 条；${result.names} 个动作、提示音已同步`
-          : `远端同步到本地成功：${result.plans.length} 个计划、${result.records.length} 条记录、${result.weights.length} 条体重记录、${result.exerciseNames.length} 个动作、提示音已同步`
+      status = syncStatus(direction, result)
     } catch (error) {
       status = `同步失败：${error.message}`
     } finally {
       busy = false
     }
+  }
+  function requestSync(direction) {
+    const selectedOptions = syncOptions.filter((option) => syncSelection[option.value])
+    if (!selectedOptions.length) {
+      status = '请至少选择一项同步内容'
+      return
+    }
+    syncConfirmation = {
+      direction,
+      message:
+        direction === 'upload'
+          ? `将以本地数据为准，同步并覆盖当前账号的云端数据。\n同步内容：${selectedOptions.map((option) => option.label).join('、')}`
+          : `将用当前账号的云端数据替换本地同步数据。\n同步内容：${selectedOptions.map((option) => option.label).join('、')}`,
+    }
+  }
+  function updateSyncSelection(event) {
+    syncSelection = Object.fromEntries(
+      syncOptions.map((option) => [option.value, event.detail.includes(option.value)]),
+    )
+    saveSyncSelection(syncSelection)
+  }
+  function syncStatus(direction, result) {
+    const details = []
+    if (direction === 'upload') {
+      if (syncSelection.plans) details.push(`${result.plans} 个计划`)
+      if (syncSelection.records) details.push(`训练记录新增/更新 ${result.records} 条`)
+      if (syncSelection.weights)
+        details.push(`体重新增/更新 ${result.weights} 条、删除 ${result.deletedWeights} 条`)
+      if (syncSelection.exerciseNames) details.push(`${result.names} 个动作`)
+      if (syncSelection.sounds) details.push('提示音')
+      return `本地同步到远端成功：${details.join('；')}已同步`
+    }
+    if (syncSelection.plans) details.push(`${result.plans.length} 个计划`)
+    if (syncSelection.records) details.push(`${result.records.length} 条记录`)
+    if (syncSelection.weights) details.push(`${result.weights.length} 条体重记录`)
+    if (syncSelection.exerciseNames) details.push(`${result.exerciseNames.length} 个动作`)
+    if (syncSelection.sounds) details.push('提示音')
+    return `远端同步到本地成功：${details.join('、')}已同步`
+  }
+  function confirmSync() {
+    const { direction } = syncConfirmation
+    syncConfirmation = null
+    sync(direction)
   }
   function exportData() {
     const url = URL.createObjectURL(
@@ -156,15 +215,27 @@
 
   <div class="cloud-sync-heading">
     <div>
-      <h3>完整数据同步</h3>
-      <p class="muted small">
-        提示音、动作、训练计划、训练记录和体重都会同步；上传时仅写入变化的记录。
-      </p>
+      <h3>数据同步</h3>
+      <p class="muted small">选择本次需要同步的数据；选择会保存在本机。</p>
     </div>
     {#if busy}<span class="cloud-syncing">同步中</span>{/if}
   </div>
+  <CheckboxGroup
+    options={syncOptions}
+    value={syncOptions
+      .filter((option) => syncSelection[option.value])
+      .map((option) => option.value)}
+    legend="同步内容"
+    disabled={busy}
+    on:change={updateSyncSelection}
+  />
   <div class="cloud-sync-actions">
-    <button type="button" class="cloud-sync-button" disabled={busy} on:click={() => sync('upload')}>
+    <button
+      type="button"
+      class="cloud-sync-button"
+      disabled={busy}
+      on:click={() => requestSync('upload')}
+    >
       <span class="cloud-sync-icon" aria-hidden="true">↑</span>
       <span>
         <strong>本地同步到远端</strong>
@@ -175,7 +246,7 @@
       type="button"
       class="cloud-sync-button"
       disabled={busy}
-      on:click={() => sync('download')}
+      on:click={() => requestSync('download')}
     >
       <span class="cloud-sync-icon" aria-hidden="true">↓</span>
       <span>
@@ -193,6 +264,14 @@
       {status}
     </p>{/if}
 </section>
+<ConfirmDialog
+  open={syncConfirmation !== null}
+  title="确认同步"
+  message={syncConfirmation?.message}
+  confirmText="确认同步"
+  on:confirm={confirmSync}
+  on:cancel={() => (syncConfirmation = null)}
+/>
 <section class="panel">
   <h3>新手数据库向导</h3>
   <p class="muted small">
