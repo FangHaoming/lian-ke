@@ -3,6 +3,8 @@ import { defaults, dailyWeights, dayKey, completedRecords } from './workout-mode
 const CONFIG_KEY = 'lianke_supabase_config'
 const SESSION_KEY = 'lianke_supabase_session'
 const SYNC_SELECTION_KEY = 'lianke_sync_selection'
+const AUTH_REDIRECT_URL =
+  import.meta.env?.VITE_AUTH_REDIRECT_URL || 'https://fanghaoming.github.io/lian-ke/'
 const defaultSyncSelection = {
   exerciseNames: true,
   plans: true,
@@ -51,6 +53,35 @@ export function signOut() {
   localStorage.removeItem(SESSION_KEY)
 }
 
+function userFromAccessToken(token) {
+  try {
+    const payload = token.split('.')[1]
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')
+    const claims = JSON.parse(atob(padded))
+    return claims.sub ? { id: claims.sub, email: claims.email || '' } : null
+  } catch {
+    return null
+  }
+}
+
+export function consumeAuthCallback() {
+  if (!location.hash || !location.hash.includes('access_token=')) return null
+  const params = new URLSearchParams(location.hash.slice(1))
+  const accessToken = params.get('access_token')
+  if (!accessToken) return null
+  const session = saveSession({
+    access_token: accessToken,
+    refresh_token: params.get('refresh_token') || '',
+    token_type: params.get('token_type') || 'bearer',
+    expires_in: Number(params.get('expires_in') || 0),
+    expires_at: Number(params.get('expires_at') || 0),
+    user: userFromAccessToken(accessToken),
+  })
+  history.replaceState(history.state, '', location.pathname + location.search)
+  return session
+}
+
 function saveSession(result, previous = {}) {
   const session = {
     ...previous,
@@ -71,7 +102,7 @@ export async function authenticate(action, email, password) {
   if (!url || !anonKey) throw Error('请先配置 Supabase')
   const endpoint =
     action === 'signup'
-      ? `/auth/v1/signup?redirect_to=${encodeURIComponent(location.origin + location.pathname)}`
+      ? '/auth/v1/signup?redirect_to=' + encodeURIComponent(AUTH_REDIRECT_URL)
       : '/auth/v1/token?grant_type=password'
   const response = await fetch(url + endpoint, {
     method: 'POST',

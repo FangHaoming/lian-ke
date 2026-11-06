@@ -2,6 +2,7 @@
   import { onMount } from 'svelte'
   import { defaults } from './lib/workout-model.js'
   import { loadData, saveData } from './lib/data.js'
+  import { consumeAuthCallback } from './lib/cloud.js'
   import TrainPage from './pages/train-page.svelte'
   import PlansPage from './pages/plans-page.svelte'
   import StatsPage from './pages/stats-page.svelte'
@@ -53,6 +54,7 @@
       })
   }
   onMount(() => {
+    consumeAuthCallback()
     data = loadData()
     today = new Date().toLocaleDateString('zh-CN', {
       month: 'short',
