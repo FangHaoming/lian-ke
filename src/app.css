@@ -69,7 +69,16 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .plan-action-checkbox{width:16px!important;height:16px!important;min-width:16px!important;margin:0;accent-color:#b7f36a;cursor:pointer}
 .plan-action-option>.pill{flex-shrink:0;margin-left:12px;color:#8fa4ae;background:#202f38}
 .plan-start-summary{margin-top:12px}
+.plan-filter-panel{margin-top:18px}
+.plan-filter-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+.plan-filter-summary{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;color:#a7b8c2;font-size:13px}
+.exercise-multi-picker{position:relative}
+.exercise-multi-summary{position:absolute;right:12px;top:15px;color:#8fa4ae;font-size:12px;pointer-events:none}
+.exercise-multi-option{display:flex;align-items:center;gap:8px}
+.exercise-multi-check{display:inline-flex;width:18px;height:18px;align-items:center;justify-content:center;border:1px solid #5b7180;border-radius:5px;color:#14200a;font-weight:800}
+.exercise-multi-option.selected .exercise-multi-check{background:#b7f36a;border-color:#b7f36a}
 @media(max-width:520px){.plan-start-row{gap:10px}.plan-start-button{padding-inline:12px}.plan-start-picker{flex:1;min-width:0}}
+@media(max-width:650px){.plan-filter-grid{grid-template-columns:1fr}}
 .quick-sound-panel{margin-top:18px;padding:14px;border:1px solid #354956;border-radius:12px}.quick-sound-tests{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.quick-sound-tests .btn{min-height:42px;font-size:13px}
 
 .quick-action-name-field{grid-column:span 1;min-width:0}

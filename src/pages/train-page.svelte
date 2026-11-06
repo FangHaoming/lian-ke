@@ -10,6 +10,7 @@
   export let data
   export let quickItems
   let selected = data.selected || data.plans[0]?.id || ''
+  let selectedPlanName = data.plans.find((item) => item.id === selected)?.name || ''
   export let session
   export let review
   export let screenAwake = false
@@ -457,11 +458,15 @@
       <div class="plan-start-row">
         <div class="field plan-start-picker">
           <span>训练计划</span>
-          <Select
+          <ExerciseNameSelect
             label="训练计划"
-            options={data.plans.map((option) => ({ value: option.id, label: option.name }))}
-            bind:value={selected}
+            placeholder="输入计划名称筛选"
+            options={data.plans.map((option) => option.name)}
+            bind:value={selectedPlanName}
             on:change={() => {
+              const nextPlan = data.plans.find((item) => item.name === selectedPlanName)
+              if (!nextPlan) return
+              selected = nextPlan.id
               data.selected = selected
               data = data
             }}

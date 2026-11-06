@@ -6,6 +6,7 @@
   import Select from '../components/select.svelte'
   import { trainingModes } from '../lib/select-options.js'
   import ExerciseNameSelect from '../components/exercise-name-select.svelte'
+  import ExerciseMultiSelect from '../components/exercise-multi-select.svelte'
   export let data
   let editing = null
   let draggingIndex = -1
@@ -14,6 +15,20 @@
   let touchDragPointer = null
   let editorHistoryEntry = false
   $: names = data.exerciseNames || []
+  let planNameQuery = ''
+  let planActionFilters = []
+  $: planActionOptions = [
+    ...new Set(data.plans.flatMap((plan) => plan.items.map((item) => item.name).filter(Boolean))),
+  ].sort()
+  $: filteredPlans = data.plans.filter((plan) => {
+    const matchesName = plan.name
+      .toLocaleLowerCase()
+      .includes(planNameQuery.trim().toLocaleLowerCase())
+    const matchesActions = planActionFilters.every((action) =>
+      plan.items.some((item) => item.name === action),
+    )
+    return matchesName && matchesActions
+  })
 
   onMount(() => {
     const handlePopState = () => {
@@ -298,7 +313,42 @@
       + 新建计划
     </button>
   </div>
-  {#each data.plans as plan (plan.id)}<section class="panel">
+  <section class="panel plan-filter-panel">
+    <div class="plan-filter-grid">
+      <label class="field">
+        <span>按训练名称搜索</span>
+        <ExerciseNameSelect
+          label="按训练名称搜索"
+          placeholder="输入训练名称"
+          options={data.plans.map((plan) => plan.name)}
+          bind:value={planNameQuery}
+        />
+      </label>
+      <label class="field">
+        <span>按包含动作筛选</span>
+        <ExerciseMultiSelect
+          label="按包含动作筛选"
+          options={planActionOptions}
+          bind:value={planActionFilters}
+        />
+      </label>
+    </div>
+    {#if planNameQuery || planActionFilters.length}
+      <div class="plan-filter-summary">
+        找到 {filteredPlans.length} 个计划
+        {#if planActionFilters.length} · 包含：{planActionFilters.join('、')}{/if}
+        <button
+          type="button"
+          class="btn tiny ghost"
+          on:click={() => {
+            planNameQuery = ''
+            planActionFilters = []
+          }}
+        >清除筛选</button>
+      </div>
+    {/if}
+  </section>
+  {#each filteredPlans as plan (plan.id)}<section class="panel">
       <div class="row between">
         <div>
           <h2>{plan.name}</h2>
@@ -328,5 +378,5 @@
             {item.sets}组 · {item.mode === 'reps' ? item.reps + '次' : item.duration + '秒'} · {item.weight}kg
           </span>
         </div>{/each}
-    </section>{:else}<div class="panel empty">还没有训练计划</div>{/each}
+    </section>{:else}<div class="panel empty">{data.plans.length ? '没有符合条件的训练计划' : '还没有训练计划'}</div>{/each}
 {/if}
