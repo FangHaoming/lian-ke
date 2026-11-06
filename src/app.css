@@ -193,9 +193,10 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .daily-chart-panel.chart-modal-active .daily-line-chart{display:none}
 .chart-modal-open{overflow:hidden}
 .chart-detail-backdrop{overscroll-behavior:contain;overflow:hidden}
-.chart-detail-dialog{width:min(560px,calc(100vw - 30px));max-height:min(680px,calc(100vh - 40px));overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:24px;border:1px solid #405a68;border-radius:18px;background:#151e26;color:#eaf2f4;box-shadow:0 24px 70px #000b}
+.chart-detail-dialog{width:min(560px,calc(100vw - 30px));max-height:min(680px,calc(100vh - 40px));display:flex;flex-direction:column;overflow:hidden;overscroll-behavior:contain;touch-action:pan-y;padding:24px;border:1px solid #405a68;border-radius:18px;background:#151e26;color:#eaf2f4;box-shadow:0 24px 70px #000b}
+.chart-detail-header{flex:0 0 auto;position:sticky;top:0;z-index:1;padding-bottom:4px;background:#151e26}
 .chart-detail-dialog h3{margin:0 0 4px}
-.chart-detail-list{display:grid;gap:10px;margin-top:20px}
+.chart-detail-list{min-height:0;display:grid;gap:10px;margin-top:20px;overflow:auto;overscroll-behavior:contain;padding-right:4px}
 .chart-detail-item{padding:14px;border:1px solid #293d48;border-radius:12px;background:#101921}
 .chart-detail-item b{display:block;margin-bottom:7px}
 .chart-detail-note{margin:0 0 8px;line-height:1.5}
@@ -226,7 +227,7 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 @media(max-width:650px){.daily-chart-heading{flex-direction:column}.daily-chart-controls{width:100%;justify-content:flex-start}.chart-action-filter{flex:1;min-width:0;width:auto}}
 
 /* Immersive workout screen and deliberate unlock gesture */
-.training-session.training-focus{position:fixed;inset:0;z-index:100;background:#0b1015;overflow-y:auto;overscroll-behavior:contain;padding:calc(20px + env(safe-area-inset-top,0px)) max(18px,calc((100vw - 1050px)/2)) calc(28px + env(safe-area-inset-bottom,0px))}
+.training-session.training-focus{position:fixed;inset:0;z-index:100;background:#0b1015;overflow-y:auto;overscroll-behavior:contain;overscroll-behavior-x:none;touch-action:pan-y;padding:calc(20px + env(safe-area-inset-top,0px)) max(18px,calc((100vw - 1050px)/2)) calc(28px + env(safe-area-inset-bottom,0px))}
 .training-lock-screen{min-height:calc(100dvh - 48px);display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;gap:24px;user-select:none;-webkit-user-select:none;touch-action:manipulation}
 .training-lock-top{width:100%}
 .training-lock-center{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:12px}

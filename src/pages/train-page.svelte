@@ -21,6 +21,8 @@
   let holding = false
   let unlockTimer
   let unlockButton
+  let focusHistoryEntry = false
+  let releasingFocusHistory = false
   let selectionPlanId = ''
   let selectedItemIds = []
   let endTrainingConfirmation = false
@@ -65,6 +67,10 @@
       void document.exitFullscreen().catch(() => {})
   })
   function enterFocus() {
+    if (!focusMode) {
+      history.pushState({ ...(history.state || {}), trainingFocus: true }, '', window.location.href)
+      focusHistoryEntry = true
+    }
     focusMode = true
     // The request must run in the button's user gesture. The fixed view is
     // still available on browsers that do not support the Fullscreen API.
@@ -80,6 +86,11 @@
     nativeFullscreenActive = false
     if (wasFocused && document.fullscreenElement === document.documentElement)
       void document.exitFullscreen().catch(() => {})
+    if (focusHistoryEntry) {
+      focusHistoryEntry = false
+      releasingFocusHistory = true
+      history.back()
+    }
   }
   function beginUnlock() {
     if (holding) return
@@ -104,6 +115,14 @@
       event.preventDefault()
       unlockButton?.focus()
     }
+  }
+  function handleFocusNavigation() {
+    if (releasingFocusHistory) {
+      releasingFocusHistory = false
+      return
+    }
+    if (!focusMode) return
+    history.pushState({ ...(history.state || {}), trainingFocus: true }, '', window.location.href)
   }
   function start(items, planName, planId) {
     const normalizedItems = structuredClone(items).map((item) => ({
@@ -200,6 +219,7 @@
       setIndex: item.setIndex,
       sortOrder: session.index,
       mode: item.mode,
+      timerMode: item.timerMode,
       targetReps: item.reps,
       targetSeconds: item.duration,
       plannedWeight: item.weight,
@@ -292,7 +312,7 @@
   }
 </script>
 
-<svelte:window on:keydown={handleLockedKeydown} />
+<svelte:window on:keydown={handleLockedKeydown} on:popstate={handleFocusNavigation} />
 
 {#if review}
   <section class="panel training-review">
@@ -305,9 +325,9 @@
             <b>{result.name}</b>
             <span>第 {result.setIndex} 组</span>
           </div>
-          <span class="review-target">
-            目标 {result.mode === 'reps' ? `${result.targetReps} 次` : `${result.targetSeconds} 秒`}
-          </span>
+          {#if !(result.mode === 'time' && result.timerMode === 'up')}<span class="review-target">
+              目标 {result.mode === 'reps' ? `${result.targetReps} 次` : `${result.targetSeconds} 秒`}
+            </span>{/if}
         </div>
         <div class="review-fields">
           <label class="field review-complete">

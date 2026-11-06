@@ -248,7 +248,7 @@
       aria-labelledby="chart-detail-title"
       on:click|stopPropagation
     >
-      <div class="row between">
+      <div class="chart-detail-header row between">
         <div>
           <h3 id="chart-detail-title">{selectedChartDay.key}</h3>
           <p class="muted small">当天训练记录</p>
@@ -266,7 +266,11 @@
                 <div class="chart-detail-result">
                   <span>{result.name} · 第 {result.setIndex} 组</span>
                   <span class="muted small">
-                    目标：{targetText(result)} · 实际：{actualText(result)}
+                    {#if result.mode === 'time' && result.timerMode !== 'down'}
+                      实际：{actualText(result)}
+                    {:else}
+                      目标：{targetText(result)} · 实际：{actualText(result)}
+                    {/if}
                   </span>
                 </div>
               {/each}
