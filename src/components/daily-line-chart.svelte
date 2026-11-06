@@ -203,7 +203,10 @@
               Math.round((x / Math.max(1, root.clientWidth)) * (points.length - 1)),
             ),
           )
-      if (points[index]) dispatch('select', points[index])
+      if (points[index]) {
+        chart.dispatchAction({ type: 'hideTip' })
+        dispatch('select', points[index])
+      }
     })
     renderChart()
     resizeObserver = new ResizeObserver(() => chart?.resize())
