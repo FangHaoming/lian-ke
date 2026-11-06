@@ -51,7 +51,7 @@ export const mk = (
   mode = 'reps',
   duration = 40,
   rest = 60,
-) => ({ id: uid(), name, sets, reps, weight, mode, duration, rest })
+) => ({ id: uid(), name, sets, reps, weight, mode, duration, rest, timerMode: 'down' })
 export const defaults = () => ({
   plans: [],
   records: [],

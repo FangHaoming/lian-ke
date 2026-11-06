@@ -4,7 +4,7 @@
   import { flatten } from '../lib/data.js'
   import TimePicker from '../components/time-picker.svelte'
   import Select from '../components/select.svelte'
-  import { trainingModes } from '../lib/select-options.js'
+  import { timeModes, trainingModes } from '../lib/select-options.js'
   import ExerciseNameSelect from '../components/exercise-name-select.svelte'
   import ExerciseMultiSelect from '../components/exercise-multi-select.svelte'
   export let data
@@ -57,7 +57,10 @@
   })
 
   function enterEditor(value) {
-    editing = value
+    editing = {
+      ...value,
+      items: value.items.map((item) => ({ ...item, timerMode: item.timerMode || 'down' })),
+    }
     history.pushState({ ...history.state, planEditor: true }, '', window.location.href)
     editorHistoryEntry = true
   }
@@ -273,11 +276,17 @@
           {#if item.mode === 'reps'}<label class="field">
               目标次数
               <input type="number" min="0" bind:value={item.reps} />
-            </label>{:else}<TimePicker
-              label="训练时长（分:秒）"
-              max={7200}
-              bind:value={item.duration}
-            />{/if}
+            </label>{:else}
+              {#if item.timerMode !== 'up'}<TimePicker
+                label="训练时长（分:秒）"
+                max={7200}
+                bind:value={item.duration}
+              />{/if}
+              <div class="field">
+                <span>计时方式</span>
+                <Select label="计时方式" options={timeModes} bind:value={item.timerMode} />
+              </div>
+            {/if}
           <label class="field">
             负重 kg
             <input type="number" min="0" step="0.5" bind:value={item.weight} />

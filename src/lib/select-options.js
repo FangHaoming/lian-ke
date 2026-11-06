@@ -3,6 +3,11 @@ export const trainingModes = [
   { value: 'time', label: '按时间' },
 ]
 
+export const timeModes = [
+  { value: 'down', label: '倒计时' },
+  { value: 'up', label: '正计时' },
+]
+
 export const soundOptions = [
   { value: 'triple', label: '三声高音' },
   { value: 'double', label: '双声低音' },

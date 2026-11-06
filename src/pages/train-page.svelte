@@ -5,8 +5,9 @@
   import { playSound, prepareSound } from '../lib/sound.js'
   import Select from '../components/select.svelte'
   import TimePicker from '../components/time-picker.svelte'
-  import { trainingModes } from '../lib/select-options.js'
+  import { timeModes, trainingModes } from '../lib/select-options.js'
   import ExerciseNameSelect from '../components/exercise-name-select.svelte'
+  import ConfirmDialog from '../components/confirm-dialog.svelte'
   export let data
   export let quickItems
   let selected = data.selected || data.plans[0]?.id || ''
@@ -22,6 +23,10 @@
   let unlockButton
   let selectionPlanId = ''
   let selectedItemIds = []
+  let endTrainingConfirmation = false
+  let wasPausedBeforeEndConfirmation = true
+  let reviewHydrated = false
+  const REVIEW_DRAFT_KEY = 'lianke_review_draft'
   $: plan = data.plans.find((item) => item.id === selected) || data.plans[0]
   $: current = session?.queue[session.index]
   $: availableNames = data.exerciseNames || []
@@ -30,7 +35,15 @@
     selectionPlanId = plan.id
     selectedItemIds = plan.items.map((item, index) => item.id || `${plan.id}-${index}`)
   }
+  $: if (reviewHydrated && review !== undefined) persistReviewDraft()
   onMount(() => {
+    if (!review) {
+      try {
+        const draft = JSON.parse(localStorage.getItem(REVIEW_DRAFT_KEY) || 'null')
+        if (draft?.planName && Array.isArray(draft.results)) review = draft
+      } catch {}
+    }
+    reviewHydrated = true
     if (session) {
       ticker = setInterval(tick, 150)
       tick()
@@ -80,6 +93,12 @@
     clearTimeout(unlockTimer)
     holding = false
   }
+  function persistReviewDraft() {
+    try {
+      if (review) localStorage.setItem(REVIEW_DRAFT_KEY, JSON.stringify(review))
+      else localStorage.removeItem(REVIEW_DRAFT_KEY)
+    } catch {}
+  }
   function handleLockedKeydown(event) {
     if (focusMode && event.key === 'Tab') {
       event.preventDefault()
@@ -87,7 +106,11 @@
     }
   }
   function start(items, planName, planId) {
-    const queue = flatten({ items: structuredClone(items) })
+    const normalizedItems = structuredClone(items).map((item) => ({
+      ...item,
+      timerMode: item.mode === 'time' && item.timerMode === 'up' ? 'up' : 'down',
+    }))
+    const queue = flatten({ items: normalizedItems })
     if (!queue.length) return
     prepareSound()
     session = {
@@ -105,6 +128,9 @@
     }
     clearInterval(ticker)
     ticker = setInterval(tick, 150)
+  }
+  function isCountUp(item) {
+    return item?.mode === 'time' && item.timerMode === 'up'
   }
   function itemKey(item, index) {
     return item.id || `${plan?.id || 'plan'}-${index}`
@@ -129,7 +155,11 @@
     let delta = Math.max(0, (now - session.last) / 1000)
     session.last = now
     while (session && delta > 0) {
-      if (session.phase === 'work' && session.queue[session.index].mode === 'reps') {
+      const currentItem = session.queue[session.index]
+      if (
+        session.phase === 'work' &&
+        (currentItem.mode === 'reps' || isCountUp(currentItem))
+      ) {
         session.elapsed += delta
         break
       }
@@ -149,7 +179,7 @@
   function beginWork() {
     session.phase = 'work'
     const item = session.queue[session.index]
-    session.remaining = item.mode === 'time' ? num(item.duration, 1, 7200) : 0
+    session.remaining = item.mode === 'time' && !isCountUp(item) ? num(item.duration, 1, 7200) : 0
     session.elapsed = 0
     session.last = Date.now()
     session = session
@@ -203,22 +233,55 @@
   function saveReview() {
     const results = completedResults(review.results)
     if (results.length) {
-      data.records = [
-        ...data.records,
-        {
-          id: uid(),
-          planId: review.planId,
-          planName: review.planName,
-          startedAt: review.startedAt,
-          finishedAt: review.finishedAt,
-          notes: review.notes,
-          results: structuredClone(results),
-        },
-      ]
+      saveTrainingRecord(review, results)
     }
     data.exerciseNames = [...new Set([...availableNames, ...results.map((item) => item.name)])]
     data = data
     review = null
+  }
+  function saveTrainingRecord(source, results) {
+    data.records = [
+      ...data.records,
+      {
+        id: uid(),
+        planId: source.planId,
+        planName: source.planName,
+        startedAt: source.startedAt,
+        finishedAt: source.finishedAt || new Date().toISOString(),
+        notes: source.notes || '',
+        results: structuredClone(results),
+      },
+    ]
+  }
+  function requestEndTraining() {
+    wasPausedBeforeEndConfirmation = session?.paused ?? true
+    if (session && !session.paused) {
+      session.paused = true
+      session.last = Date.now()
+      session = session
+    }
+    endTrainingConfirmation = true
+  }
+  function cancelEndTraining() {
+    endTrainingConfirmation = false
+    if (session && !wasPausedBeforeEndConfirmation) {
+      session.paused = false
+      session.last = Date.now()
+      session = session
+    }
+  }
+  function endTraining() {
+    endTrainingConfirmation = false
+    if (!session) return
+    review = {
+      ...session,
+      results: completedResults(session.results),
+      finishedAt: new Date().toISOString(),
+      notes: '',
+    }
+    clearInterval(ticker)
+    exitFocus()
+    session = null
   }
   function addQuick() {
     quickItems = [...quickItems, mk('', 1)]
@@ -287,9 +350,21 @@
         <div class="muted">{session.phase === 'prep' ? '准备开始' : session.phase === 'rest' ? '组间休息' : '正在训练'}</div>
         <h1>{current.name} · 第 {current.setIndex} 组</h1>
         <div class="clock" class:orange={session.phase !== 'work'} class:accent={session.phase === 'work'}>
-          {fmt(session.phase === 'work' && current.mode === 'reps' ? session.elapsed : Math.ceil(session.remaining))}
+          {fmt(
+            session.phase === 'work' &&
+              (current.mode === 'reps' || isCountUp(current))
+              ? session.elapsed
+              : Math.ceil(session.remaining),
+          )}
         </div>
-        <div class="muted">{session.paused ? '已暂停' : session.phase === 'work' && current.mode === 'reps' ? '正计时' : '倒计时'}</div>
+        <div class="muted">
+          {session.paused
+            ? '已暂停'
+            : session.phase === 'work' &&
+                (current.mode === 'reps' || isCountUp(current))
+              ? '正计时'
+              : '倒计时'}
+        </div>
         <div class="progress"><div style={`width:${(session.results.length / session.queue.length) * 100}%`}></div></div>
         <div class="muted small">已完成 {session.results.length} / {session.queue.length} 组</div>
       </div>
@@ -323,7 +398,8 @@
         class:accent={session.phase === 'work'}
       >
         {fmt(
-          session.phase === 'work' && current.mode === 'reps'
+          session.phase === 'work' &&
+          (current.mode === 'reps' || isCountUp(current))
             ? session.elapsed
             : Math.ceil(session.remaining),
         )}
@@ -331,7 +407,7 @@
       <div class="muted">
         {session.paused
           ? '已暂停'
-          : session.phase === 'work' && current.mode === 'reps'
+          : session.phase === 'work' && (current.mode === 'reps' || isCountUp(current))
             ? '正计时 · 手动结束本组'
             : '倒计时'}
       </div>
@@ -364,15 +440,9 @@
       </button>
       <button
         class="btn red"
-        on:click={() => {
-          if (confirm('放弃本次训练？')) {
-            clearInterval(ticker)
-            exitFocus()
-            session = null
-          }
-        }}
+        on:click={requestEndTraining}
       >
-        放弃训练
+        结束训练
       </button>
     </div>
   </section>
@@ -385,8 +455,20 @@
         </span>
         <span class="muted small">{item.weight} kg</span>
       </div>{/each}
-  </section>
-  {/if}
+</section>
+{/if}
+<ConfirmDialog
+  open={endTrainingConfirmation}
+  title="结束训练"
+  message={session?.results?.length
+    ? '将保存当前已完成的 ' + session.results.length + ' 组动作，是否结束训练？'
+    : '当前还没有完成的动作组，是否结束训练？'}
+  confirmText="结束训练"
+  cancelText="继续训练"
+  destructive
+  on:confirm={endTraining}
+  on:cancel={cancelEndTraining}
+/>
   </div>
 {:else}
   <section class="panel">
@@ -429,11 +511,17 @@
           {#if item.mode === 'reps'}<label class="field">
               目标次数
               <input type="number" bind:value={item.reps} />
-            </label>{:else}<TimePicker
-              label="训练时长"
-              max={7200}
-              bind:value={item.duration}
-            />{/if}
+            </label>{:else}
+              {#if item.timerMode !== 'up'}<TimePicker
+                label="训练时长"
+                max={7200}
+                bind:value={item.duration}
+              />{/if}
+              <div class="field">
+                <span>计时方式</span>
+                <Select label="计时方式" options={timeModes} bind:value={item.timerMode} />
+              </div>
+            {/if}
           <label class="field">
             负重 kg
             <input type="number" step="0.5" bind:value={item.weight} />
