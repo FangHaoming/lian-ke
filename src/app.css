@@ -143,6 +143,15 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .cloud-sync-button strong{font-size:14px;margin-bottom:4px}
 .cloud-sync-button small{color:#8fa1ab;font-size:11px;line-height:1.45}
 .cloud-status{margin:14px 0 0;padding:10px 12px;border-radius:10px;color:#b9c8cf;background:#101921;border:1px solid #2d3e48;font-size:12px}
+.toast-viewport{position:fixed;z-index:1000;top:calc(18px + env(safe-area-inset-top,0px));left:50%;width:min(460px,calc(100vw - 28px));transform:translateX(-50%);pointer-events:none}
+.toast{display:flex;align-items:center;gap:10px;padding:12px 16px;border:1px solid #405561;border-radius:12px;background:#192630;color:#eaf2f4;box-shadow:0 12px 30px #0008;font-size:14px;line-height:1.4;animation:toast-in .2s ease-out}
+.toast.success{color:#d5f5bc;background:#1c301f;border-color:#4a7040}
+.toast.error{color:#ffd9dc;background:#382227;border-color:#70424a}
+.toast-icon{display:grid;place-items:center;width:22px;height:22px;flex:none;border-radius:50%;background:#49606c;color:#fff;font-size:13px;font-weight:800}
+.toast.success .toast-icon{background:#b7f36a;color:#14200a}
+.toast.error .toast-icon{background:#f07d86;color:#321015}
+@keyframes toast-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:520px){.toast-viewport{top:calc(10px + env(safe-area-inset-top,0px))}.toast{padding:11px 13px;font-size:13px}}
 .cloud-status.success{color:#cef3ad;background:#1c2d1c;border-color:#354e2e}
 .cloud-status.error{color:#ffd0d2;background:#352226;border-color:#5b343b}
 .confirm-dialog{width:min(calc(100% - 30px),420px);margin:auto;padding:24px;border:1px solid #405a68;border-radius:18px;background:#151e26;color:#eaf2f4;box-shadow:0 24px 70px #000b}.confirm-dialog::backdrop{background:#000b}.confirm-dialog h2{margin:0 0 10px;font-size:20px}.confirm-dialog p{margin:0;color:#aebfc8;line-height:1.6;white-space:pre-line}.confirm-dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}.confirm-dialog-actions .btn{min-width:92px}

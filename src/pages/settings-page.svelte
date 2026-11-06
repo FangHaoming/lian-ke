@@ -5,6 +5,7 @@
   import Select from '../components/select.svelte'
   import CheckboxGroup from '../components/checkbox-group.svelte'
   import ConfirmDialog from '../components/confirm-dialog.svelte'
+  import Toast from '../components/toast.svelte'
   import { soundOptions } from '../lib/select-options.js'
   import {
     cloudConfig,
@@ -255,14 +256,6 @@
       </span>
     </button>
   </div>
-  {#if status}<p
-      class:success={status.includes('成功') || status === '已退出'}
-      class:error={status.includes('失败')}
-      class="cloud-status"
-      role="status"
-    >
-      {status}
-    </p>{/if}
 </section>
 <ConfirmDialog
   open={syncConfirmation !== null}
@@ -299,6 +292,10 @@
   </div>
   <p class="muted small">{databaseStatus}</p>
 </section>
+<Toast
+  message={status}
+  type={status.includes('失败') ? 'error' : status.includes('成功') || status === '已退出' ? 'success' : 'info'}
+/>
 <section class="panel">
   <div class="row between settings-panel-heading">
     <h3>Supabase 云端配置</h3>
