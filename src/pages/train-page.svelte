@@ -181,8 +181,8 @@
     })
     if (session.index === session.queue.length - 1) {
       playSound(data.sounds.finish)
-      review = { ...session, finishedAt: new Date().toISOString(), notes: '' }
       exitFocus()
+      review = { ...session, finishedAt: new Date().toISOString(), notes: '' }
       session = null
       clearInterval(ticker)
       return
@@ -232,7 +232,7 @@
 <svelte:window on:keydown={handleLockedKeydown} />
 
 {#if review}
-  <section class="panel">
+  <section class="panel training-review">
     <h1>🎉 训练完成</h1>
     <p class="muted">{review.planName} · {review.results.length} 组。请核对实际完成次数和负重。</p>
     <div class="notice">未完成的组可取消勾选；保存和同步只保留完成的组。</div>
