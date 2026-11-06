@@ -19,10 +19,16 @@
   let holding = false
   let unlockTimer
   let unlockButton
+  let selectionPlanId = ''
+  let selectedItemIds = []
   $: plan = data.plans.find((item) => item.id === selected) || data.plans[0]
   $: current = session?.queue[session.index]
   $: availableNames = data.exerciseNames || []
   $: canStartQuick = quickItems.length > 0 && quickItems.every((item) => item.name.trim())
+  $: if (plan && selectionPlanId !== plan.id) {
+    selectionPlanId = plan.id
+    selectedItemIds = plan.items.map((item, index) => item.id || `${plan.id}-${index}`)
+  }
   onMount(() => {
     if (session) {
       ticker = setInterval(tick, 150)
@@ -98,6 +104,23 @@
     }
     clearInterval(ticker)
     ticker = setInterval(tick, 150)
+  }
+  function itemKey(item, index) {
+    return item.id || `${plan?.id || 'plan'}-${index}`
+  }
+  function togglePlanItem(item, index) {
+    const key = itemKey(item, index)
+    selectedItemIds = selectedItemIds.includes(key)
+      ? selectedItemIds.filter((id) => id !== key)
+      : [...selectedItemIds, key]
+  }
+  function selectAllPlanItems() {
+    selectedItemIds = plan.items.map((item, index) => itemKey(item, index))
+  }
+  function startSelectedPlan() {
+    const items = plan.items.filter((item, index) => selectedItemIds.includes(itemKey(item, index)))
+    start(items, plan.name, plan.id)
+    selectAllPlanItems()
   }
   function tick() {
     if (!session || session.paused) return
@@ -446,24 +469,38 @@
         </div>
         <button
           class="btn primary plan-start-button"
-          on:click={() => start(plan.items, plan.name, plan.id)}
+          disabled={!selectedItemIds.length}
+          on:click={startSelectedPlan}
         >
           开始训练 →
         </button>
       </div>
-      <p class="muted">{plan.items.length} 个动作 · {flatten(plan).length} 组</p>
+      <p class="muted">
+        已选 {selectedItemIds.length}/{plan.items.length} 个动作 · {flatten({ items: plan.items.filter((item, index) => selectedItemIds.includes(itemKey(item, index))) }).length} 组
+      </p>
     </section>
     <section class="panel">
-      <h3>今日训练内容</h3>
-      {#each plan.items as item, i}<div class="setline">
-          <div>
-            <b>{i + 1}. {item.name}</b>
-            <div class="muted small">
-              {item.sets} 组 · {item.mode === 'reps' ? item.reps + ' 次' : item.duration + ' 秒'} · {item.weight}
-              kg
-            </div>
-          </div>
+      <div class="row between">
+        <h3>今日训练内容</h3>
+        <button class="btn tiny ghost" on:click={selectAllPlanItems}>全选动作</button>
+      </div>
+      <p class="muted small">勾选本次要练的动作，默认全部选中。</p>
+      {#each plan.items as item, i}<label class="setline plan-action-option">
+          <span class="plan-action-check">
+            <input
+              class="plan-action-checkbox"
+              type="checkbox"
+              checked={selectedItemIds.includes(itemKey(item, i))}
+              on:change={() => togglePlanItem(item, i)}
+            />
+            <span class="plan-action-copy">
+              <b>{i + 1}. {item.name}</b>
+              <span class="muted small plan-action-detail">
+                {item.sets} 组 · {item.mode === 'reps' ? item.reps + ' 次' : item.duration + ' 秒'} · {item.weight} kg
+              </span>
+            </span>
+          </span>
           <span class="pill">休息 {item.rest}s</span>
-        </div>{/each}
+        </label>{/each}
     </section>{/if}
 {/if}

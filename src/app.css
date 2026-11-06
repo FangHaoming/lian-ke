@@ -59,6 +59,15 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .plan-start-row{display:flex;align-items:flex-end;gap:16px;max-width:760px}
 .plan-start-picker{flex:1 1 auto;min-width:0;max-width:560px}
 .plan-start-button{height:48px;min-height:48px;flex:0 0 auto;white-space:nowrap}
+.plan-action-option{cursor:pointer;user-select:none}
+.plan-action-option:hover{background:#18232c}
+.plan-action-option:has(.plan-action-checkbox:checked){background:#141f26}
+.plan-action-check{display:flex;align-items:center;gap:14px;min-width:0}
+.plan-action-copy{min-width:0}
+.plan-action-copy>b{display:block}
+.plan-action-detail{display:block;margin-top:4px}
+.plan-action-checkbox{width:16px!important;height:16px!important;min-width:16px!important;margin:0;accent-color:#b7f36a;cursor:pointer}
+.plan-action-option>.pill{flex-shrink:0;margin-left:12px;color:#8fa4ae;background:#202f38}
 .plan-start-summary{margin-top:12px}
 @media(max-width:520px){.plan-start-row{gap:10px}.plan-start-button{padding-inline:12px}.plan-start-picker{flex:1;min-width:0}}
 .quick-sound-panel{margin-top:18px;padding:14px;border:1px solid #354956;border-radius:12px}.quick-sound-tests{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.quick-sound-tests .btn{min-height:42px;font-size:13px}
@@ -73,15 +82,12 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .review-exercise-header b{font-size:18px;color:#edf6f7}
 .review-exercise-header span{color:#91a5af;font-size:13px}
 .review-target{flex:none;padding:5px 9px;border-radius:8px;background:#1d2d35;color:#b9cbd1;font-size:12px!important}
-.review-fields{display:grid;grid-template-columns:1.25fr repeat(3,minmax(130px,1fr));gap:12px;align-items:end}
+.review-fields{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:12px;align-items:end}
 .review-check-control{display:flex;align-items:center;gap:10px;min-height:48px;padding:0 13px;background:#0c141b;border:1px solid #34444f;border-radius:12px;color:#aebfc6}
-.review-checkbox{appearance:none!important;width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;padding:0!important;border:1px solid #526874!important;border-radius:6px!important;background:#101921!important;cursor:pointer;position:relative}
-.review-checkbox:checked{background:#b7f36a!important;border-color:#b7f36a!important}
-.review-checkbox:checked::after{content:'✓';position:absolute;left:4px;top:-1px;color:#14200a;font-size:17px;font-weight:900}
-.review-checkbox:focus-visible{outline:2px solid #b7f36a;outline-offset:2px}
+.review-checkbox{width:16px!important;height:16px!important;min-width:16px!important;min-height:16px!important;margin:0;accent-color:#b7f36a;cursor:pointer}
 .review-check-control:has(.review-checkbox:checked){border-color:#5b7e4d;color:#d5f5bc;background:#18251a}
 .review-exercise .field input:not([type='checkbox']){min-height:48px}
-@media(max-width:760px){.review-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.review-complete{grid-column:1/-1}}
+@media(max-width:760px){.review-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:430px){.review-exercise{padding:14px}.review-exercise-header{align-items:flex-start;flex-direction:column;gap:8px}.review-fields{grid-template-columns:1fr}}
 
 /* Settings: cloud account and directional sync */
@@ -152,6 +158,14 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .history-record-list::-webkit-scrollbar-thumb{background:#536874;border-radius:8px}
 .action-stat-list::-webkit-scrollbar-thumb{background:#536874;border-radius:8px}
 .history-record-list::-webkit-scrollbar-track{background:#151e26}
+.action-stat-heading{align-items:center;margin-bottom:14px}
+.action-stat-heading h3{margin:0}
+.stats-filter{display:flex;align-items:center;gap:8px}
+.stats-filter-control{position:relative;min-width:220px}
+.stats-filter-control .exercise-name-picker>input{min-width:220px;padding-right:34px}
+.stats-filter-clear{position:absolute;right:9px;top:50%;width:22px;height:22px;padding:0;border:0;border-radius:50%;background:#263842;color:#b9cbd1;font-size:18px;line-height:20px;transform:translateY(-50%)}
+.stats-filter-clear:hover{background:#344b56;color:#f0f5f5}
+@media(max-width:520px){.action-stat-heading{align-items:flex-start;flex-direction:column}.stats-filter{width:100%}.stats-filter-control{flex:1;min-width:0}.stats-filter-control .exercise-name-picker>input{min-width:0}}
 .action-stat-list::-webkit-scrollbar-track{background:#151e26}
 
 /* Immersive workout screen and deliberate unlock gesture */

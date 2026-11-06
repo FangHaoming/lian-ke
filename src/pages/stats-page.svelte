@@ -1,5 +1,6 @@
 <script>
   import { date, fmt, num } from '../lib/workout-model.js'
+  import ExerciseNameSelect from '../components/exercise-name-select.svelte'
   export let data
   $: records = data.records
   $: sets = records.flatMap((record) => record.results.filter((result) => result.completed))
@@ -9,6 +10,14 @@
     ),
   ).size
   $: names = [...new Set(sets.map((result) => result.name))].sort()
+  let actionQuery = ''
+  $: normalizedActionQuery = actionQuery.trim().toLocaleLowerCase()
+  $: filteredSets = normalizedActionQuery
+    ? sets.filter((item) => item.name.toLocaleLowerCase().includes(normalizedActionQuery))
+    : sets
+  $: filteredNames = normalizedActionQuery
+    ? names.filter((name) => name.toLocaleLowerCase().includes(normalizedActionQuery))
+    : names
   function download() {
     const blob = new Blob(
       [JSON.stringify({ ...data, exportedAt: new Date().toISOString() }, null, 2)],
@@ -62,24 +71,6 @@
     </section>{/each}
 </div>
 <section class="panel">
-  <h3>动作统计</h3>
-  {#if names.length}<div class="grid action-stat-list">
-      {#each names as name}{@const items = sets.filter((item) => item.name === name)}
-        <div class="metric">
-          <b>{name}</b>
-          <div class="muted small">
-            完成 {items.length} 组 · {items.reduce((sum, item) => sum + num(item.actualReps), 0)} 次
-          </div>
-          <div class="muted small">
-            最大负重 {Math.max(...items.map((item) => num(item.actualWeight)))} kg
-          </div>
-          <div class="muted small">
-            实际训练 {fmt(items.reduce((sum, item) => sum + num(item.actualSeconds), 0))}
-          </div>
-        </div>{/each}
-    </div>{:else}<div class="empty">暂无动作数据</div>{/if}
-</section>
-<section class="panel">
   <h3>历史训练记录</h3>
   <div class="history-record-list">
     {#each [...records].reverse() as record (record.id)}<div class="history-record">
@@ -119,4 +110,41 @@
       </details>
     </div>{:else}<div class="empty">暂无训练历史</div>{/each}
   </div>
+</section>
+<section class="panel">
+  <div class="row between action-stat-heading">
+    <h3>动作统计</h3>
+    {#if names.length}<label class="stats-filter">
+        <span class="muted small">筛选动作</span>
+        <div class="stats-filter-control">
+          <ExerciseNameSelect
+            label="筛选动作"
+            placeholder="全部动作 / 输入动作"
+            options={names}
+            bind:value={actionQuery}
+          />
+          {#if actionQuery}<button
+              type="button"
+              class="stats-filter-clear"
+              aria-label="清除动作筛选"
+              on:click={() => (actionQuery = '')}
+            >×</button>{/if}
+        </div>
+      </label>{/if}
+  </div>
+  {#if filteredNames.length}<div class="grid action-stat-list">
+      {#each filteredNames as name}{@const items = filteredSets.filter((item) => item.name === name)}
+        <div class="metric">
+          <b>{name}</b>
+          <div class="muted small">
+            完成 {items.length} 组 · {items.reduce((sum, item) => sum + num(item.actualReps), 0)} 次
+          </div>
+          <div class="muted small">
+            最大负重 {Math.max(...items.map((item) => num(item.actualWeight)))} kg
+          </div>
+          <div class="muted small">
+            实际训练 {fmt(items.reduce((sum, item) => sum + num(item.actualSeconds), 0))}
+          </div>
+        </div>{/each}
+    </div>{:else}<div class="empty">暂无动作数据</div>{/if}
 </section>
