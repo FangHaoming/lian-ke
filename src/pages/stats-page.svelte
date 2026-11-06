@@ -1,6 +1,8 @@
 <script>
-  import { date, fmt, num } from '../lib/workout-model.js'
+  import { onDestroy } from 'svelte'
+  import { date, dayKey, fmt, num } from '../lib/workout-model.js'
   import ExerciseNameSelect from '../components/exercise-name-select.svelte'
+  import DailyLineChart from '../components/daily-line-chart.svelte'
   export let data
   $: records = data.records
   $: sets = records.flatMap((record) => record.results.filter((result) => result.completed))
@@ -18,6 +20,96 @@
   $: filteredNames = normalizedActionQuery
     ? names.filter((name) => name.toLocaleLowerCase().includes(normalizedActionQuery))
     : names
+  let chartMetrics = ['sets', 'minutes']
+  let chartActionQuery = ''
+  let selectedChartDay = null
+  $: if (typeof document !== 'undefined') {
+    document.body.classList.toggle('chart-modal-open', Boolean(selectedChartDay))
+  }
+  onDestroy(() => {
+    if (typeof document !== 'undefined') document.body.classList.remove('chart-modal-open')
+  })
+  $: normalizedChartQuery = chartActionQuery.trim().toLocaleLowerCase()
+  $: chartDailyByKey = records
+    .reduce((days, record) => {
+      const key = dayKey(record.startedAt || record.finishedAt)
+      if (!key) return days
+      const current = days.get(key) || { key, sets: 0, seconds: 0, details: [] }
+      const matchingResults = record.results.filter((result) => {
+        if (
+          !result.completed ||
+          (normalizedChartQuery &&
+            !result.name.toLocaleLowerCase().includes(normalizedChartQuery))
+        )
+          return false
+        return true
+      })
+      current.sets += matchingResults.length
+      current.seconds += matchingResults.reduce(
+        (seconds, result) => seconds + num(result.actualSeconds),
+        0,
+      )
+      if (matchingResults.length) {
+        current.details.push({
+          planName: record.planName || '未命名训练',
+          notes: record.notes || '',
+          sets: matchingResults.length,
+          minutes: Math.ceil(
+            matchingResults.reduce((seconds, result) => seconds + num(result.actualSeconds), 0) / 60,
+          ),
+          exercises: [...new Set(matchingResults.map((result) => result.name))],
+          results: matchingResults,
+        })
+      }
+      days.set(key, current)
+      return days
+    }, new Map())
+  $: chartDailyKeys = [...chartDailyByKey.keys()].sort()
+  $: chartPoints = chartDailyKeys.length
+    ? (() => {
+        const end = new Date(chartDailyKeys.at(-1) + 'T12:00:00')
+        const start = new Date(chartDailyKeys[0] + 'T12:00:00')
+        const days = []
+        for (const cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+          const key = dayKey(cursor)
+          const item = chartDailyByKey.get(key) || { key, sets: 0, seconds: 0, details: [] }
+          days.push({
+            key,
+            sets: item.sets,
+            minutes: Math.ceil(item.seconds / 60),
+            details: item.details,
+          })
+        }
+        return days
+      })()
+    : []
+  $: hasChartData = chartPoints.some((item) => item.sets || item.minutes)
+  function targetText(result) {
+    if (result.mode === 'time') return String(result.targetSeconds ?? 0) + ' 秒'
+    if (result.mode === 'reps') return String(result.targetReps ?? 0) + ' 次'
+    if (result.mode === 'both') {
+      return (
+        String(result.targetReps ?? 0) +
+        ' 次 / ' +
+        String(result.targetSeconds ?? 0) +
+        ' 秒'
+      )
+    }
+    if (result.targetSeconds != null) return String(result.targetSeconds) + ' 秒'
+    if (result.targetReps != null) return String(result.targetReps) + ' 次'
+    return '未设置目标'
+  }
+  function actualText(result) {
+    if (result.mode === 'time') return fmt(num(result.actualSeconds))
+    if (result.mode === 'reps') return String(result.actualReps ?? 0) + ' 次'
+    if (result.mode === 'both') {
+      return String(result.actualReps ?? 0) + ' 次 / ' + fmt(num(result.actualSeconds))
+    }
+    if (result.actualSeconds != null && num(result.actualSeconds) > 0) {
+      return fmt(num(result.actualSeconds))
+    }
+    return String(result.actualReps ?? 0) + ' 次'
+  }
   function download() {
     const blob = new Blob(
       [JSON.stringify({ ...data, exportedAt: new Date().toISOString() }, null, 2)],
@@ -57,19 +149,54 @@
     <strong>{fmt(sets.reduce((sum, item) => sum + num(item.actualSeconds), 0))}</strong>
   </div>
 </div>
-<div class="two" style="margin-top:15px">
-  {#each [{ title: '近 10 次训练 · 完成组数', value: (r) => r.results.filter((s) => s.completed).length }, { title: '近 10 次训练 · 实际训练分钟', value: (r) => r.results.reduce((sum, s) => sum + (s.completed ? num(s.actualSeconds) : 0), 0) / 60 }] as chart}<section
-      class="panel"
-    >
-      <h3>{chart.title}</h3>
-      {#if records.length}<div class="row" style="align-items:end;height:180px">
-          {#each records.slice(-10) as record}<div
-              style={`flex:1;height:${Math.max(2, (chart.value(record) / Math.max(1, ...records.slice(-10).map(chart.value))) * 150)}px;background:#b7f36a;border-radius:4px`}
-              title={String(chart.value(record))}
-            ></div>{/each}
-        </div>{:else}<div class="empty">暂无数据</div>{/if}
-    </section>{/each}
-</div>
+<section class="panel daily-chart-panel">
+  <div class="daily-chart-heading">
+    <div>
+      <h3>按天训练趋势</h3>
+      <p class="muted small">默认显示最近一周 · 支持横向滚动、双指缩放和折线图</p>
+    </div>
+    <div class="daily-chart-controls">
+      <div class="chart-metric-switch" aria-label="选择统计指标">
+        {#each [{ key: 'sets', label: '组数' }, { key: 'minutes', label: '分钟' }] as metric}
+          <button
+            class:active={chartMetrics.includes(metric.key)}
+            type="button"
+            aria-pressed={chartMetrics.includes(metric.key)}
+            on:click={() => {
+              chartMetrics = chartMetrics.includes(metric.key)
+                ? chartMetrics.filter((item) => item !== metric.key)
+                : [...chartMetrics, metric.key]
+            }}
+          >{metric.label}</button>
+        {/each}
+      </div>
+      {#if names.length}<div class="stats-filter-control chart-action-filter">
+          <ExerciseNameSelect
+            label="图表动作筛选"
+            placeholder="全部动作 / 输入动作"
+            options={names}
+            bind:value={chartActionQuery}
+          />
+          {#if chartActionQuery}<button
+              type="button"
+              class="stats-filter-clear"
+              aria-label="清除图表动作筛选"
+              on:click={() => (chartActionQuery = '')}
+            >×</button>{/if}
+        </div>{/if}
+    </div>
+  </div>
+  {#if hasChartData}
+    {#if chartMetrics.length}
+      <DailyLineChart
+        points={chartPoints}
+        metrics={chartMetrics}
+        on:select={(event) => (selectedChartDay = event.detail)}
+      />
+    {:else}<div class="empty">至少选择一个统计指标</div>{/if}
+  {:else}<div class="empty">暂无按天训练数据</div>{/if}
+</section>
+{#if false}
 <section class="panel">
   <h3>历史训练记录</h3>
   <div class="history-record-list">
@@ -111,6 +238,45 @@
     </div>{:else}<div class="empty">暂无训练历史</div>{/each}
   </div>
 </section>
+{/if}
+{#if selectedChartDay}
+  <div class="chart-detail-backdrop" role="presentation" on:click={() => (selectedChartDay = null)}>
+    <section
+      class="chart-detail-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="chart-detail-title"
+      on:click|stopPropagation
+    >
+      <div class="row between">
+        <div>
+          <h3 id="chart-detail-title">{selectedChartDay.key}</h3>
+          <p class="muted small">当天训练记录</p>
+        </div>
+        <button class="btn ghost tiny" type="button" on:click={() => (selectedChartDay = null)}>关闭</button>
+      </div>
+      <div class="chart-detail-list">
+        {#each selectedChartDay.details as detail}
+          <article class="chart-detail-item">
+            <b>{detail.planName}</b>
+            {#if detail.notes}<div class="chart-detail-note muted small">备注：{detail.notes}</div>{/if}
+            <div class="muted small">完成 {detail.sets} 组 · 实际训练 {detail.minutes} 分钟</div>
+            <div class="chart-detail-results">
+              {#each detail.results as result}
+                <div class="chart-detail-result">
+                  <span>{result.name} · 第 {result.setIndex} 组</span>
+                  <span class="muted small">
+                    目标：{targetText(result)} · 实际：{actualText(result)}
+                  </span>
+                </div>
+              {/each}
+            </div>
+          </article>
+        {:else}<div class="empty">当天没有匹配的训练记录</div>{/each}
+      </div>
+    </section>
+  </div>
+{/if}
 <section class="panel">
   <div class="row between action-stat-heading">
     <h3>动作统计</h3>

@@ -167,6 +167,52 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .stats-filter-clear:hover{background:#344b56;color:#f0f5f5}
 @media(max-width:520px){.action-stat-heading{align-items:flex-start;flex-direction:column}.stats-filter{width:100%}.stats-filter-control{flex:1;min-width:0}.stats-filter-control .exercise-name-picker>input{min-width:0}}
 .action-stat-list::-webkit-scrollbar-track{background:#151e26}
+@media(max-width:520px){.daily-chart-tools{width:100%;justify-content:space-between;gap:10px}.daily-chart-legend{gap:9px}}
+.daily-chart-panel{margin-top:15px}
+.daily-chart-panel h3{margin-bottom:5px}
+.daily-chart-panel p{margin:0}
+.daily-chart-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:18px}
+.daily-chart-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.chart-metric-switch{display:flex;gap:4px;padding:3px;border:1px solid #344852;border-radius:10px;background:#101921}
+.chart-metric-switch button{padding:7px 10px;border:0;border-radius:7px;background:transparent;color:#91a4ae;font-size:12px}
+.chart-metric-switch button.active{background:#b7f36a;color:#14200a;font-weight:750}
+.chart-action-filter{width:220px}
+.chart-action-filter .exercise-name-picker>input{min-width:0!important;padding-right:34px}
+.daily-line-chart{cursor:pointer}
+.chart-detail-backdrop{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:20px;background:#000b}
+.chart-modal-open{overflow:hidden}
+.chart-detail-backdrop{overscroll-behavior:contain;overflow:hidden}
+.chart-detail-dialog{width:min(560px,calc(100vw - 30px));max-height:min(680px,calc(100vh - 40px));overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:24px;border:1px solid #405a68;border-radius:18px;background:#151e26;color:#eaf2f4;box-shadow:0 24px 70px #000b}
+.chart-detail-dialog h3{margin:0 0 4px}
+.chart-detail-list{display:grid;gap:10px;margin-top:20px}
+.chart-detail-item{padding:14px;border:1px solid #293d48;border-radius:12px;background:#101921}
+.chart-detail-item b{display:block;margin-bottom:7px}
+.chart-detail-note{margin:0 0 8px;line-height:1.5}
+.chart-detail-results{display:grid;gap:6px;margin-top:10px}
+.chart-detail-result{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:7px;border-top:1px solid #293943}
+.daily-chart-tools{display:flex;align-items:center;gap:16px}
+.daily-chart-legend{display:flex;gap:14px;flex-wrap:wrap;color:#a7b8c2;font-size:12px}
+.daily-chart-legend span{display:flex;align-items:center;gap:5px}
+.daily-chart-legend i{display:inline-block;width:9px;height:9px;border-radius:3px}
+.daily-legend-set{background:#b7f36a}
+.daily-legend-time{background:#65b7d4}
+.daily-zoom-control{display:flex;align-items:center;gap:7px}
+.daily-zoom-control button{width:27px;height:27px;padding:0;border:1px solid #405561;border-radius:7px;background:#1b2a33;color:#dce9ed;font-size:18px;line-height:1}
+.daily-zoom-control button:hover{border-color:#b7f36a;color:#b7f36a}
+.daily-zoom-control span{min-width:42px;text-align:center;color:#8fa3ad;font-size:12px}
+.daily-chart-shell{display:grid;grid-template-columns:32px minmax(0,1fr) 42px;gap:8px;align-items:stretch;margin-top:22px}
+.daily-axis{display:flex;flex-direction:column;justify-content:space-between;padding-bottom:30px;color:#7f939d;font-size:11px;line-height:1}
+.daily-axis-right{text-align:right}
+.daily-chart-viewport{min-width:0;width:100%;overflow-x:auto;overflow-y:hidden}
+.daily-chart{height:220px;min-width:100%;display:flex;align-items:stretch;gap:8px;margin:0;padding:0 4px;position:relative;background:linear-gradient(to bottom,rgba(52,70,80,.8) 1px,transparent 1px) 0 0/100% 1px no-repeat,linear-gradient(to bottom,rgba(52,70,80,.55) 1px,transparent 1px) 0 95px/100% 1px no-repeat}
+.daily-chart::after{content:'';position:absolute;left:0;right:0;top:190px;border-top:1px solid #344650;pointer-events:none}
+.daily-chart-column{flex:0 0 var(--daily-column-width);min-width:var(--daily-column-width);height:220px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:0;color:#8b9ba5;font-size:11px}
+.daily-chart-bars{width:100%;height:190px;display:flex;align-items:flex-end;justify-content:center;gap:3px}
+.daily-chart-column>span{height:30px;padding-top:8px;line-height:14px;white-space:nowrap}
+.daily-bar{width:10px;min-height:2px;border-radius:4px 4px 0 0;transition:height .2s ease}
+.daily-bar-set{background:linear-gradient(180deg,#c4ff76,#a8e95d)}
+.daily-bar-time{background:linear-gradient(180deg,#78c8e2,#5aacc9)}
+@media(max-width:650px){.daily-chart-heading{flex-direction:column}.daily-chart-controls{width:100%;justify-content:flex-start}.chart-action-filter{flex:1;min-width:0;width:auto}}
 
 /* Immersive workout screen and deliberate unlock gesture */
 .training-session.training-focus{position:fixed;inset:0;z-index:100;background:#0b1015;overflow-y:auto;overscroll-behavior:contain;padding:calc(20px + env(safe-area-inset-top,0px)) max(18px,calc((100vw - 1050px)/2)) calc(28px + env(safe-area-inset-bottom,0px))}
