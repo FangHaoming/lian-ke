@@ -260,11 +260,11 @@
           <article class="chart-detail-item">
             <b>{detail.planName}</b>
             {#if detail.notes}<div class="chart-detail-note muted small">备注：{detail.notes}</div>{/if}
-            <div class="muted small">完成 {detail.sets} 组 · 实际训练 {detail.minutes} 分钟</div>
+            <div class="chart-detail-summary">完成 {detail.sets} 组 <span>·</span> 实际训练 {detail.minutes} 分钟</div>
             <div class="chart-detail-results">
               {#each detail.results as result}
                 <div class="chart-detail-result">
-                  <span>{result.name} · 第 {result.setIndex} 组</span>
+                  <span class="chart-detail-result-name">{result.name} <em>第 {result.setIndex} 组</em></span>
                   <span class="muted small">
                     {#if result.mode === 'time' && result.timerMode !== 'down'}
                       实际：{actualText(result)}
