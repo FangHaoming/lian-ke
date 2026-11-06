@@ -115,6 +115,21 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .cloud-auth-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:20px;max-width:700px}
 .cloud-auth-fields input{min-height:48px;background:#0c141b;border-color:#34444f;border-radius:12px;padding:12px 14px}
 .cloud-auth-fields input::placeholder{color:#6f828d}
+.cloud-auth-fields input:-webkit-autofill,
+.cloud-auth-fields input:-webkit-autofill:hover,
+.cloud-auth-fields input:-webkit-autofill:focus{
+  -webkit-text-fill-color:#f0f5f5;
+  -webkit-box-shadow:0 0 0 1000px #0c141b inset;
+  box-shadow:0 0 0 1000px #0c141b inset;
+  border-color:#34444f;
+  caret-color:#f0f5f5;
+  transition:background-color 9999s ease-out 0s;
+}
+.cloud-auth-fields input:autofill{
+  color:#f0f5f5;
+  background:#0c141b;
+  border-color:#34444f;
+}
 .cloud-auth-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
 .cloud-auth-actions .btn{min-height:44px;padding-inline:20px}
 .cloud-sign-out{margin-left:auto;background:transparent;color:#9eb0ba;border:1px solid #34444f}
