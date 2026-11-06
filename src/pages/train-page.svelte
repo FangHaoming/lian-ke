@@ -392,7 +392,7 @@
         bind:this={unlockButton}
         class="unlock-hold"
         class:is-holding={holding}
-        on:pointerdown={beginUnlock}
+        on:pointerdown|preventDefault={beginUnlock}
         on:pointerup={cancelUnlock}
         on:pointercancel={cancelUnlock}
         on:pointerleave={cancelUnlock}
@@ -400,6 +400,8 @@
         on:keyup={(event) => { if (event.key === 'Enter' || event.key === ' ') cancelUnlock() }}
         on:blur={cancelUnlock}
         on:contextmenu={(event) => event.preventDefault()}
+        on:selectstart|preventDefault
+        on:dragstart|preventDefault
       >长按退出防误触</button>
     </div>
   {:else}
