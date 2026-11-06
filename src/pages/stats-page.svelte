@@ -149,7 +149,7 @@
     <strong>{fmt(sets.reduce((sum, item) => sum + num(item.actualSeconds), 0))}</strong>
   </div>
 </div>
-<section class="panel daily-chart-panel">
+<section class:chart-modal-active={selectedChartDay} class="panel daily-chart-panel">
   <div class="daily-chart-heading">
     <div>
       <h3>按天训练趋势</h3>
