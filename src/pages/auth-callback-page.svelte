@@ -7,8 +7,8 @@
   let completed = false
   const homePath = `${(import.meta.env.BASE_URL || '/').replace(/\/+$/, '')}/`
 
-  onMount(() => {
-    const callbackSession = consumeAuthCallback()
+  onMount(async () => {
+    const callbackSession = await consumeAuthCallback()
     const session = callbackSession || cloudSession()
     if (callbackSession?.access_token && callbackSession.user?.id) {
       status = '邮箱授权成功'

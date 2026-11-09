@@ -93,12 +93,12 @@ function userFromAccessToken(token) {
   }
 }
 
-export function consumeAuthCallback() {
+export async function consumeAuthCallback() {
   if (!location.hash || !location.hash.includes('access_token=')) return null
   const params = new URLSearchParams(location.hash.slice(1))
   const accessToken = params.get('access_token')
   if (!accessToken) return null
-  const session = saveSession({
+  let session = saveSession({
     access_token: accessToken,
     refresh_token: params.get('refresh_token') || '',
     token_type: params.get('token_type') || 'bearer',
@@ -107,6 +107,20 @@ export function consumeAuthCallback() {
     user: userFromAccessToken(accessToken),
   })
   history.replaceState(history.state, '', location.pathname + location.search)
+  if (!session.user?.email) {
+    const { url, anonKey } = cloudConfig()
+    try {
+      const response = await fetch(`${url}/auth/v1/user`, {
+        headers: { apikey: anonKey, Authorization: `Bearer ${accessToken}` },
+      })
+      if (response.ok) {
+        const user = await response.json()
+        session = saveSession({ ...session, user: { id: user.id, email: user.email || '' } })
+      }
+    } catch {
+      // The access token is still usable even if the profile lookup fails.
+    }
+  }
   return session
 }
 
