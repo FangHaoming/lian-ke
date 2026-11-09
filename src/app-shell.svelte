@@ -2,7 +2,7 @@
   import { onMount } from 'svelte'
   import { defaults } from './lib/workout-model.js'
   import { loadData, saveData } from './lib/data.js'
-  import { consumeAuthCallback } from './lib/cloud.js'
+  import { consumeAuthCallback, cloudSession, signOut } from './lib/cloud.js'
   import TrainPage from './pages/train-page.svelte'
   import PlansPage from './pages/plans-page.svelte'
   import StatsPage from './pages/stats-page.svelte'
@@ -10,6 +10,7 @@
   import WeightPage from './pages/weight-page.svelte'
   import ChallengesPage from './pages/challenges-page.svelte'
   import AuthCallbackPage from './pages/auth-callback-page.svelte'
+  import ConfirmDialog from './components/confirm-dialog.svelte'
 
   let data = defaults()
   let tab = 'train'
@@ -23,6 +24,9 @@
   let screenAwake = false
   let challengeDirty = false
   let authCallback = false
+  let sidebarOpen = true
+  let accountSession = cloudSession()
+  let signOutConfirmation = false
 
   const routes = {
     train: '',
@@ -91,6 +95,28 @@
     history.pushState({ ...(history.state || {}), tab: next }, '', routePath(next))
   }
 
+  function openDeleteAccount() {
+    switchTab('settings')
+    setTimeout(() => window.dispatchEvent(new CustomEvent('open-delete-account')), 0)
+    sidebarOpen = false
+  }
+
+  function requestSignOut() {
+    signOutConfirmation = true
+  }
+
+  function confirmSignOut() {
+    signOut()
+    accountSession = null
+    signOutConfirmation = false
+    window.dispatchEvent(new CustomEvent('lianke-auth-change'))
+  }
+
+  function selectTab(next) {
+    switchTab(next)
+    if (window.innerWidth <= 760) sidebarOpen = false
+  }
+
   function syncWakeLock(active) {
     if (!active || document.visibilityState !== 'visible') {
       if (wakeLock) {
@@ -125,6 +151,7 @@
       })
   }
   onMount(() => {
+    sidebarOpen = window.innerWidth > 760
     restoreGithubPagesRoute()
     data = loadData()
     authCallback = isAuthCallbackLocation()
@@ -157,9 +184,15 @@
     }
     window.addEventListener('popstate', onPopState)
     const onVisibilityChange = () => syncWakeLock(Boolean(session && !session.paused))
+    const onAuthChange = () => (accountSession = cloudSession())
+    const onRequestSignOut = () => requestSignOut()
+    window.addEventListener('lianke-auth-change', onAuthChange)
+    window.addEventListener('request-sign-out', onRequestSignOut)
     document.addEventListener('visibilitychange', onVisibilityChange)
     return () => {
       window.removeEventListener('popstate', onPopState)
+      window.removeEventListener('lianke-auth-change', onAuthChange)
+      window.removeEventListener('request-sign-out', onRequestSignOut)
       document.removeEventListener('visibilitychange', onVisibilityChange)
       if (wakeLock) void wakeLock.release().catch(() => {})
     }
@@ -170,44 +203,130 @@
 
 <div class="app">
   {#if authCallback}
-    {#if ready}<AuthCallbackPage />{/if}
+    <div class="app-content">
+      {#if ready}<AuthCallbackPage />{/if}
+    </div>
   {:else}
-    <header class="top">
-      <div>
-        <div class="brand-lockup">
-          <span class="brand-icon-shell">
-            <img class="brand-icon" src="fit-log-icon.png" alt="练刻图标" />
-          </span>
-          <div class="logo">
+    <aside class:collapsed={!sidebarOpen} class="sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-icon-shell">
+          <img class="brand-icon" src="fit-log-icon.png" alt="练刻图标" />
+        </span>
+        {#if sidebarOpen}<strong>
             练
             <span>刻</span>
-            <span style="font-size:12px;color:#7c909b;font-weight:400">FIT LOG</span>
-          </div>
-        </div>
-        <div class="muted small brand-subtitle">你的训练节奏、计划与进步</div>
+          </strong>{/if}
       </div>
-      <span class="pill">{today}</span>
-    </header>
-    <nav class="tabs" aria-label="主导航">
-      {#each [['train', '◉ 训练'], ['plans', '▦ 训练计划'], ['challenges', '⚑ 挑战闯关'], ['weight', '◒ 体重'], ['stats', '▥ 数据分析'], ['settings', '⚙ 设置/备份']] as [id, label]}
-        <button class:active={tab === id} class="tab" on:click={() => switchTab(id)}>
-          {label}
+      {#if sidebarOpen}
+        {#if accountSession?.user?.email}
+          <div class="sidebar-account">
+            <span class="sidebar-account-label">当前账号</span>
+            <strong>{accountSession.user.email}</strong>
+          </div>
+        {:else}
+          <button
+            class="sidebar-account sidebar-account-empty"
+            on:click={() => switchTab('settings')}
+          >
+            <span class="sidebar-account-label">未登录</span>
+            <strong>去设置登录账号</strong>
+          </button>
+        {/if}
+      {/if}
+      <nav class="sidebar-nav" aria-label="主导航">
+        {#each [['train', '◉', '训练'], ['plans', '▦', '训练计划'], ['challenges', '⚑', '挑战闯关'], ['weight', '◒', '体重'], ['stats', '▥', '数据分析'], ['settings', '⚙', '设置/备份']] as [id, icon, label]}
+          <button
+            class:active={tab === id}
+            class="sidebar-link"
+            aria-label={label}
+            title={sidebarOpen ? undefined : label}
+            on:click={() => {
+              selectTab(id)
+            }}
+          >
+            <span aria-hidden="true">{icon}</span>
+            {#if sidebarOpen}<span>{label}</span>{/if}
+          </button>
+        {/each}
+      </nav>
+      <div class="sidebar-bottom">
+        {#if accountSession?.user?.email}
+          <button
+            class="sidebar-link sidebar-action"
+            aria-label="退出登录"
+            title={sidebarOpen ? undefined : '退出登录'}
+            on:click={requestSignOut}
+          >
+            <span aria-hidden="true">↪</span>
+            {#if sidebarOpen}<span>退出登录</span>{/if}
+          </button>
+          <button
+            class="sidebar-link sidebar-action danger"
+            aria-label="注销账号"
+            title={sidebarOpen ? undefined : '注销账号'}
+            on:click={openDeleteAccount}
+          >
+            <span aria-hidden="true">⌫</span>
+            {#if sidebarOpen}<span>注销账号</span>{/if}
+          </button>
+        {/if}
+        <button
+          class="sidebar-collapse"
+          aria-label={sidebarOpen ? '收起侧边栏' : '展开侧边栏'}
+          on:click={() => (sidebarOpen = !sidebarOpen)}
+        >
+          {sidebarOpen ? '‹' : '›'}
         </button>
-      {/each}
-    </nav>
-    {#if ready}
-      {#if tab === 'train'}<TrainPage
-          bind:data
-          bind:session
-          bind:review
-          bind:quickItems
-          {screenAwake}
-        />
-      {:else if tab === 'plans'}<PlansPage bind:data />
-      {:else if tab === 'challenges'}<ChallengesPage bind:data bind:dirty={challengeDirty} />
-      {:else if tab === 'weight'}<WeightPage bind:data />
-      {:else if tab === 'stats'}<StatsPage bind:data />
-      {:else}<SettingsPage bind:data />{/if}
-    {/if}
+      </div>
+    </aside>
+    {#if sidebarOpen}<button
+        class="sidebar-backdrop"
+        aria-label="收起导航"
+        on:click={() => (sidebarOpen = false)}
+      ></button>{/if}
+    <div class="app-content">
+      <header class="top">
+        <div>
+          <div class="brand-lockup">
+            <button
+              class="mobile-sidebar-toggle"
+              aria-label="打开导航"
+              on:click={() => (sidebarOpen = true)}
+            >
+              ☰
+            </button>
+            <div class="logo">
+              练
+              <span>刻</span>
+              <small>FIT LOG</small>
+            </div>
+          </div>
+          <div class="muted small brand-subtitle">你的训练节奏、计划与进步</div>
+        </div>
+        <span class="pill">{today}</span>
+      </header>
+      {#if ready}
+        {#if tab === 'train'}<TrainPage
+            bind:data
+            bind:session
+            bind:review
+            bind:quickItems
+            {screenAwake}
+          />
+        {:else if tab === 'plans'}<PlansPage bind:data />
+        {:else if tab === 'challenges'}<ChallengesPage bind:data bind:dirty={challengeDirty} />
+        {:else if tab === 'weight'}<WeightPage bind:data />
+        {:else if tab === 'stats'}<StatsPage bind:data />
+        {:else}<SettingsPage bind:data />{/if}
+      {/if}
+    </div>
   {/if}
+  <ConfirmDialog
+    bind:open={signOutConfirmation}
+    title="退出登录"
+    message="退出后本设备将清除当前登录状态，确定退出吗？"
+    confirmText="确认退出"
+    on:confirm={confirmSignOut}
+    on:cancel={() => (signOutConfirmation = false)}
+  />
 </div>

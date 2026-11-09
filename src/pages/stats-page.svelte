@@ -30,40 +30,38 @@
     if (typeof document !== 'undefined') document.body.classList.remove('chart-modal-open')
   })
   $: normalizedChartQuery = chartActionQuery.trim().toLocaleLowerCase()
-  $: chartDailyByKey = records
-    .reduce((days, record) => {
-      const key = dayKey(record.startedAt || record.finishedAt)
-      if (!key) return days
-      const current = days.get(key) || { key, sets: 0, seconds: 0, details: [] }
-      const matchingResults = record.results.filter((result) => {
-        if (
-          !result.completed ||
-          (normalizedChartQuery &&
-            !result.name.toLocaleLowerCase().includes(normalizedChartQuery))
-        )
-          return false
-        return true
-      })
-      current.sets += matchingResults.length
-      current.seconds += matchingResults.reduce(
-        (seconds, result) => seconds + num(result.actualSeconds),
-        0,
+  $: chartDailyByKey = records.reduce((days, record) => {
+    const key = dayKey(record.startedAt || record.finishedAt)
+    if (!key) return days
+    const current = days.get(key) || { key, sets: 0, seconds: 0, details: [] }
+    const matchingResults = record.results.filter((result) => {
+      if (
+        !result.completed ||
+        (normalizedChartQuery && !result.name.toLocaleLowerCase().includes(normalizedChartQuery))
       )
-      if (matchingResults.length) {
-        current.details.push({
-          planName: record.planName || '未命名训练',
-          notes: record.notes || '',
-          sets: matchingResults.length,
-          minutes: Math.ceil(
-            matchingResults.reduce((seconds, result) => seconds + num(result.actualSeconds), 0) / 60,
-          ),
-          exercises: [...new Set(matchingResults.map((result) => result.name))],
-          results: matchingResults,
-        })
-      }
-      days.set(key, current)
-      return days
-    }, new Map())
+        return false
+      return true
+    })
+    current.sets += matchingResults.length
+    current.seconds += matchingResults.reduce(
+      (seconds, result) => seconds + num(result.actualSeconds),
+      0,
+    )
+    if (matchingResults.length) {
+      current.details.push({
+        planName: record.planName || '未命名训练',
+        notes: record.notes || '',
+        sets: matchingResults.length,
+        minutes: Math.ceil(
+          matchingResults.reduce((seconds, result) => seconds + num(result.actualSeconds), 0) / 60,
+        ),
+        exercises: [...new Set(matchingResults.map((result) => result.name))],
+        results: matchingResults,
+      })
+    }
+    days.set(key, current)
+    return days
+  }, new Map())
   $: chartDailyKeys = [...chartDailyByKey.keys()].sort()
   $: chartPoints = chartDailyKeys.length
     ? (() => {
@@ -88,12 +86,7 @@
     if (result.mode === 'time') return String(result.targetSeconds ?? 0) + ' 秒'
     if (result.mode === 'reps') return String(result.targetReps ?? 0) + ' 次'
     if (result.mode === 'both') {
-      return (
-        String(result.targetReps ?? 0) +
-        ' 次 / ' +
-        String(result.targetSeconds ?? 0) +
-        ' 秒'
-      )
+      return String(result.targetReps ?? 0) + ' 次 / ' + String(result.targetSeconds ?? 0) + ' 秒'
     }
     if (result.targetSeconds != null) return String(result.targetSeconds) + ' 秒'
     if (result.targetReps != null) return String(result.targetReps) + ' 次'
@@ -110,26 +103,11 @@
     }
     return String(result.actualReps ?? 0) + ' 次'
   }
-  function download() {
-    const blob = new Blob(
-      [JSON.stringify({ ...data, exportedAt: new Date().toISOString() }, null, 2)],
-      { type: 'application/json' },
-    )
-    const url = URL.createObjectURL(blob),
-      link = document.createElement('a')
-    link.href = url
-    link.download = `练刻-训练备份-${new Date().toISOString().slice(0, 10)}.json`
-    link.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
-  }
 </script>
 
-<div class="row between">
-  <div>
-    <h1>数据分析</h1>
-    <p class="muted">根据实际训练计时统计，不包含组间休息。</p>
-  </div>
-  <button class="btn ghost tiny" on:click={download}>导出备份</button>
+<div>
+  <h1>数据分析</h1>
+  <p class="muted">根据实际训练计时统计，不包含组间休息。</p>
 </div>
 <div class="grid">
   <div class="metric">
@@ -167,7 +145,9 @@
                 ? chartMetrics.filter((item) => item !== metric.key)
                 : [...chartMetrics, metric.key]
             }}
-          >{metric.label}</button>
+          >
+            {metric.label}
+          </button>
         {/each}
       </div>
       {#if names.length}<div class="stats-filter-control chart-action-filter">
@@ -182,7 +162,9 @@
               class="stats-filter-clear"
               aria-label="清除图表动作筛选"
               on:click={() => (chartActionQuery = '')}
-            >×</button>{/if}
+            >
+              ×
+            </button>{/if}
         </div>{/if}
     </div>
   </div>
@@ -197,47 +179,49 @@
   {:else}<div class="empty">暂无按天训练数据</div>{/if}
 </section>
 {#if false}
-<section class="panel">
-  <h3>历史训练记录</h3>
-  <div class="history-record-list">
-    {#each [...records].reverse() as record (record.id)}<div class="history-record">
-      <div class="setline">
-        <div>
-          <b>{record.planName}</b>
-          <div class="history-meta">
-            <time class="muted small">{date(record.finishedAt)}</time>
-            <span class="history-set-count">完成 {record.results.filter((item) => item.completed).length} 组</span>
-          </div>
-          {#if record.notes}<div class="muted small history-note">{record.notes}</div>{/if}
-        </div>
-      </div>
-      <details class="history-sets">
-        <summary>查看当时的动作组（{record.results.length} 组）</summary>
-        {#each record.results as result}
-          <div class="history-set">
-            <b>{result.name} · 第 {result.setIndex} 组</b>
-            <span class="muted small">{result.completed ? '已完成' : '未完成'}</span>
-            <div class="muted small">
-              目标：{result.mode === 'time'
-                ? `${result.targetSeconds ?? 0} 秒`
-                : result.mode === 'reps'
-                  ? `${result.targetReps ?? 0} 次`
-                  : `${result.targetReps ?? 0} 次 / ${result.targetSeconds ?? 0} 秒`} · {result.plannedWeight ??
-                0} kg
-              {#if result.plannedRest != null}
-                · 休息 {result.plannedRest} 秒{/if}
-            </div>
-            <div class="muted small">
-              实际：{result.actualReps ?? 0} 次 · {result.actualWeight ?? 0} kg · {fmt(
-                num(result.actualSeconds),
-              )}
+  <section class="panel">
+    <h3>历史训练记录</h3>
+    <div class="history-record-list">
+      {#each [...records].reverse() as record (record.id)}<div class="history-record">
+          <div class="setline">
+            <div>
+              <b>{record.planName}</b>
+              <div class="history-meta">
+                <time class="muted small">{date(record.finishedAt)}</time>
+                <span class="history-set-count">
+                  完成 {record.results.filter((item) => item.completed).length} 组
+                </span>
+              </div>
+              {#if record.notes}<div class="muted small history-note">{record.notes}</div>{/if}
             </div>
           </div>
-        {/each}
-      </details>
-    </div>{:else}<div class="empty">暂无训练历史</div>{/each}
-  </div>
-</section>
+          <details class="history-sets">
+            <summary>查看当时的动作组（{record.results.length} 组）</summary>
+            {#each record.results as result}
+              <div class="history-set">
+                <b>{result.name} · 第 {result.setIndex} 组</b>
+                <span class="muted small">{result.completed ? '已完成' : '未完成'}</span>
+                <div class="muted small">
+                  目标：{result.mode === 'time'
+                    ? `${result.targetSeconds ?? 0} 秒`
+                    : result.mode === 'reps'
+                      ? `${result.targetReps ?? 0} 次`
+                      : `${result.targetReps ?? 0} 次 / ${result.targetSeconds ?? 0} 秒`} · {result.plannedWeight ??
+                    0} kg
+                  {#if result.plannedRest != null}
+                    · 休息 {result.plannedRest} 秒{/if}
+                </div>
+                <div class="muted small">
+                  实际：{result.actualReps ?? 0} 次 · {result.actualWeight ?? 0} kg · {fmt(
+                    num(result.actualSeconds),
+                  )}
+                </div>
+              </div>
+            {/each}
+          </details>
+        </div>{:else}<div class="empty">暂无训练历史</div>{/each}
+    </div>
+  </section>
 {/if}
 {#if selectedChartDay}
   <div class="chart-detail-backdrop" role="presentation" on:click={() => (selectedChartDay = null)}>
@@ -253,18 +237,29 @@
           <h3 id="chart-detail-title">{selectedChartDay.key}</h3>
           <p class="muted small">当天训练记录</p>
         </div>
-        <button class="btn ghost tiny" type="button" on:click={() => (selectedChartDay = null)}>关闭</button>
+        <button class="btn ghost tiny" type="button" on:click={() => (selectedChartDay = null)}>
+          关闭
+        </button>
       </div>
       <div class="chart-detail-list">
         {#each selectedChartDay.details as detail}
           <article class="chart-detail-item">
             <b>{detail.planName}</b>
-            {#if detail.notes}<div class="chart-detail-note muted small">备注：{detail.notes}</div>{/if}
-            <div class="chart-detail-summary">完成 {detail.sets} 组 <span>·</span> 实际训练 {detail.minutes} 分钟</div>
+            {#if detail.notes}<div class="chart-detail-note muted small">
+                备注：{detail.notes}
+              </div>{/if}
+            <div class="chart-detail-summary">
+              完成 {detail.sets} 组
+              <span>·</span>
+              实际训练 {detail.minutes} 分钟
+            </div>
             <div class="chart-detail-results">
               {#each detail.results as result}
                 <div class="chart-detail-result">
-                  <span class="chart-detail-result-name">{result.name} <em>第 {result.setIndex} 组</em></span>
+                  <span class="chart-detail-result-name">
+                    {result.name}
+                    <em>第 {result.setIndex} 组</em>
+                  </span>
                   <span class="muted small">
                     {#if result.mode === 'time' && result.timerMode !== 'down'}
                       实际：{actualText(result)}
@@ -298,12 +293,16 @@
               class="stats-filter-clear"
               aria-label="清除动作筛选"
               on:click={() => (actionQuery = '')}
-            >×</button>{/if}
+            >
+              ×
+            </button>{/if}
         </div>
       </label>{/if}
   </div>
   {#if filteredNames.length}<div class="grid action-stat-list">
-      {#each filteredNames as name}{@const items = filteredSets.filter((item) => item.name === name)}
+      {#each filteredNames as name}{@const items = filteredSets.filter(
+          (item) => item.name === name,
+        )}
         <div class="metric">
           <b>{name}</b>
           <div class="muted small">

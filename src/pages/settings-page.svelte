@@ -1,4 +1,5 @@
 <script>
+  import { onMount } from 'svelte'
   import { defaults, completedRecords } from '../lib/workout-model.js'
   import { normalizeChallenges } from '../lib/challenge-model.js'
   import initSql from '../lib/init.sql?raw'
@@ -14,7 +15,6 @@
     deleteAccount,
     saveCloudConfig,
     authenticate,
-    signOut,
     syncData,
     loadSyncSelection,
     saveSyncSelection,
@@ -39,6 +39,19 @@
     { value: 'weights', label: '体重' },
     { value: 'sounds', label: '提示音' },
   ]
+  onMount(() => {
+    const onAuthChange = () => (session = cloudSession())
+    const onOpenDeleteAccount = () => requestDeleteAccount()
+    window.addEventListener('lianke-auth-change', onAuthChange)
+    window.addEventListener('open-delete-account', onOpenDeleteAccount)
+    return () => {
+      window.removeEventListener('lianke-auth-change', onAuthChange)
+      window.removeEventListener('open-delete-account', onOpenDeleteAccount)
+    }
+  })
+  function notifyAuthChange() {
+    window.dispatchEvent(new CustomEvent('lianke-auth-change'))
+  }
   async function checkDatabase() {
     databaseStatus = '正在检查数据表……'
     const tables = [
@@ -72,6 +85,7 @@
     try {
       await authenticate(action, email.trim(), password)
       session = cloudSession()
+      notifyAuthChange()
       status = action === 'signup' ? '注册成功，请检查邮箱' : '登录成功'
     } catch (error) {
       status = error.message
@@ -96,6 +110,7 @@
       await authenticate('signin', session.user.email, deletePassword)
       await deleteAccount()
       session = null
+      notifyAuthChange()
       email = ''
       password = ''
       deletePassword = ''
@@ -230,9 +245,7 @@
         type="button"
         class="btn cloud-sign-out"
         on:click={() => {
-          signOut()
-          session = null
-          status = '已退出'
+          window.dispatchEvent(new CustomEvent('request-sign-out'))
         }}
       >
         退出登录
