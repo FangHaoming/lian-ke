@@ -7,6 +7,7 @@
   import { timeModes, trainingModes } from '../lib/select-options.js'
   import ExerciseNameSelect from '../components/exercise-name-select.svelte'
   import ExerciseMultiSelect from '../components/exercise-multi-select.svelte'
+  import { challengeLevels } from '../lib/challenge-catalog.js'
   export let data
   let editing = null
   let draggingIndex = -1
@@ -14,7 +15,9 @@
   let touchDragTimer
   let touchDragPointer = null
   let editorHistoryEntry = false
-  $: names = data.exerciseNames || []
+  $: names = [
+    ...new Set([...(data.exerciseNames || []), ...challengeLevels.map((level) => level.name)]),
+  ]
   let planNameQuery = ''
   let planActionFilters = []
   $: planActionOptions = [
@@ -29,7 +32,6 @@
     )
     return matchesName && matchesActions
   })
-
   onMount(() => {
     const handlePopState = () => {
       if (editing) {
@@ -119,7 +121,10 @@
   }
   function setItemOrder(id, event) {
     const from = editing.items.findIndex((item) => item.id === id)
-    const to = Math.min(editing.items.length - 1, Math.max(0, Number(event.currentTarget.value) - 1))
+    const to = Math.min(
+      editing.items.length - 1,
+      Math.max(0, Number(event.currentTarget.value) - 1),
+    )
     if (Number.isFinite(to)) moveItem(from, to)
   }
   function startTouchDrag(event, index) {
@@ -166,14 +171,17 @@
     }
     if (!touchDragPointer.active) return
     event.preventDefault()
-    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('.exercise[data-plan-index]')
+    const target = document
+      .elementFromPoint(event.clientX, event.clientY)
+      ?.closest('.exercise[data-plan-index]')
     const index = target ? Number(target.dataset.planIndex) : -1
     dragOverIndex = index
   }
   function endTouchDrag(event) {
     if (!touchDragPointer || event.pointerId !== touchDragPointer.id) return
     clearTimeout(touchDragTimer)
-    if (touchDragPointer.active && dragOverIndex >= 0) moveItem(touchDragPointer.index, dragOverIndex)
+    if (touchDragPointer.active && dragOverIndex >= 0)
+      moveItem(touchDragPointer.index, dragOverIndex)
     if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
@@ -246,7 +254,19 @@
         }}
       >
         <div class="row between">
-            <div class="row plan-title"><span class="plan-drag-handle" aria-hidden="true">⠿</span><input class="plan-order-input" type="number" min="1" max={editing.items.length} value={i + 1} aria-label="动作序号" on:change={(event) => setItemOrder(item.id, event)} /><b>{item.name}</b></div>
+          <div class="row plan-title">
+            <span class="plan-drag-handle" aria-hidden="true">⠿</span>
+            <input
+              class="plan-order-input"
+              type="number"
+              min="1"
+              max={editing.items.length}
+              value={i + 1}
+              aria-label="动作序号"
+              on:change={(event) => setItemOrder(item.id, event)}
+            />
+            <b>{item.name}</b>
+          </div>
           <button
             class="btn tiny red"
             on:click={() =>
@@ -277,16 +297,16 @@
               目标次数
               <input type="number" min="0" bind:value={item.reps} />
             </label>{:else}
-              {#if item.timerMode !== 'up'}<TimePicker
+            {#if item.timerMode !== 'up'}<TimePicker
                 label="训练时长（分:秒）"
                 max={7200}
                 bind:value={item.duration}
               />{/if}
-              <div class="field">
-                <span>计时方式</span>
-                <Select label="计时方式" options={timeModes} bind:value={item.timerMode} />
-              </div>
-            {/if}
+            <div class="field">
+              <span>计时方式</span>
+              <Select label="计时方式" options={timeModes} bind:value={item.timerMode} />
+            </div>
+          {/if}
           <label class="field">
             负重 kg
             <input type="number" min="0" step="0.5" bind:value={item.weight} />
@@ -345,7 +365,8 @@
     {#if planNameQuery || planActionFilters.length}
       <div class="plan-filter-summary">
         找到 {filteredPlans.length} 个计划
-        {#if planActionFilters.length} · 包含：{planActionFilters.join('、')}{/if}
+        {#if planActionFilters.length}
+          · 包含：{planActionFilters.join('、')}{/if}
         <button
           type="button"
           class="btn tiny ghost"
@@ -353,7 +374,9 @@
             planNameQuery = ''
             planActionFilters = []
           }}
-        >清除筛选</button>
+        >
+          清除筛选
+        </button>
       </div>
     {/if}
   </section>
@@ -387,5 +410,7 @@
             {item.sets}组 · {item.mode === 'reps' ? item.reps + '次' : item.duration + '秒'} · {item.weight}kg
           </span>
         </div>{/each}
-    </section>{:else}<div class="panel empty">{data.plans.length ? '没有符合条件的训练计划' : '还没有训练计划'}</div>{/each}
+    </section>{:else}<div class="panel empty">
+      {data.plans.length ? '没有符合条件的训练计划' : '还没有训练计划'}
+    </div>{/each}
 {/if}

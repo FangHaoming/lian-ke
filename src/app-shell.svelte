@@ -17,6 +17,7 @@
   let session = null
   let review = null
   let quickItems = []
+  let quickStartRequest = null
   let wakeLock = null
   let wakeLockPending = false
   let screenAwake = false
@@ -30,6 +31,8 @@
   let sidebarOpen = typeof window === 'undefined' ? true : window.innerWidth > 760
   let accountSession = cloudSession()
   let pendingTab = null
+  let sessionPersistTimer
+  const ACTIVE_SESSION_KEY = 'lianke_active_training_session'
 
   const routes = {
     train: '',
@@ -175,6 +178,59 @@
     if (window.innerWidth <= 760) sidebarOpen = false
   }
 
+  function startChallengeTraining(event) {
+    const request = event.detail
+    if (!request?.items?.length) return
+    quickStartRequest = request
+    tab = 'train'
+    history.pushState({ ...(history.state || {}), tab: 'train' }, '', routePath('train'))
+  }
+
+  function returnToChallenge(event) {
+    const selection = event.detail || {}
+    tab = 'challenges'
+    const params = new URLSearchParams()
+    if (selection.routeId) params.set('route', selection.routeId)
+    if (selection.levelId) params.set('level', selection.levelId)
+    const query = params.toString()
+    history.pushState(
+      { ...(history.state || {}), tab: 'challenges' },
+      '',
+      `${routePath('challenges')}${query ? `?${query}` : ''}#challenge-history`,
+    )
+  }
+
+  function persistActiveSession(value) {
+    clearTimeout(sessionPersistTimer)
+    if (!value) {
+      localStorage.removeItem(ACTIVE_SESSION_KEY)
+      return
+    }
+    sessionPersistTimer = setTimeout(() => {
+      try {
+        localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(value))
+      } catch {}
+    }, 300)
+  }
+
+  function restoreActiveSession() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(ACTIVE_SESSION_KEY) || 'null')
+      if (
+        saved &&
+        Array.isArray(saved.queue) &&
+        saved.queue.length &&
+        Number.isInteger(saved.index) &&
+        saved.index >= 0 &&
+        saved.index < saved.queue.length &&
+        typeof saved.phase === 'string'
+      )
+        session = saved
+    } catch {
+      localStorage.removeItem(ACTIVE_SESSION_KEY)
+    }
+  }
+
   function syncWakeLock(active) {
     if (!active || document.visibilityState !== 'visible') {
       if (wakeLock) {
@@ -212,6 +268,7 @@
     sidebarOpen = window.innerWidth > 760
     restoreGithubPagesRoute()
     data = loadData()
+    restoreActiveSession()
     authCallback = isAuthCallbackLocation()
     sourceViewer = isSourceViewerLocation()
     sourcePage = sourcePageFromLocation()
@@ -265,18 +322,25 @@
     const onVisibilityChange = () => syncWakeLock(Boolean(session && !session.paused))
     const onAuthChange = () => (accountSession = cloudSession())
     const onRequestSignOut = () => requestSignOut()
+    const onStartChallengeTraining = (event) => startChallengeTraining(event)
+    const onReturnToChallenge = (event) => returnToChallenge(event)
     window.addEventListener('lianke-auth-change', onAuthChange)
     window.addEventListener('request-sign-out', onRequestSignOut)
+    window.addEventListener('lianke-start-challenge-training', onStartChallengeTraining)
+    window.addEventListener('lianke-return-to-challenges', onReturnToChallenge)
     document.addEventListener('visibilitychange', onVisibilityChange)
     return () => {
       window.removeEventListener('popstate', onPopState)
       window.removeEventListener('lianke-auth-change', onAuthChange)
       window.removeEventListener('request-sign-out', onRequestSignOut)
+      window.removeEventListener('lianke-start-challenge-training', onStartChallengeTraining)
+      window.removeEventListener('lianke-return-to-challenges', onReturnToChallenge)
       document.removeEventListener('visibilitychange', onVisibilityChange)
       if (wakeLock) void wakeLock.release().catch(() => {})
     }
   })
   $: if (ready) saveData(data)
+  $: if (ready) persistActiveSession(session)
   $: if (ready) syncWakeLock(Boolean(session && !session.paused))
   $: if (ready && !authCallback && !sourceViewer) void loadPageComponent(tab)
 </script>
@@ -407,6 +471,7 @@
             bind:session
             bind:review
             bind:quickItems
+            bind:quickStartRequest
             {screenAwake}
           />
         {:else if tab === 'plans'}<svelte:component this={pageComponents.plans} bind:data />

@@ -12,6 +12,8 @@ import {
   normalizeChallenges,
   completionStage,
   snapshotLevel,
+  appendTrainingEvaluation,
+  confirmTrainingEvaluation,
 } from '../src/lib/challenge-model.js'
 import { defaults, KEY } from '../src/lib/workout-model.js'
 import { loadData, saveData } from '../src/lib/data.js'
@@ -240,6 +242,52 @@ test('inherited object properties cannot be used as a goal stage', () => {
     a.stage = stage
     assert.throws(() => normalizeChallenges({ version: 1, attempts: [a] }, { strict: true }))
   }
+})
+
+test('linked training records produce automatic candidates and can be confirmed once', () => {
+  const record = {
+    id: 'training-1',
+    results: Array.from({ length: 3 }, (_, index) => ({
+      name: first.name,
+      setIndex: index + 1,
+      mode: 'reps',
+      actualReps: 50,
+      completed: true,
+    })),
+  }
+  const state = appendTrainingEvaluation(challengeDefaults(), record)
+  assert.equal(state.attempts.length, 1)
+  assert.equal(state.attempts[0].source.recordId, record.id)
+  assert.equal(evaluateAttempt(first, state.attempts[0]).passed, false)
+  assert.equal(
+    evaluateAttempt(first, { ...state.attempts[0], qualityConfirmed: true }).passed,
+    true,
+  )
+  assert.equal(appendTrainingEvaluation(state, record).attempts.length, 1)
+  const confirmed = confirmTrainingEvaluation(state, state.attempts[0].id)
+  assert.equal(confirmed.attempts.length, 1)
+  assert.equal(getRouteProgress(route, confirmed.attempts)[0].completed, true)
+})
+
+test('linked training records keep incomplete results as non-passing evidence', () => {
+  const record = {
+    id: 'training-2',
+    results: [{ name: first.name, setIndex: 1, actualReps: 9, completed: true }],
+  }
+  const state = appendTrainingEvaluation(challengeDefaults(), record)
+  assert.equal(state.attempts.length, 1)
+  assert.equal(
+    evaluateAttempt(first, { ...state.attempts[0], qualityConfirmed: true }).passed,
+    false,
+  )
+})
+
+test('training records without an exact challenge action name are ignored', () => {
+  const state = appendTrainingEvaluation(challengeDefaults(), {
+    id: 'training-unmatched',
+    results: [{ name: '自定义俯卧撑', setIndex: 1, actualReps: 50, completed: true }],
+  })
+  assert.equal(state.attempts.length, 0)
 })
 
 test('legacy data, local save/reload and backup round trips preserve the expected state', (t) => {

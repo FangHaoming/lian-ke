@@ -10,6 +10,7 @@
     formatGoal,
     getRouteProgress,
     removeAttempt,
+    confirmTrainingEvaluation,
     sideLabels,
   } from '../lib/challenge-model.js'
   import { date } from '../lib/workout-model.js'
@@ -35,6 +36,8 @@
   }
 
   const initialSelection = selectionFromLocation()
+  const initialHasExplicitLevel =
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('level')
   let routeId = initialSelection.routeId
   let levelId = initialSelection.levelId
   let stage = 'progression'
@@ -56,10 +59,15 @@
   $: selected = progress.find((item) => item.level.id === levelId)
   $: level = selected.level
   $: stages = Object.keys(level.standards)
-  $: history = attempts
-    .filter((item) => item.levelId === level.id)
-    .slice()
-    .sort((a, b) => Date.parse(b.recordedAt) - Date.parse(a.recordedAt))
+  $: allHistory = attempts.filter((item) => item.levelId === level.id).slice()
+  $: history = allHistory
+    .sort((a, b) => {
+      const aPassed = recordPassed(a)
+      const bPassed = recordPassed(b)
+      if (aPassed !== bPassed) return Number(bPassed) - Number(aPassed)
+      return Date.parse(b.recordedAt) - Date.parse(a.recordedAt)
+    })
+    .slice(0, 3)
   $: completedCount = summaries.reduce(
     (sum, item) => sum + item.progress.filter((p) => p.completed).length,
     0,
@@ -89,10 +97,7 @@
     const params = new URLSearchParams({ page: String(page), return: returnTo })
     return `${appPath('source')}?${params}`
   }
-  $: dirty =
-    rows.some((row) => Object.values(row).some((value) => value !== '' && value !== undefined)) ||
-    qualityConfirmed ||
-    Boolean(note.trim())
+  $: dirty = false
   $: if (typeof window !== 'undefined' && routeId && levelId) {
     const params = new URLSearchParams(window.location.search)
     if (params.get('route') !== routeId || params.get('level') !== levelId) {
@@ -100,8 +105,20 @@
     }
   }
 
+  function defaultStageFor(level) {
+    const ownerRoute = challengeRoutes.find((item) =>
+      item.levels.some((entry) => entry.id === level.id),
+    )
+    const state =
+      ownerRoute &&
+      getRouteProgress(ownerRoute, attempts).find((item) => item.level.id === level.id)
+    return (
+      Object.keys(level.standards).find((key) => !state?.achieved?.[key]) || completionStage(level)
+    )
+  }
+
   function resetDraft(nextLevel) {
-    stage = completionStage(nextLevel)
+    stage = defaultStageFor(nextLevel)
     rows = Array.from({ length: nextLevel.standards[stage].sets }, () =>
       Object.fromEntries(attemptSides(nextLevel).map((side) => [side, ''])),
     )
@@ -137,7 +154,24 @@
   }
 
   onMount(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (!initialHasExplicitLevel) {
+      const nextRoute =
+        challengeRoutes.find((item) => item.id === params.get('route')) || defaultRoute
+      const states = getRouteProgress(nextRoute, attempts)
+      const current =
+        states.find((item) => item.unlocked && !item.completed)?.level ||
+        states[states.length - 1].level
+      routeId = nextRoute.id
+      levelId = current.id
+      resetDraft(current)
+    }
     updateSelectionUrl(routeId, levelId)
+    if (window.location.hash === '#challenge-history') {
+      requestAnimationFrame(() =>
+        document.getElementById('challenge-history')?.scrollIntoView({ block: 'start' }),
+      )
+    }
   })
 
   async function chooseLevel(nextRoute, nextLevel) {
@@ -218,6 +252,33 @@
       feedback = { passed: false, title: error.message, messages: [] }
     }
   }
+  function startQuickChallenge() {
+    const goal = level.standards[stage]
+    const item = {
+      id: `challenge-${level.id}-${stage}`,
+      name: level.name,
+      sets: goal.sets,
+      reps: level.mode === 'reps' ? goal.value : 0,
+      duration: level.mode === 'time' ? goal.value : 40,
+      weight: 0,
+      mode: level.mode,
+      challengeUnilateral: level.unilateral,
+      rest: 60,
+      timerMode: 'down',
+      challengeStage: stage,
+    }
+    window.dispatchEvent(
+      new CustomEvent('lianke-start-challenge-training', {
+        detail: {
+          items: [item],
+          planName: `挑战 · ${level.name} · ${stageLabels[stage]}`,
+          planId: 'challenge-quick',
+          returnTo: 'challenges',
+          returnSelection: { routeId, levelId },
+        },
+      }),
+    )
+  }
   function requestDeleteAttempt(id) {
     requestConfirm({
       title: '删除这次挑战成绩？',
@@ -234,6 +295,14 @@
     data = { ...data, challenges: removeAttempt(data.challenges, id) }
     feedback = { passed: false, title: '成绩已删除，关卡进度已重新计算', messages: [] }
   }
+  function confirmTrainingAttempt(attempt) {
+    try {
+      data = { ...data, challenges: confirmTrainingEvaluation(data.challenges, attempt.id) }
+      feedback = { passed: true, title: '已确认训练数据，挑战正式达成', messages: [] }
+    } catch (error) {
+      feedback = { passed: false, title: error.message, messages: [] }
+    }
+  }
   function attemptDescription(attempt) {
     const unit = level.mode === 'time' ? '秒' : '次'
     return attempt.rows
@@ -244,6 +313,31 @@
             .join(' / ')}`,
       )
       .join('；')
+  }
+  function trainingDataPassed(attempt) {
+    return evaluateAttempt(level, { ...attempt, qualityConfirmed: true }, attempt.stage).passed
+  }
+  function recordPassed(attempt) {
+    return (
+      evaluateAttempt(level, attempt, attempt.stage).passed ||
+      (attempt.source?.type === 'training-record' && trainingDataPassed(attempt))
+    )
+  }
+  function trainingDataMessage(attempt, result) {
+    if (attempt.source?.type !== 'training-record') return result.messages.join(' ')
+    const goal = level.standards[attempt.stage]
+    const unit = level.mode === 'time' ? '秒' : '次'
+    const missingSets = Math.max(0, goal.sets - attempt.rows.length)
+    const lowSets = attempt.rows.filter((row) =>
+      attemptSides(level).some((side) => row[side] < goal.value),
+    ).length
+    const messages = []
+    if (missingSets)
+      messages.push(
+        `本次记录完成 ${attempt.rows.length}/${goal.sets} 组，还需完成 ${missingSets} 组，每组至少 ${goal.value} ${unit}。`,
+      )
+    if (lowSets) messages.push(`已有 ${lowSets} 组未达到标准，每组至少 ${goal.value} ${unit}。`)
+    return messages.join(' ') || '训练数据已达到标准；确认动作质量后即可计入通关。'
   }
   function beforeUnload(event) {
     if (!dirty) return
@@ -449,8 +543,10 @@
             .name}」，再来挑战这一关。你可以提前查看本关标准。
         </div>
       {:else}
-        <p class="muted small">填写实际完成成绩。未达标也能保存，留下每一次进步。</p>
-        <form on:submit|preventDefault={saveAttempt}>
+        <p class="muted small">
+          选择目标难度，开始一次快速挑战。训练完成并核对成绩后，会自动返回本关。
+        </p>
+        <div class="challenge-quick-start">
           <fieldset class="challenge-targets">
             <legend>本次目标</legend>
             {#each stages as key}
@@ -469,66 +565,13 @@
               ? ' · 达成进阶目标后才解锁下一关'
               : ''}
           </p>
-          {#each rows as row, index}
-            <div class="challenge-input-row">
-              <span class="challenge-group-label">第 {index + 1} 组</span>
-              {#each attemptSides(level) as side}
-                <label class="field">
-                  {level.unilateral ? sideLabels[side] : '实际完成'}（{level.mode === 'time'
-                    ? '连续秒数'
-                    : '次数'}）
-                  <input
-                    type="number"
-                    min="0"
-                    max={level.mode === 'time' ? 7200 : 9999}
-                    step="1"
-                    inputmode="numeric"
-                    placeholder="填写实际成绩"
-                    required
-                    bind:value={row[side]}
-                    on:input={() => (feedback = null)}
-                  />
-                </label>
-              {/each}
-            </div>
-          {/each}
-          <div class="row challenge-group-actions">
-            <button
-              type="button"
-              class="btn tiny ghost"
-              disabled={rows.length >= 3}
-              on:click={() => (rows = [...rows, blankRow()])}
-            >
-              ＋ 增加一组
-            </button>
-            <button
-              type="button"
-              class="btn tiny ghost"
-              disabled={rows.length <= 1}
-              on:click={requestRemoveLastGroup}
-            >
-              移除最后一组
-            </button>
-          </div>
-          <label class="challenge-quality">
-            <input type="checkbox" bind:checked={qualityConfirmed} />
-            <span>
-              我确认本次按以上动作定义完成，{level.mode === 'time'
-                ? '保持未中断'
-                : '按完整动作计数'}{level.unilateral ? '，左右侧分别记录' : ''}。
-            </span>
-          </label>
-          <label class="field challenge-note">
-            本次感受（选填）
-            <textarea
-              rows="2"
-              maxlength="500"
-              placeholder="记录动作、节奏或下次想改进的地方"
-              bind:value={note}
-            ></textarea>
-          </label>
-          <button type="submit" class="btn primary challenge-save">保存成绩并检查达标</button>
-        </form>
+          <button type="button" class="btn primary challenge-save" on:click={startQuickChallenge}>
+            开始快速挑战 →
+          </button>
+          <p class="muted small challenge-quick-hint">
+            完成训练后核对每组实际成绩，保存训练记录即可自动判定。
+          </p>
+        </div>
       {/if}
       {#if feedback}
         <div
@@ -545,24 +588,32 @@
       {/if}
     </section>
 
-    <section class="panel challenge-history">
+    <section id="challenge-history" class="panel challenge-history">
       <div class="row between">
         <h2>本关挑战记录</h2>
-        <span class="badge">{history.length} 次尝试</span>
+        <span class="badge">
+          {#if allHistory.length > history.length}
+            显示 {history.length} / 共 {allHistory.length} 条
+          {:else}{allHistory.length} 次尝试{/if}
+        </span>
       </div>
       {#if !history.length}
         <p class="empty">还没有成绩。完成一次尝试，就是你的第一步。</p>
       {:else}
         {#each history as attempt (attempt.id)}
           {@const result = evaluateAttempt(level, attempt, attempt.stage)}
+          {@const autoPassed =
+            attempt.source?.type === 'training-record' ? trainingDataPassed(attempt) : false}
           <article class="challenge-record">
             <div class="row between">
               <strong>
-                {stageLabels[attempt.stage]} · {result.passed
-                  ? '目标达成'
-                  : result.valid
-                    ? '未达目标'
-                    : '历史版本'}
+                {stageLabels[attempt.stage]} · {autoPassed && !attempt.qualityConfirmed
+                  ? '训练数据达标 · 待确认动作质量'
+                  : result.passed
+                    ? '目标达成'
+                    : result.valid
+                      ? '未达目标'
+                      : '历史版本'}
               </strong>
               <button
                 type="button"
@@ -579,9 +630,27 @@
                 : ''}
             </p>
             <p>{attemptDescription(attempt)}</p>
+            {#if attempt.source?.type === 'training-record'}
+              <p class="notice small">
+                来自训练记录的自动判定：{trainingDataPassed(attempt)
+                  ? '成绩达标'
+                  : '未达到本次挑战标准'}
+              </p>
+              {#if trainingDataPassed(attempt) && !attempt.qualityConfirmed}
+                <button
+                  type="button"
+                  class="btn tiny primary"
+                  on:click={() => confirmTrainingAttempt(attempt)}
+                >
+                  确认动作质量并计入通关
+                </button>
+              {/if}
+            {/if}
             {#if !attempt.qualityConfirmed}<p class="muted small">未确认动作质量</p>{/if}
             {#if attempt.note}<p class="challenge-record-note">{attempt.note}</p>{/if}
-            {#if !result.passed}<p class="muted small">{result.messages.join(' ')}</p>{/if}
+            {#if !result.passed}<p class="muted small">
+                {trainingDataMessage(attempt, result)}
+              </p>{/if}
           </article>
         {/each}
       {/if}

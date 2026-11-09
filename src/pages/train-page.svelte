@@ -8,12 +8,14 @@
   import { timeModes, trainingModes } from '../lib/select-options.js'
   import ExerciseNameSelect from '../components/exercise-name-select.svelte'
   import { requestConfirm } from '../lib/confirm-dialog.js'
+  import { appendTrainingEvaluation } from '../lib/challenge-model.js'
   export let data
   export let quickItems
   let selected = data.selected || data.plans[0]?.id || ''
   let selectedPlanName = data.plans.find((item) => item.id === selected)?.name || ''
   export let session
   export let review
+  export let quickStartRequest = null
   export let screenAwake = false
   let ticker
   let focusMode = false
@@ -27,9 +29,11 @@
   let selectedItemIds = []
   let wasPausedBeforeEndConfirmation = true
   let reviewHydrated = false
+  let pageMounted = false
+  const ACTIVE_SESSION_KEY = 'lianke_active_training_session'
   const REVIEW_DRAFT_KEY = 'lianke_review_draft'
   $: plan = data.plans.find((item) => item.id === selected) || data.plans[0]
-  $: current = session?.queue[session.index]
+  $: current = session?.queue?.[session.index] || null
   $: availableNames = data.exerciseNames || []
   $: canStartQuick = quickItems.length > 0 && quickItems.every((item) => item.name.trim())
   $: if (plan && selectionPlanId !== plan.id) {
@@ -37,7 +41,20 @@
     selectedItemIds = plan.items.map((item, index) => item.id || `${plan.id}-${index}`)
   }
   $: if (reviewHydrated && review !== undefined) persistReviewDraft()
+  $: if (pageMounted && quickStartRequest) {
+    const request = quickStartRequest
+    quickStartRequest = null
+    start(
+      request.items,
+      request.planName,
+      request.planId,
+      request.returnTo,
+      request.returnSelection,
+    )
+  }
   onMount(() => {
+    pageMounted = true
+    if (!session) restoreActiveSession()
     if (!review) {
       try {
         const draft = JSON.parse(localStorage.getItem(REVIEW_DRAFT_KEY) || 'null')
@@ -50,12 +67,14 @@
       tick()
     }
     document.addEventListener('visibilitychange', tick)
+    window.addEventListener('beforeunload', persistSessionBeforeUnload)
     const onFullscreenChange = () => {
       if (focusMode && nativeFullscreenActive && !document.fullscreenElement) exitFocus()
     }
     document.addEventListener('fullscreenchange', onFullscreenChange)
     return () => {
       document.removeEventListener('visibilitychange', tick)
+      window.removeEventListener('beforeunload', persistSessionBeforeUnload)
       document.removeEventListener('fullscreenchange', onFullscreenChange)
     }
   })
@@ -65,6 +84,7 @@
     if (focusMode && document.fullscreenElement === document.documentElement)
       void document.exitFullscreen().catch(() => {})
   })
+  $: if (pageMounted) persistActiveSession(session)
   function enterFocus() {
     if (!focusMode) {
       history.pushState({ ...(history.state || {}), trainingFocus: true }, '', window.location.href)
@@ -114,6 +134,32 @@
       else localStorage.removeItem(REVIEW_DRAFT_KEY)
     } catch {}
   }
+  function persistActiveSession(value) {
+    try {
+      if (value) localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(value))
+      else localStorage.removeItem(ACTIVE_SESSION_KEY)
+    } catch {}
+  }
+  function persistSessionBeforeUnload() {
+    persistActiveSession(session)
+  }
+  function restoreActiveSession() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(ACTIVE_SESSION_KEY) || 'null')
+      if (
+        saved &&
+        Array.isArray(saved.queue) &&
+        saved.queue.length &&
+        Number.isInteger(saved.index) &&
+        saved.index >= 0 &&
+        saved.index < saved.queue.length &&
+        typeof saved.phase === 'string'
+      )
+        session = saved
+    } catch {
+      localStorage.removeItem(ACTIVE_SESSION_KEY)
+    }
+  }
   function handleLockedKeydown(event) {
     if (focusMode && event.key === 'Tab') {
       event.preventDefault()
@@ -128,7 +174,7 @@
     if (!focusMode) return
     history.pushState({ ...(history.state || {}), trainingFocus: true }, '', window.location.href)
   }
-  function start(items, planName, planId) {
+  function start(items, planName, planId, returnTo = '', returnSelection = null) {
     const normalizedItems = structuredClone(items).map((item) => ({
       ...item,
       timerMode: item.mode === 'time' && item.timerMode === 'up' ? 'up' : 'down',
@@ -139,6 +185,8 @@
     session = {
       planName,
       planId,
+      returnTo,
+      returnSelection,
       queue,
       index: 0,
       phase: 'prep',
@@ -154,6 +202,9 @@
   }
   function isCountUp(item) {
     return item?.mode === 'time' && item.timerMode === 'up'
+  }
+  function targetDescription(item) {
+    return item?.mode === 'reps' ? `目标 ${item.reps} 次` : `目标 ${item.duration} 秒`
   }
   function itemKey(item, index) {
     return item.id || `${plan?.id || 'plan'}-${index}`
@@ -179,6 +230,7 @@
     session.last = now
     while (session && delta > 0) {
       const currentItem = session.queue[session.index]
+      if (!currentItem) return
       if (session.phase === 'work' && (currentItem.mode === 'reps' || isCountUp(currentItem))) {
         session.elapsed += delta
         break
@@ -225,7 +277,11 @@
       targetSeconds: item.duration,
       plannedWeight: item.weight,
       plannedRest: item.rest,
+      challengeStage: item.challengeStage || '',
       actualReps: item.mode === 'reps' ? item.reps : 0,
+      actualLeft: item.challengeUnilateral ? item.reps : undefined,
+      actualRight: item.challengeUnilateral ? item.reps : undefined,
+      challengeUnilateral: item.challengeUnilateral === true,
       actualWeight: item.weight,
       actualSeconds: Math.round(session.elapsed),
       completed: true,
@@ -252,27 +308,41 @@
     else finishSet()
   }
   function saveReview() {
+    const returnToChallenges = review.returnTo === 'challenges'
+    const returnSelection = review.returnSelection
     const results = completedResults(review.results)
-    if (results.length) {
-      saveTrainingRecord(review, results)
+    if (!results.length) {
+      review = null
+      persistReviewDraft()
+      if (returnToChallenges) returnToChallenge(returnSelection)
+      return
     }
+    saveTrainingRecord(review, results)
     data.exerciseNames = [...new Set([...availableNames, ...results.map((item) => item.name)])]
     data = data
     review = null
+    // Clear the persisted review before navigating away. Otherwise the next
+    // quick challenge can restore this already-saved review draft.
+    persistReviewDraft()
+    if (returnToChallenges) {
+      returnToChallenge(returnSelection)
+    }
+  }
+  function returnToChallenge(selection) {
+    window.dispatchEvent(new CustomEvent('lianke-return-to-challenges', { detail: selection }))
   }
   function saveTrainingRecord(source, results) {
-    data.records = [
-      ...data.records,
-      {
-        id: uid(),
-        planId: source.planId,
-        planName: source.planName,
-        startedAt: source.startedAt,
-        finishedAt: source.finishedAt || new Date().toISOString(),
-        notes: source.notes || '',
-        results: structuredClone(results),
-      },
-    ]
+    const record = {
+      id: uid(),
+      planId: source.planId,
+      planName: source.planName,
+      startedAt: source.startedAt,
+      finishedAt: source.finishedAt || new Date().toISOString(),
+      notes: source.notes || '',
+      results: structuredClone(results),
+    }
+    data.records = [...data.records, record]
+    data.challenges = appendTrainingEvaluation(data.challenges, record)
   }
   function requestEndTraining() {
     wasPausedBeforeEndConfirmation = session?.paused ?? true
@@ -303,9 +373,19 @@
   }
   function endTraining() {
     if (!session) return
+    const results = completedResults(session.results)
+    if (!results.length) {
+      const returnToChallenges = session.returnTo === 'challenges'
+      const returnSelection = session.returnSelection
+      clearInterval(ticker)
+      exitFocus()
+      session = null
+      if (returnToChallenges) returnToChallenge(returnSelection)
+      return
+    }
     review = {
       ...session,
-      results: completedResults(session.results),
+      results,
       finishedAt: new Date().toISOString(),
       notes: '',
     }
@@ -349,10 +429,21 @@
               <span>{result.completed ? '已完成' : '未完成'}</span>
             </span>
           </label>
-          <label class="field">
-            实际次数
-            <input type="number" min="0" bind:value={result.actualReps} />
-          </label>
+          {#if result.challengeUnilateral}
+            <label class="field">
+              实际次数（左侧）
+              <input type="number" min="0" bind:value={result.actualLeft} />
+            </label>
+            <label class="field">
+              实际次数（右侧）
+              <input type="number" min="0" bind:value={result.actualRight} />
+            </label>
+          {:else}
+            <label class="field">
+              实际次数
+              <input type="number" min="0" bind:value={result.actualReps} />
+            </label>
+          {/if}
           <label class="field">
             实际负重 kg
             <input type="number" min="0" step="0.5" bind:value={result.actualWeight} />
@@ -370,7 +461,7 @@
         : '结束本次训练（无完成组）'}
     </button>
   </section>
-{:else if session}
+{:else if session && current}
   <div class:training-focus={focusMode} class="training-session">
     {#if focusMode}
       <div class="training-lock-screen" role="dialog" aria-modal="true" aria-label="训练防误触锁屏">
@@ -387,6 +478,7 @@
                 : '正在训练'}
           </div>
           <h1>{current.name} · 第 {current.setIndex} 组</h1>
+          <div class="training-target">{targetDescription(current)}</div>
           <div
             class="clock"
             class:orange={session.phase !== 'work'}
@@ -449,6 +541,7 @@
         </div>
         <div class="timer">
           <div class="muted">{current.name} · 第 {current.setIndex} 组</div>
+          <div class="training-target">{targetDescription(current)}</div>
           <div
             class="clock"
             class:orange={session.phase !== 'work'}

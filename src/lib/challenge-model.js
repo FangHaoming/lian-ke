@@ -1,6 +1,7 @@
 import { challengeLevels } from './challenge-catalog.js'
 
 const byId = new Map(challengeLevels.map((level) => [level.id, level]))
+const byName = new Map(challengeLevels.map((level) => [level.name, level]))
 const validStage = (level, stage) =>
   typeof stage === 'string' && Object.hasOwn(level.standards, stage)
 export const challengeDefaults = () => ({ version: 1, attempts: [] })
@@ -94,7 +95,7 @@ export function evaluateAttempt(level, attempt, stage = completionStage(level)) 
   return { valid: true, passed: messages.length === 0, messages }
 }
 
-export function createAttempt(level, stage, rows, qualityConfirmed, note = '') {
+export function createAttempt(level, stage, rows, qualityConfirmed, note = '', source = null) {
   if (!validStage(level, stage)) throw Error('请选择有效的挑战目标')
   const normalized = Array.isArray(rows)
     ? rows.map((row) =>
@@ -122,6 +123,9 @@ export function createAttempt(level, stage, rows, qualityConfirmed, note = '') {
     qualityConfirmed: qualityConfirmed === true,
     note: String(note).trim().slice(0, 500),
     snapshot: snapshotLevel(level),
+    ...(source?.type && source?.recordId
+      ? { source: { type: String(source.type), recordId: String(source.recordId) } }
+      : {}),
   }
 }
 
@@ -155,6 +159,9 @@ function normalizeAttempt(raw) {
     qualityConfirmed: raw.qualityConfirmed,
     note: typeof raw.note === 'string' ? raw.note.slice(0, 500) : '',
     snapshot: structuredClone(raw.snapshot),
+    ...(raw.source?.type && raw.source?.recordId
+      ? { source: { type: String(raw.source.type), recordId: String(raw.source.recordId) } }
+      : {}),
   }
 }
 
@@ -226,4 +233,75 @@ export function removeAttempt(state, attemptId) {
     ...normalized,
     attempts: normalized.attempts.filter((attempt) => attempt.id !== attemptId),
   }
+}
+
+function trainingRows(level, results) {
+  const completed = results.filter((result) => result.completed === true)
+  if (completed.length === 0) return null
+  const rows = completed
+    .sort((a, b) => Number(a.setIndex || 0) - Number(b.setIndex || 0))
+    .map((result) => {
+      if (level.mode === 'time') return { both: Number(result.actualSeconds) || 0 }
+      if (level.unilateral) {
+        if (result.actualLeft === undefined || result.actualRight === undefined) return null
+        return {
+          left: Number(result.actualLeft) || 0,
+          right: Number(result.actualRight) || 0,
+        }
+      }
+      return { both: Number(result.actualReps) || 0 }
+    })
+  if (rows.some((row) => row === null)) return null
+  return rows.slice(0, 3)
+}
+
+// Converts one completed training record into a challenge candidate. Candidates
+// are deliberately allowed to exist before their route is unlocked so a later
+// challenge-page confirmation can reuse the historical training evidence.
+export function appendTrainingEvaluation(state, record) {
+  const normalized = normalizeChallenges(state)
+  if (!record?.id || !Array.isArray(record.results)) return normalized
+  const grouped = new Map()
+  for (const result of record.results) {
+    const level = byName.get(String(result.name || '').trim())
+    if (!level) continue
+    const stage = validStage(level, result.challengeStage)
+      ? result.challengeStage
+      : completionStage(level)
+    const key = `${level.id}:${stage}`
+    if (!grouped.has(key)) grouped.set(key, { level, stage, results: [] })
+    grouped.get(key).results.push(result)
+  }
+  const additions = []
+  for (const { level, stage, results } of grouped.values()) {
+    const rows = trainingRows(level, results)
+    if (
+      !rows ||
+      normalized.attempts.some(
+        (item) =>
+          item.source?.recordId === record.id && item.levelId === level.id && item.stage === stage,
+      )
+    )
+      continue
+    const attempt = createAttempt(
+      level,
+      stage,
+      rows,
+      false,
+      '来自训练记录的自动判定；请在挑战页确认动作质量后计入通关。',
+      { type: 'training-record', recordId: record.id },
+    )
+    additions.push(attempt)
+  }
+  return { version: 1, attempts: [...normalized.attempts, ...additions] }
+}
+
+export function confirmTrainingEvaluation(state, attemptId) {
+  const normalized = normalizeChallenges(state, { strict: true })
+  const candidate = normalized.attempts.find((item) => item.id === attemptId)
+  if (!candidate || candidate.source?.type !== 'training-record')
+    throw Error('找不到可确认的训练判定')
+  const confirmed = { ...candidate, id: `${candidate.id}-confirmed`, qualityConfirmed: true }
+  const withoutCandidate = removeAttempt(normalized, attemptId)
+  return appendAttempt(withoutCandidate, confirmed)
 }
