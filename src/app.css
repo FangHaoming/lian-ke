@@ -134,6 +134,7 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .cloud-auth-actions .btn{min-height:44px;padding-inline:20px}
 .cloud-signed-in{display:flex;align-items:center;gap:14px;min-height:48px;margin-top:20px;padding:12px 16px;border:1px solid #34444f;border-radius:12px;background:#0c141b;max-width:700px}.cloud-signed-in strong{color:#eaf2f4;font-size:16px;overflow-wrap:anywhere}
 .cloud-sign-out{margin-left:auto;background:transparent;color:#9eb0ba;border:1px solid #34444f}
+.cloud-delete-account{border-color:#70424a;color:#ffb9bd;background:transparent}
 .cloud-divider{height:1px;background:#2b3943;margin:24px 0}
 .cloud-sync-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
 .cloud-sync-button{display:flex;align-items:center;gap:13px;width:100%;min-height:76px;padding:14px;text-align:left;color:#eaf2f4;background:#101921;border:1px solid #344650;border-radius:14px;transition:border-color .15s,background .15s,transform .15s}
@@ -156,6 +157,7 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .cloud-status.success{color:#cef3ad;background:#1c2d1c;border-color:#354e2e}
 .cloud-status.error{color:#ffd0d2;background:#352226;border-color:#5b343b}
 .confirm-dialog{width:min(calc(100% - 30px),420px);margin:auto;padding:24px;border:1px solid #405a68;border-radius:18px;background:#151e26;color:#eaf2f4;box-shadow:0 24px 70px #000b}.confirm-dialog::backdrop{background:#000b}.confirm-dialog h2{margin:0 0 10px;font-size:20px}.confirm-dialog p{margin:0;color:#aebfc8;line-height:1.6;white-space:pre-line}.confirm-dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}.confirm-dialog-actions .btn{min-width:92px}
+.confirm-dialog-field{display:block;margin-top:16px}.confirm-dialog-field input{margin-top:7px}.confirm-dialog-error{margin-top:10px!important;color:#ffb9bd!important;font-size:12px}
 @media(max-width:650px){.cloud-account-card{padding:18px}.cloud-auth-fields,.cloud-sync-actions{grid-template-columns:1fr}.cloud-sign-out{margin-left:0}.cloud-auth-actions .btn{flex:1}.cloud-sync-button{min-height:72px}}
 @media(max-width:400px){.cloud-account-heading{display:block}.cloud-provider{margin-top:12px}.cloud-auth-actions .btn{flex:1 1 100%}}
 

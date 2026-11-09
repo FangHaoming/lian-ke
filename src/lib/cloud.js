@@ -59,6 +59,28 @@ export function signOut() {
   localStorage.removeItem(SESSION_KEY)
 }
 
+export async function deleteAccount() {
+  const api = await client()
+  const response = await request(api, `${api.endpoint}/rpc/delete_my_account`, {
+    method: 'POST',
+    body: '{}',
+  })
+  if (!response.ok) {
+    let message = `HTTP ${response.status}`
+    try {
+      const result = await response.json()
+      message = result.message || result.hint || result.details || result.error || message
+    } catch {
+      // Keep the HTTP status when the API does not return JSON.
+    }
+    if (message.includes('delete_my_account') && message.includes('schema cache')) {
+      throw Error('注销功能尚未在 Supabase 生效，请重新执行设置页中的初始化 SQL')
+    }
+    throw Error(message)
+  }
+  signOut()
+}
+
 function userFromAccessToken(token) {
   try {
     const payload = token.split('.')[1]

@@ -6,6 +6,22 @@ create table if not exists public.training_records (id uuid primary key default 
 create table if not exists public.training_sets (id uuid primary key default gen_random_uuid(), record_id uuid not null references public.training_records(id) on delete cascade, exercise_name text not null, set_index integer not null, sort_order integer, mode text, completed boolean not null default true, target_reps integer, target_seconds integer, planned_weight numeric, planned_rest integer, actual_reps integer, actual_weight numeric, actual_seconds integer);
 create table if not exists public.user_settings (user_id uuid primary key references auth.users(id) on delete cascade, sounds jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());
 create table if not exists public.body_weights (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, recorded_at timestamptz not null default now(), recorded_on date not null default ((now() at time zone 'Asia/Shanghai')::date), kg numeric(5,2) not null check (kg > 0 and kg < 1000), note text);
+create or replace function public.delete_my_account()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if auth.uid() is null then
+    raise exception '未登录，无法注销账号';
+  end if;
+  delete from auth.users where id = auth.uid();
+end;
+$$;
+revoke all on function public.delete_my_account() from public;
+grant execute on function public.delete_my_account() to authenticated;
+notify pgrst, 'reload schema';
 alter table public.body_weights add column if not exists recorded_on date;
 update public.body_weights set recorded_on = (recorded_at at time zone 'Asia/Shanghai')::date where recorded_on is null;
 with duplicates as (select id, row_number() over (partition by user_id, recorded_on order by recorded_at desc, id desc) as row_number from public.body_weights) delete from public.body_weights where id in (select id from duplicates where row_number > 1);

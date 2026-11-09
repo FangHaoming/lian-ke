@@ -35,6 +35,7 @@
 >
   <h2 id="confirm-dialog-title">{title}</h2>
   {#if message}<p>{message}</p>{/if}
+  <slot />
   <div class="confirm-dialog-actions">
     <button type="button" class="btn ghost" on:click={cancel}>{cancelText}</button>
     <button

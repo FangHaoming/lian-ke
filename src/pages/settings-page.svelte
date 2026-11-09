@@ -11,6 +11,7 @@
   import {
     cloudConfig,
     cloudSession,
+    deleteAccount,
     saveCloudConfig,
     authenticate,
     signOut,
@@ -25,6 +26,9 @@
     password = '',
     status = '',
     busy = false
+  let deleteConfirmation = false
+  let deletePassword = ''
+  let deletePasswordError = ''
   let databaseStatus = '尚未检测'
   let syncConfirmation = null
   let syncSelection = loadSyncSelection()
@@ -71,6 +75,36 @@
       status = action === 'signup' ? '注册成功，请检查邮箱' : '登录成功'
     } catch (error) {
       status = error.message
+    }
+  }
+  function requestDeleteAccount() {
+    deletePassword = ''
+    deletePasswordError = ''
+    deleteConfirmation = true
+  }
+  async function confirmDeleteAccount() {
+    if (!session?.user?.email) return
+    if (!deletePassword) {
+      deletePasswordError = '请输入当前账号密码'
+      deleteConfirmation = true
+      return
+    }
+    busy = true
+    deletePasswordError = ''
+    status = '正在注销账号……'
+    try {
+      await authenticate('signin', session.user.email, deletePassword)
+      await deleteAccount()
+      session = null
+      email = ''
+      password = ''
+      deletePassword = ''
+      status = '账号已注销'
+    } catch (error) {
+      deletePasswordError = `密码验证失败：${error.message}`
+      deleteConfirmation = true
+    } finally {
+      busy = false
     }
   }
   async function sync(direction) {
@@ -203,6 +237,14 @@
       >
         退出登录
       </button>
+      <button
+        type="button"
+        class="btn red cloud-delete-account"
+        disabled={busy}
+        on:click={requestDeleteAccount}
+      >
+        注销账号
+      </button>
     </div>
   {:else}
     <div class="cloud-auth-fields">
@@ -285,6 +327,30 @@
   on:confirm={confirmSync}
   on:cancel={() => (syncConfirmation = null)}
 />
+<ConfirmDialog
+  bind:open={deleteConfirmation}
+  title="注销账号"
+  message="注销后账号及云端训练数据将被永久删除，且无法恢复。请输入当前密码确认。"
+  confirmText={busy ? '处理中……' : '确认注销'}
+  destructive
+  on:confirm={confirmDeleteAccount}
+  on:cancel={() => {
+    deletePassword = ''
+    deletePasswordError = ''
+  }}
+>
+  <label class="field confirm-dialog-field">
+    当前密码
+    <input
+      type="password"
+      autocomplete="current-password"
+      placeholder="输入当前账号密码"
+      bind:value={deletePassword}
+      disabled={busy}
+    />
+  </label>
+  {#if deletePasswordError}<p class="confirm-dialog-error">{deletePasswordError}</p>{/if}
+</ConfirmDialog>
 <section class="panel">
   <h3>新手数据库向导</h3>
   <p class="muted small">
