@@ -223,7 +223,7 @@
 
 <header class="settings-heading">
   <h1>设置与备份</h1>
-  <p class="muted">管理云端同步、提示音和本地训练数据。</p>
+  <p class="muted">先用本地功能开始训练；需要多设备同步时，再配置云端账号。</p>
 </header>
 
 <section class="panel cloud-account-card">
@@ -286,6 +286,11 @@
       <button type="button" class="btn ghost" on:click={() => auth('signup')}>注册账号</button>
     </div>
   {/if}
+  {#if !session?.user?.email}<p class="settings-guidance">
+      <strong>首次登录前，请先完成下方“云端登录配置”中的 4 个步骤。</strong>
+      <br />
+      只在当前设备使用不需要登录；登录后可以在不同设备间同步训练数据。
+    </p>{/if}
 
   <div class="cloud-divider"></div>
 
@@ -364,33 +369,107 @@
   </label>
   {#if deletePasswordError}<p class="confirm-dialog-error">{deletePasswordError}</p>{/if}
 </ConfirmDialog>
-<section class="panel">
-  <h3>新手数据库向导</h3>
-  <p class="muted small">
-    首次使用或升级已有数据库时，复制初始化 SQL 到 Supabase SQL Editor 执行；重复执行会补齐新字段。
-  </p>
-  <div class="row">
-    <button class="btn" on:click={checkDatabase}>检测数据库</button>
-    <button
-      class="btn"
-      on:click={async () => {
-        await navigator.clipboard.writeText(initSql)
-        databaseStatus = '初始化 SQL 已复制'
-      }}
-    >
-      复制初始化 SQL
-    </button>
-    <a
-      class="btn"
-      href={`https://supabase.com/dashboard/project/${config.url.split('//')[1]?.split('.')[0] || ''}/sql/new`}
-      target="_blank"
-      rel="noreferrer"
-    >
-      打开 SQL Editor
-    </a>
+<details class="panel settings-advanced">
+  <summary>
+    <span>云端登录配置</span>
+    <small>首次登录必做 · Supabase 配置与数据库初始化</small>
+    <em class="settings-advanced-toggle">展开指引</em>
+  </summary>
+  <div class="settings-advanced-body">
+    <div class="settings-setup-guide">
+      <div>
+        <b>1</b>
+        <span>
+          <strong>创建 Supabase 项目</strong>
+          <small>在 Supabase 控制台新建一个项目。</small>
+        </span>
+      </div>
+      <div>
+        <b>2</b>
+        <span>
+          <strong>配置项目 URL 和 Key</strong>
+          <small>从项目设置中复制 Project URL 和 publishable key。</small>
+        </span>
+      </div>
+      <div>
+        <b>3</b>
+        <span>
+          <strong>执行初始化 SQL</strong>
+          <small>创建数据表、权限和账号注销函数。</small>
+        </span>
+      </div>
+      <div>
+        <b>4</b>
+        <span>
+          <strong>检测数据库</strong>
+          <small>确认六张业务表都可以访问。</small>
+        </span>
+      </div>
+    </div>
+    <section class="settings-advanced-section">
+      <h3>步骤 3、4：执行 SQL 并检测数据库</h3>
+      <p class="muted small">
+        首次使用或升级已有数据库时，复制初始化 SQL 到 Supabase SQL Editor
+        执行；重复执行会补齐新字段。
+      </p>
+      <div class="row">
+        <button class="btn" on:click={checkDatabase}>检测数据库</button>
+        <button
+          class="btn"
+          on:click={async () => {
+            await navigator.clipboard.writeText(initSql)
+            databaseStatus = '初始化 SQL 已复制'
+          }}
+        >
+          复制初始化 SQL
+        </button>
+        <a
+          class="btn"
+          href={`https://supabase.com/dashboard/project/${config.url.split('//')[1]?.split('.')[0] || ''}/sql/new`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          打开 SQL Editor
+        </a>
+      </div>
+      <p class="muted small">{databaseStatus}</p>
+    </section>
+    <section class="settings-advanced-section">
+      <div class="row between settings-panel-heading">
+        <h3>步骤 2：配置项目 URL 和 Key</h3>
+        <a
+          class="supabase-link"
+          href="https://supabase.com/dashboard"
+          target="_blank"
+          rel="noreferrer"
+        >
+          打开 Supabase 控制台 ↗
+        </a>
+      </div>
+      <p class="muted small settings-help">
+        新手可以先在控制台创建项目，再复制下面的 Project URL 和密钥。
+      </p>
+      <label class="field">
+        Project URL
+        <input type="url" bind:value={config.url} placeholder="https://xxxx.supabase.co" />
+      </label>
+      <label class="field">
+        publishable key（或旧版 anon public key）
+        <input type="password" bind:value={config.anonKey} />
+      </label>
+      <button
+        class="btn primary"
+        style="margin-top:12px"
+        on:click={() => {
+          saveCloudConfig(config)
+          status = '配置已保存'
+        }}
+      >
+        保存配置
+      </button>
+    </section>
   </div>
-  <p class="muted small">{databaseStatus}</p>
-</section>
+</details>
 <Toast
   message={status}
   type={status.includes('失败')
@@ -399,35 +478,6 @@
       ? 'success'
       : 'info'}
 />
-<section class="panel">
-  <div class="row between settings-panel-heading">
-    <h3>Supabase 云端配置</h3>
-    <a class="supabase-link" href="https://supabase.com/dashboard" target="_blank" rel="noreferrer">
-      打开 Supabase 控制台 ↗
-    </a>
-  </div>
-  <p class="muted small settings-help">
-    新手可以先在控制台创建项目，再复制下面的 Project URL 和密钥。
-  </p>
-  <label class="field">
-    Project URL
-    <input type="url" bind:value={config.url} placeholder="https://xxxx.supabase.co" />
-  </label>
-  <label class="field">
-    publishable key（或旧版 anon public key）
-    <input type="password" bind:value={config.anonKey} />
-  </label>
-  <button
-    class="btn primary"
-    style="margin-top:12px"
-    on:click={() => {
-      saveCloudConfig(config)
-      status = '配置已保存'
-    }}
-  >
-    保存配置
-  </button>
-</section>
 <section class="panel">
   <h3>独立提示音</h3>
   {#each [['set', '每组训练结束'], ['rest', '休息结束'], ['finish', '全部训练完成']] as [key, label]}<div

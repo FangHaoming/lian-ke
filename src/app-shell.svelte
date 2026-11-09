@@ -24,7 +24,7 @@
   let screenAwake = false
   let challengeDirty = false
   let authCallback = false
-  let sidebarOpen = true
+  let sidebarOpen = typeof window === 'undefined' ? true : window.innerWidth > 760
   let accountSession = cloudSession()
   let signOutConfirmation = false
 
