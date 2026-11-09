@@ -4,7 +4,13 @@ const CONFIG_KEY = 'lianke_supabase_config'
 const SESSION_KEY = 'lianke_supabase_session'
 const SYNC_SELECTION_KEY = 'lianke_sync_selection'
 const AUTH_REDIRECT_URL =
-  import.meta.env?.VITE_AUTH_REDIRECT_URL || 'https://fanghaoming.github.io/lian-ke/'
+  import.meta.env?.VITE_AUTH_REDIRECT_URL ||
+  (typeof window !== 'undefined'
+    ? new URL(
+        `${(import.meta.env?.BASE_URL || '/').replace(/\/+$/, '')}/auth/callback`,
+        window.location.origin,
+      ).toString()
+    : 'https://fanghaoming.github.io/lian-ke/auth/callback')
 const defaultSyncSelection = {
   exerciseNames: true,
   plans: true,

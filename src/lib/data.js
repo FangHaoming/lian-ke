@@ -1,4 +1,5 @@
 import { KEY, defaults, names, dailyWeights, completedRecords } from './workout-model.js'
+import { normalizeChallenges } from './challenge-model.js'
 
 export function loadData() {
   let data
@@ -9,6 +10,7 @@ export function loadData() {
   data.records = completedRecords(data.records)
   data.weights = dailyWeights(data.weights || [])
   data.sounds = { ...defaults().sounds, ...data.sounds }
+  data.challenges = normalizeChallenges(data.challenges)
   data.exerciseNames ??= [
     ...new Set([...names, ...data.plans.flatMap((p) => p.items.map((i) => i.name))]),
   ]

@@ -1,3 +1,5 @@
+import { challengeDefaults } from './challenge-model.js'
+
 export const KEY = 'lianke_v3'
 export const completedResults = (results) =>
   (results || []).filter((item) => item.completed === true)
@@ -59,4 +61,5 @@ export const defaults = () => ({
   selected: null,
   sounds: { set: 'triple', rest: 'double', finish: 'victory' },
   exerciseNames: [],
+  challenges: challengeDefaults(),
 })

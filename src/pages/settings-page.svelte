@@ -1,5 +1,6 @@
 <script>
   import { defaults, completedRecords } from '../lib/workout-model.js'
+  import { normalizeChallenges } from '../lib/challenge-model.js'
   import initSql from '../lib/init.sql?raw'
   import { playSound } from '../lib/sound.js'
   import Select from '../components/select.svelte'
@@ -145,8 +146,9 @@
       const parsed = JSON.parse(await file.text())
       if (!Array.isArray(parsed.plans) || !Array.isArray(parsed.records))
         throw Error('备份文件结构不正确')
-      if (confirm('导入将覆盖当前全部计划和训练记录，是否继续？')) {
-        data = { ...defaults(), ...parsed, records: completedRecords(parsed.records) }
+      const challenges = normalizeChallenges(parsed.challenges, { strict: true })
+      if (confirm('导入将覆盖当前全部本地数据（包括挑战成绩），是否继续？')) {
+        data = { ...defaults(), ...parsed, records: completedRecords(parsed.records), challenges }
         status = '导入成功'
       }
     } catch (error) {
@@ -294,7 +296,11 @@
 </section>
 <Toast
   message={status}
-  type={status.includes('失败') ? 'error' : status.includes('成功') || status === '已退出' ? 'success' : 'info'}
+  type={status.includes('失败')
+    ? 'error'
+    : status.includes('成功') || status === '已退出'
+      ? 'success'
+      : 'info'}
 />
 <section class="panel">
   <div class="row between settings-panel-heading">
@@ -345,7 +351,9 @@
 </section>
 <section class="panel">
   <h3>本地数据</h3>
-  <p class="muted">计划和记录保存在当前浏览器，请定期备份。</p>
+  <p class="muted">
+    计划、记录和挑战成绩保存在当前浏览器，请定期备份。挑战成绩包含在 JSON 备份中，暂不参与云端同步。
+  </p>
   <div class="row">
     <button class="btn primary" on:click={exportData}>导出 JSON 备份</button>
     <label class="btn">
