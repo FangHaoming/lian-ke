@@ -14,7 +14,7 @@
   } from '../lib/challenge-model.js'
   import { date } from '../lib/workout-model.js'
   import { requestConfirm } from '../lib/confirm-dialog.js'
-  import { appPath, appURL, baseURL } from '../lib/config.js'
+  import { appPath, baseURL } from '../lib/config.js'
   import ExerciseIcon from '../components/exercise-icon.svelte'
 
   export let data
@@ -131,7 +131,8 @@
       posterLogoReady = true
       if (shareOpen) drawPoster()
     }
-    posterLogo.src = appURL('fit-log-icon.png')
+    // Canvas 必须使用当前站点的同源资源，否则本地预览会被跨域图片污染，无法导出海报。
+    posterLogo.src = appPath('fit-log-icon.png')
     const challengeUrl = new URL('challenges', baseURL)
     challengeUrl.searchParams.set('route', routeId)
     challengeUrl.searchParams.set('level', levelId)
