@@ -10,6 +10,7 @@
   import { soundOptions } from '../lib/select-options.js'
   import {
     cloudConfig,
+    cloudSession,
     saveCloudConfig,
     authenticate,
     signOut,
@@ -19,6 +20,7 @@
   } from '../lib/cloud.js'
   export let data
   let config = cloudConfig()
+  let session = cloudSession()
   let email = '',
     password = '',
     status = '',
@@ -65,6 +67,7 @@
   async function auth(action) {
     try {
       await authenticate(action, email.trim(), password)
+      session = cloudSession()
       status = action === 'signup' ? '注册成功，请检查邮箱' : '登录成功'
     } catch (error) {
       status = error.message
@@ -183,36 +186,51 @@
     <span class="cloud-provider">Supabase</span>
   </div>
 
-  <div class="cloud-auth-fields">
-    <label class="field">
-      邮箱
-      <input type="email" autocomplete="email" placeholder="name@example.com" bind:value={email} />
-    </label>
-    <label class="field">
-      密码
-      <input
-        type="password"
-        autocomplete="current-password"
-        placeholder="输入密码"
-        bind:value={password}
-      />
-    </label>
-  </div>
+  {#if session?.user?.email}
+    <div class="cloud-signed-in">
+      <span class="muted small">已登录账号</span>
+      <strong>{session.user.email}</strong>
+    </div>
+    <div class="cloud-auth-actions">
+      <button
+        type="button"
+        class="btn cloud-sign-out"
+        on:click={() => {
+          signOut()
+          session = null
+          status = '已退出'
+        }}
+      >
+        退出登录
+      </button>
+    </div>
+  {:else}
+    <div class="cloud-auth-fields">
+      <label class="field">
+        邮箱
+        <input
+          type="email"
+          autocomplete="email"
+          placeholder="name@example.com"
+          bind:value={email}
+        />
+      </label>
+      <label class="field">
+        密码
+        <input
+          type="password"
+          autocomplete="current-password"
+          placeholder="输入密码"
+          bind:value={password}
+        />
+      </label>
+    </div>
 
-  <div class="cloud-auth-actions">
-    <button type="button" class="btn primary" on:click={() => auth('signin')}>登录</button>
-    <button type="button" class="btn ghost" on:click={() => auth('signup')}>注册账号</button>
-    <button
-      type="button"
-      class="btn cloud-sign-out"
-      on:click={() => {
-        signOut()
-        status = '已退出'
-      }}
-    >
-      退出登录
-    </button>
-  </div>
+    <div class="cloud-auth-actions">
+      <button type="button" class="btn primary" on:click={() => auth('signin')}>登录</button>
+      <button type="button" class="btn ghost" on:click={() => auth('signup')}>注册账号</button>
+    </div>
+  {/if}
 
   <div class="cloud-divider"></div>
 
