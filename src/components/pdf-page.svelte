@@ -1,4 +1,5 @@
 <script>
+  import { createEventDispatcher } from 'svelte'
   import { onMount } from 'svelte'
 
   export let pdf
@@ -6,6 +7,7 @@
   export let scale = 1.05
   let canvas
   let error = ''
+  const dispatch = createEventDispatcher()
 
   onMount(async () => {
     try {
@@ -16,6 +18,8 @@
       await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise
     } catch (cause) {
       error = cause?.message || '页面渲染失败'
+    } finally {
+      dispatch('rendered', pageNumber)
     }
   })
 </script>

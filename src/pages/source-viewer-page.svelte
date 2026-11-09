@@ -9,11 +9,22 @@
   let totalPages = 0
   let pdf = null
   let pages = []
+  let priorityPages = new Set()
+  let priorityRendered = new Set()
   let returnHref = appPath()
 
   const scrollToTarget = () => {
     const targetPage = Math.min(Math.max(1, page), totalPages)
     document.getElementById(`source-page-${targetPage}`)?.scrollIntoView()
+  }
+
+  function handlePageRendered(pageNumber) {
+    if (!priorityPages.has(pageNumber) || priorityRendered.has(pageNumber)) return
+    priorityRendered = new Set(priorityRendered).add(pageNumber)
+    if (priorityRendered.size === priorityPages.size) {
+      pages = Array.from({ length: totalPages }, (_, index) => index + 1)
+      window.setTimeout(scrollToTarget, 0)
+    }
   }
 
   onMount(async () => {
@@ -35,12 +46,19 @@
       ).toString()
       pdf = await pdfjs.getDocument(appURL('convict-conditioning.pdf')).promise
       totalPages = pdf.numPages
-      pages = Array.from({ length: totalPages }, (_, index) => index + 1)
+      const targetPage = Math.min(Math.max(1, page), totalPages)
+      const firstPriorityPage = Math.max(1, targetPage - 5)
+      const lastPriorityPage = Math.min(totalPages, targetPage + 10)
+      priorityPages = new Set(
+        Array.from(
+          { length: lastPriorityPage - firstPriorityPage + 1 },
+          (_, index) => firstPriorityPage + index,
+        ),
+      )
+      priorityRendered = new Set()
+      pages = [...priorityPages]
       await tick()
       scrollToTarget()
-      // PDF canvas 渲染会逐步改变页面高度，首次定位后再补两次，避免被后续页面撑开而偏移。
-      window.setTimeout(scrollToTarget, 1200)
-      window.setTimeout(scrollToTarget, 3000)
     } catch (cause) {
       error = cause?.message || '原书 PDF 加载失败'
     } finally {
@@ -57,7 +75,9 @@
   {#if error}<p class="error">{error}</p>{/if}
   {#if pdf}
     <div class="source-document">
-      {#each pages as pageNumber}<PdfPage {pdf} {pageNumber} />{/each}
+      {#each pages as pageNumber (pageNumber)}
+        <PdfPage {pdf} {pageNumber} on:rendered={(event) => handlePageRendered(event.detail)} />
+      {/each}
     </div>
   {/if}
 </main>
