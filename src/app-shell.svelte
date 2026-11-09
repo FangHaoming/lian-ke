@@ -208,7 +208,12 @@
     </div>
   {:else}
     <aside class:collapsed={!sidebarOpen} class="sidebar">
-      <div class="sidebar-brand">
+      <button
+        type="button"
+        class="sidebar-brand"
+        aria-label={sidebarOpen ? '收起侧边栏' : '展开侧边栏'}
+        on:click={() => (sidebarOpen = !sidebarOpen)}
+      >
         <span class="brand-icon-shell">
           <img class="brand-icon" src="fit-log-icon.png" alt="练刻图标" />
         </span>
@@ -216,10 +221,10 @@
             练
             <span>刻</span>
           </strong>{/if}
-      </div>
+      </button>
       {#if sidebarOpen}
         {#if accountSession?.user?.email}
-          <button type="button" class="sidebar-account" on:click={() => (sidebarOpen = false)}>
+          <button type="button" class="sidebar-account" on:click={() => selectTab('settings')}>
             <span class="sidebar-account-label">当前账号</span>
             <strong>{accountSession.user.email}</strong>
           </button>
