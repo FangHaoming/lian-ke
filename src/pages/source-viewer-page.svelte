@@ -10,12 +10,10 @@
   let pdf = null
   let pages = []
   let priorityPages = new Set()
-  let priorityRendered = new Set()
+  let lazyReady = false
   let returnHref = appPath()
   let loadingTask
   let loadTimeout
-  let remainingPages = []
-  let backgroundPage = 0
 
   onDestroy(() => {
     window.clearTimeout(loadTimeout)
@@ -25,21 +23,6 @@
   const scrollToTarget = () => {
     const targetPage = Math.min(Math.max(1, page), totalPages)
     document.getElementById(`source-page-${targetPage}`)?.scrollIntoView()
-  }
-
-  function handlePageRendered(pageNumber) {
-    if (pageNumber === backgroundPage) {
-      backgroundPage = remainingPages.shift() || 0
-      return
-    }
-    if (!priorityPages.has(pageNumber) || priorityRendered.has(pageNumber)) return
-    priorityRendered = new Set(priorityRendered).add(pageNumber)
-    if (priorityRendered.size === priorityPages.size) {
-      pages = Array.from({ length: totalPages }, (_, index) => index + 1)
-      remainingPages = pages.filter((number) => !priorityPages.has(number))
-      backgroundPage = remainingPages.shift() || 0
-      window.setTimeout(scrollToTarget, 0)
-    }
   }
 
   onMount(async () => {
@@ -85,10 +68,10 @@
           (_, index) => firstPriorityPage + index,
         ),
       )
-      priorityRendered = new Set()
-      pages = [...priorityPages]
+      pages = Array.from({ length: totalPages }, (_, index) => index + 1)
       await tick()
       scrollToTarget()
+      lazyReady = true
     } catch (cause) {
       error = cause?.message || '原书 PDF 加载失败'
     } finally {
@@ -112,12 +95,7 @@
   {#if pdf}
     <div class="source-document">
       {#each pages as pageNumber (pageNumber)}
-        <PdfPage
-          {pdf}
-          {pageNumber}
-          enabled={priorityPages.has(pageNumber) || pageNumber === backgroundPage}
-          on:rendered={(event) => handlePageRendered(event.detail)}
-        />
+        <PdfPage {pdf} {pageNumber} enabled={priorityPages.has(pageNumber)} lazy={lazyReady} />
       {/each}
     </div>
   {/if}

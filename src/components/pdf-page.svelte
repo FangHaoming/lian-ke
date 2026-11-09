@@ -1,18 +1,39 @@
 <script>
-  import { createEventDispatcher } from 'svelte'
-  import { onMount } from 'svelte'
+  import { onMount, onDestroy } from 'svelte'
 
   export let pdf
   export let pageNumber
   export let scale = 1.05
   export let enabled = true
+  export let lazy = false
+  let section
+  let observer
+  let renderTask
+  let disposed = false
   let canvas
   let error = ''
   let mounted = false
   let started = false
-  const dispatch = createEventDispatcher()
+  onMount(() => {
+    mounted = true
+  })
+  onDestroy(() => {
+    disposed = true
+    observer?.disconnect()
+    renderTask?.cancel()
+  })
 
-  onMount(() => (mounted = true))
+  $: if (mounted && lazy && !enabled && !started && !observer) {
+    observer = new IntersectionObserver(handleIntersection, { rootMargin: '600px 0px' })
+    observer.observe(section)
+  }
+
+  function handleIntersection(entries) {
+    if (entries.some((entry) => entry.isIntersecting)) {
+      enabled = true
+      observer.disconnect()
+    }
+  }
 
   $: if (mounted && enabled && !started) {
     started = true
@@ -22,22 +43,24 @@
   async function renderPage() {
     try {
       const page = await pdf.getPage(pageNumber)
+      if (disposed) return
       const viewport = page.getViewport({ scale })
       canvas.width = viewport.width
       canvas.height = viewport.height
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise
+      canvas.style.aspectRatio = `${viewport.width} / ${viewport.height}`
+      renderTask = page.render({ canvasContext: canvas.getContext('2d'), viewport })
+      await renderTask.promise
     } catch (cause) {
+      if (disposed) return
       error = cause?.message || '页面渲染失败'
-    } finally {
-      dispatch('rendered', pageNumber)
     }
   }
 </script>
 
-<section class="pdf-page" id={`source-page-${pageNumber}`}>
+<section bind:this={section} class="pdf-page" id={`source-page-${pageNumber}`}>
   <div class="pdf-page-label">第 {pageNumber} 页</div>
   {#if error}<p class="error">{error}</p>{/if}
-  <canvas bind:this={canvas} aria-label={`原书第 ${pageNumber} 页`} />
+  <canvas bind:this={canvas} width="1" height="1" aria-label={`原书第 ${pageNumber} 页`} />
 </section>
 
 <style>
