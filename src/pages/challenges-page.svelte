@@ -1,5 +1,5 @@
 <script>
-  import { tick } from 'svelte'
+  import { onMount, tick } from 'svelte'
   import { challengeRoutes, stageLabels } from '../lib/challenge-catalog.js'
   import {
     appendAttempt,
@@ -18,8 +18,23 @@
 
   export let data
   export let dirty = false
-  let routeId = challengeRoutes[0].id
-  let levelId = challengeRoutes[0].levels[0].id
+  const defaultRoute = challengeRoutes[0]
+  const defaultLevel = defaultRoute.levels[0]
+
+  function selectionFromLocation() {
+    if (typeof window === 'undefined') return { routeId: defaultRoute.id, levelId: defaultLevel.id }
+    const params = new URLSearchParams(window.location.search)
+    const selectedRoute = challengeRoutes.find((item) => item.id === params.get('route'))
+    const selectedLevel = selectedRoute?.levels.find((item) => item.id === params.get('level'))
+    return {
+      routeId: selectedRoute?.id || defaultRoute.id,
+      levelId: selectedLevel?.id || selectedRoute?.levels[0].id || defaultLevel.id,
+    }
+  }
+
+  const initialSelection = selectionFromLocation()
+  let routeId = initialSelection.routeId
+  let levelId = initialSelection.levelId
   let stage = 'progression'
   let rows = [{ both: '' }, { both: '' }, { both: '' }]
   let qualityConfirmed = false
@@ -50,12 +65,20 @@
   $: eliteCount = summaries.filter((item) => item.progress[9].achieved.elite).length
   $: sourceViewer = (page) => {
     const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
-    return `${base}/source?page=${page}`
+    const returnTo = `${base}/challenges?route=${routeId}&level=${levelId}`
+    const params = new URLSearchParams({ page: String(page), return: returnTo })
+    return `${base}/source?${params}`
   }
   $: dirty =
     rows.some((row) => Object.values(row).some((value) => value !== '' && value !== undefined)) ||
     qualityConfirmed ||
     Boolean(note.trim())
+  $: if (typeof window !== 'undefined' && routeId && levelId) {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('route') !== routeId || params.get('level') !== levelId) {
+      updateSelectionUrl(routeId, levelId)
+    }
+  }
 
   function resetDraft(nextLevel) {
     stage = completionStage(nextLevel)
@@ -69,10 +92,34 @@
   async function applyLevel(nextRoute, nextLevel) {
     routeId = nextRoute.id
     levelId = nextLevel.id
+    updateSelectionUrl(routeId, levelId)
     resetDraft(nextLevel)
     await tick()
     detailHeading?.focus({ preventScroll: true })
   }
+
+  function updateSelectionUrl(nextRouteId, nextLevelId) {
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    url.searchParams.set('route', nextRouteId)
+    url.searchParams.set('level', nextLevelId)
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+  }
+
+  function syncSelectionFromUrl() {
+    const next = selectionFromLocation()
+    if (next.routeId === routeId && next.levelId === levelId) return
+    const nextRoute = challengeRoutes.find((item) => item.id === next.routeId)
+    const nextLevel = nextRoute.levels.find((item) => item.id === next.levelId)
+    routeId = next.routeId
+    levelId = next.levelId
+    resetDraft(nextLevel)
+  }
+
+  onMount(() => {
+    updateSelectionUrl(routeId, levelId)
+  })
+
   async function chooseLevel(nextRoute, nextLevel) {
     if (nextLevel.id === levelId) return
     if (dirty) {
@@ -185,7 +232,7 @@
   }
 </script>
 
-<svelte:window on:beforeunload={beforeUnload} />
+<svelte:window on:beforeunload={beforeUnload} on:popstate={syncSelectionFromUrl} />
 
 <section class="challenge-hero">
   <div>

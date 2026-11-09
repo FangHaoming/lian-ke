@@ -3,12 +3,6 @@
   import { defaults } from './lib/workout-model.js'
   import { loadData, saveData } from './lib/data.js'
   import { consumeAuthCallback, cloudSession, signOut } from './lib/cloud.js'
-  import TrainPage from './pages/train-page.svelte'
-  import PlansPage from './pages/plans-page.svelte'
-  import StatsPage from './pages/stats-page.svelte'
-  import SettingsPage from './pages/settings-page.svelte'
-  import WeightPage from './pages/weight-page.svelte'
-  import ChallengesPage from './pages/challenges-page.svelte'
   import AuthCallbackPage from './pages/auth-callback-page.svelte'
   import SourceViewerPage from './pages/source-viewer-page.svelte'
   import GlobalDialog from './components/global-dialog.svelte'
@@ -29,6 +23,9 @@
   let authCallback = false
   let sourceViewer = false
   let sourcePage = 1
+  let pageComponents = {}
+  let pageLoading = {}
+  let pageLoadErrors = {}
   let sidebarOpen = typeof window === 'undefined' ? true : window.innerWidth > 760
   let accountSession = cloudSession()
   let pendingTab = null
@@ -43,6 +40,31 @@
   }
   const routeTabs = Object.fromEntries(Object.entries(routes).map(([tabId, path]) => [path, tabId]))
   routeTabs.train = 'train'
+
+  const pageLoaders = {
+    train: () => import('./pages/train-page.svelte'),
+    plans: () => import('./pages/plans-page.svelte'),
+    challenges: () => import('./pages/challenges-page.svelte'),
+    weight: () => import('./pages/weight-page.svelte'),
+    stats: () => import('./pages/stats-page.svelte'),
+    settings: () => import('./pages/settings-page.svelte'),
+  }
+
+  async function loadPageComponent(next) {
+    if (pageComponents[next] || pageLoading[next] || !pageLoaders[next]) return
+    pageLoading = { ...pageLoading, [next]: true }
+    try {
+      const module = await pageLoaders[next]()
+      pageComponents = { ...pageComponents, [next]: module.default }
+    } catch (cause) {
+      pageLoadErrors = {
+        ...pageLoadErrors,
+        [next]: cause?.message || '页面加载失败',
+      }
+    } finally {
+      pageLoading = { ...pageLoading, [next]: false }
+    }
+  }
 
   function routePath(next) {
     const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
@@ -199,7 +221,13 @@
     if (!authCallback && !sourceViewer) {
       consumeAuthCallback()
       tab = tabFromLocation()
-      history.replaceState({ ...(history.state || {}), tab }, '', routePath(tab))
+      const routeUrl = routePath(tab)
+      const search = tab === 'challenges' ? window.location.search : ''
+      history.replaceState(
+        { ...(history.state || {}), tab },
+        '',
+        `${routeUrl}${search}${window.location.hash}`,
+      )
     }
     today = new Date().toLocaleDateString('zh-CN', {
       month: 'short',
@@ -253,6 +281,7 @@
   })
   $: if (ready) saveData(data)
   $: if (ready) syncWakeLock(Boolean(session && !session.paused))
+  $: if (ready && !authCallback && !sourceViewer) void loadPageComponent(tab)
 </script>
 
 <div class:source-mode={sourceViewer} class="app">
@@ -371,18 +400,27 @@
         <span class="pill">{today}</span>
       </header>
       {#if ready}
-        {#if tab === 'train'}<TrainPage
+        {#if pageLoadErrors[tab]}
+          <p class="page-error">{pageLoadErrors[tab]}</p>
+        {:else if !pageComponents[tab]}
+          <p class="page-loading">正在加载页面…</p>
+        {:else if tab === 'train'}<svelte:component
+            this={pageComponents.train}
             bind:data
             bind:session
             bind:review
             bind:quickItems
             {screenAwake}
           />
-        {:else if tab === 'plans'}<PlansPage bind:data />
-        {:else if tab === 'challenges'}<ChallengesPage bind:data bind:dirty={challengeDirty} />
-        {:else if tab === 'weight'}<WeightPage bind:data />
-        {:else if tab === 'stats'}<StatsPage bind:data />
-        {:else}<SettingsPage bind:data />{/if}
+        {:else if tab === 'plans'}<svelte:component this={pageComponents.plans} bind:data />
+        {:else if tab === 'challenges'}<svelte:component
+            this={pageComponents.challenges}
+            bind:data
+            bind:dirty={challengeDirty}
+          />
+        {:else if tab === 'weight'}<svelte:component this={pageComponents.weight} bind:data />
+        {:else if tab === 'stats'}<svelte:component this={pageComponents.stats} bind:data />
+        {:else}<svelte:component this={pageComponents.settings} bind:data />{/if}
       {/if}
     </div>
   {/if}

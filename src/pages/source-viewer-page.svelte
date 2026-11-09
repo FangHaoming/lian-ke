@@ -8,6 +8,7 @@
   let totalPages = 0
   let pdf = null
   let pages = []
+  let returnHref = import.meta.env.BASE_URL || '/'
 
   const scrollToTarget = () => {
     const targetPage = Math.min(Math.max(1, page), totalPages)
@@ -15,13 +16,23 @@
   }
 
   onMount(async () => {
+    const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
+    const returnValue = new URLSearchParams(window.location.search).get('return')
+    try {
+      const returnUrl = returnValue ? new URL(returnValue, window.location.origin) : null
+      const challengesPath = `${base}/challenges`
+      if (returnUrl?.origin === window.location.origin && returnUrl.pathname === challengesPath) {
+        returnHref = `${returnUrl.pathname}${returnUrl.search}${returnUrl.hash}`
+      }
+    } catch {
+      returnHref = `${base}/`
+    }
     try {
       const pdfjs = await import('pdfjs-dist')
       pdfjs.GlobalWorkerOptions.workerSrc = new URL(
         'pdfjs-dist/build/pdf.worker.mjs',
         import.meta.url,
       ).toString()
-      const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
       pdf = await pdfjs.getDocument(`${base}/convict-conditioning.pdf`).promise
       totalPages = pdf.numPages
       pages = Array.from({ length: totalPages }, (_, index) => index + 1)
@@ -40,11 +51,7 @@
 
 <main class="source-viewer-page">
   <header>
-    <a href={import.meta.env.BASE_URL || '/'}>返回练刻</a>
-    <strong>
-      《囚徒健身》原书 · 第 {page} 页{#if totalPages}
-        / {totalPages}{/if}
-    </strong>
+    <a href={returnHref}>返回练刻</a>
   </header>
   {#if loading}<p>正在加载原书页面…</p>{/if}
   {#if error}<p class="error">{error}</p>{/if}
