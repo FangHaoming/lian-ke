@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>练刻</title>
+    <script>
+      ;(() => {
+        const redirect = {
+          pathname: window.location.pathname,
+          search: window.location.search,
+          hash: window.location.hash,
+        }
+        sessionStorage.setItem('lianke:github-pages-redirect', JSON.stringify(redirect))
+        window.location.replace('/lian-ke/')
+      })()
+    </script>
+  </head>
+  <body></body>
+</html>

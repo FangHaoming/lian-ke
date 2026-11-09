@@ -57,6 +57,24 @@
     return pathname === 'auth/callback'
   }
 
+  function restoreGithubPagesRoute() {
+    const key = 'lianke:github-pages-redirect'
+    let redirect
+    try {
+      redirect = JSON.parse(sessionStorage.getItem(key) || 'null')
+      sessionStorage.removeItem(key)
+    } catch {
+      sessionStorage.removeItem(key)
+      return
+    }
+    if (!redirect?.pathname || !redirect.pathname.startsWith('/lian-ke/')) return
+    history.replaceState(
+      history.state,
+      '',
+      `${redirect.pathname}${redirect.search || ''}${redirect.hash || ''}`,
+    )
+  }
+
   function canLeaveCurrentTab() {
     return (
       tab !== 'challenges' ||
@@ -107,6 +125,7 @@
       })
   }
   onMount(() => {
+    restoreGithubPagesRoute()
     data = loadData()
     authCallback = isAuthCallbackLocation()
     if (!authCallback) {
