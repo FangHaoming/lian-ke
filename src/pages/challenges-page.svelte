@@ -13,7 +13,7 @@
     sideLabels,
   } from '../lib/challenge-model.js'
   import { date } from '../lib/workout-model.js'
-  import ConfirmDialog from '../components/confirm-dialog.svelte'
+  import { requestConfirm } from '../lib/confirm-dialog.js'
   import ExerciseIcon from '../components/exercise-icon.svelte'
 
   export let data
@@ -25,11 +25,8 @@
   let qualityConfirmed = false
   let note = ''
   let feedback = null
-  let deleteId = null
   let detailHeading
-  let leaveDraftConfirmation = false
   let pendingLevel = null
-  let removeGroupConfirmation = false
 
   $: attempts = data.challenges.attempts
   $: summaries = challengeRoutes.map((route) => ({
@@ -76,7 +73,15 @@
     if (nextLevel.id === levelId) return
     if (dirty) {
       pendingLevel = { nextRoute, nextLevel }
-      leaveDraftConfirmation = true
+      requestConfirm({
+        title: '放弃本次挑战填写？',
+        message: '这次挑战成绩尚未保存，确定丢弃已填写内容吗？',
+        confirmText: '放弃填写',
+        destructive: true,
+      }).then(({ confirmed }) => {
+        if (confirmed) confirmLeaveDraft()
+        else pendingLevel = null
+      })
       return
     }
     await applyLevel(nextRoute, nextLevel)
@@ -84,7 +89,6 @@
   async function confirmLeaveDraft() {
     const pending = pendingLevel
     pendingLevel = null
-    leaveDraftConfirmation = false
     if (pending) await applyLevel(pending.nextRoute, pending.nextLevel)
   }
   function requestRemoveLastGroup() {
@@ -93,11 +97,17 @@
       rows = rows.slice(0, -1)
       return
     }
-    removeGroupConfirmation = true
+    requestConfirm({
+      title: '移除最后一组成绩？',
+      message: '这组成绩已经填写，移除后需要重新录入。',
+      confirmText: '移除这一组',
+      destructive: true,
+    }).then(({ confirmed }) => {
+      if (confirmed) confirmRemoveLastGroup()
+    })
   }
   function confirmRemoveLastGroup() {
     rows = rows.slice(0, -1)
-    removeGroupConfirmation = false
   }
   function chooseRoute(nextRoute) {
     const states = getRouteProgress(nextRoute, attempts)
@@ -137,9 +147,20 @@
       feedback = { passed: false, title: error.message, messages: [] }
     }
   }
-  function deleteAttempt() {
-    data = { ...data, challenges: removeAttempt(data.challenges, deleteId) }
-    deleteId = null
+  function requestDeleteAttempt(id) {
+    requestConfirm({
+      title: '删除这次挑战成绩？',
+      message:
+        '删除后会重新计算达成状态。如果这是前置关卡唯一的通关成绩，后续关卡将重新锁定；后续历史成绩保留，前置恢复通过后可重新计入。',
+      confirmText: '删除成绩',
+      destructive: true,
+    }).then(({ confirmed }) => {
+      if (confirmed) deleteAttempt(id)
+    })
+  }
+
+  function deleteAttempt(id) {
+    data = { ...data, challenges: removeAttempt(data.challenges, id) }
     feedback = { passed: false, title: '成绩已删除，关卡进度已重新计算', messages: [] }
   }
   function attemptDescription(attempt) {
@@ -460,7 +481,7 @@
                 type="button"
                 class="btn tiny ghost"
                 aria-label={`删除 ${date(attempt.recordedAt)} 的挑战成绩`}
-                on:click={() => (deleteId = attempt.id)}
+                on:click={() => requestDeleteAttempt(attempt.id)}
               >
                 删除
               </button>
@@ -485,34 +506,3 @@
   成绩由你自行记录与确认，保存在当前浏览器，可在“设置/备份”导出
   JSON。暂不参与云端同步。训练中如有疼痛或不适，请停止本次挑战。
 </p>
-
-<ConfirmDialog
-  open={deleteId !== null}
-  title="删除这次挑战成绩？"
-  message="删除后会重新计算达成状态。如果这是前置关卡唯一的通关成绩，后续关卡将重新锁定；后续历史成绩保留，前置恢复通过后可重新计入。"
-  confirmText="删除成绩"
-  destructive
-  on:confirm={deleteAttempt}
-  on:cancel={() => (deleteId = null)}
-/>
-<ConfirmDialog
-  bind:open={leaveDraftConfirmation}
-  title="放弃本次挑战填写？"
-  message="这次挑战成绩尚未保存，确定丢弃已填写内容吗？"
-  confirmText="放弃填写"
-  destructive
-  on:confirm={confirmLeaveDraft}
-  on:cancel={() => {
-    pendingLevel = null
-    leaveDraftConfirmation = false
-  }}
-/>
-<ConfirmDialog
-  bind:open={removeGroupConfirmation}
-  title="移除最后一组成绩？"
-  message="这组成绩已经填写，移除后需要重新录入。"
-  confirmText="移除这一组"
-  destructive
-  on:confirm={confirmRemoveLastGroup}
-  on:cancel={() => (removeGroupConfirmation = false)}
-/>

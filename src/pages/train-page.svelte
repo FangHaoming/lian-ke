@@ -7,7 +7,7 @@
   import TimePicker from '../components/time-picker.svelte'
   import { timeModes, trainingModes } from '../lib/select-options.js'
   import ExerciseNameSelect from '../components/exercise-name-select.svelte'
-  import ConfirmDialog from '../components/confirm-dialog.svelte'
+  import { requestConfirm } from '../lib/confirm-dialog.js'
   export let data
   export let quickItems
   let selected = data.selected || data.plans[0]?.id || ''
@@ -25,7 +25,6 @@
   let releasingFocusHistory = false
   let selectionPlanId = ''
   let selectedItemIds = []
-  let endTrainingConfirmation = false
   let wasPausedBeforeEndConfirmation = true
   let reviewHydrated = false
   const REVIEW_DRAFT_KEY = 'lianke_review_draft'
@@ -76,7 +75,12 @@
     // still available on browsers that do not support the Fullscreen API.
     if (!document.fullscreenElement) {
       const request = document.documentElement.requestFullscreen?.()
-      if (request) void request.then(() => { nativeFullscreenActive = true }).catch(() => {})
+      if (request)
+        void request
+          .then(() => {
+            nativeFullscreenActive = true
+          })
+          .catch(() => {})
     }
   }
   function exitFocus() {
@@ -175,10 +179,7 @@
     session.last = now
     while (session && delta > 0) {
       const currentItem = session.queue[session.index]
-      if (
-        session.phase === 'work' &&
-        (currentItem.mode === 'reps' || isCountUp(currentItem))
-      ) {
+      if (session.phase === 'work' && (currentItem.mode === 'reps' || isCountUp(currentItem))) {
         session.elapsed += delta
         break
       }
@@ -280,10 +281,20 @@
       session.last = Date.now()
       session = session
     }
-    endTrainingConfirmation = true
+    requestConfirm({
+      title: '结束训练',
+      message: session?.results?.length
+        ? '将保存当前已完成的 ' + session.results.length + ' 组动作，是否结束训练？'
+        : '当前还没有完成的动作组，是否结束训练？',
+      confirmText: '结束训练',
+      cancelText: '继续训练',
+      destructive: true,
+    }).then(({ confirmed }) => {
+      if (confirmed) endTraining()
+      else cancelEndTraining()
+    })
   }
   function cancelEndTraining() {
-    endTrainingConfirmation = false
     if (session && !wasPausedBeforeEndConfirmation) {
       session.paused = false
       session.last = Date.now()
@@ -291,7 +302,6 @@
     }
   }
   function endTraining() {
-    endTrainingConfirmation = false
     if (!session) return
     review = {
       ...session,
@@ -326,7 +336,9 @@
             <span>第 {result.setIndex} 组</span>
           </div>
           {#if !(result.mode === 'time' && result.timerMode === 'up')}<span class="review-target">
-              目标 {result.mode === 'reps' ? `${result.targetReps} 次` : `${result.targetSeconds} 秒`}
+              目标 {result.mode === 'reps'
+                ? `${result.targetReps} 次`
+                : `${result.targetSeconds} 秒`}
             </span>{/if}
         </div>
         <div class="review-fields">
@@ -360,137 +372,142 @@
   </section>
 {:else if session}
   <div class:training-focus={focusMode} class="training-session">
-  {#if focusMode}
-    <div class="training-lock-screen" role="dialog" aria-modal="true" aria-label="训练防误触锁屏">
-      <div class="row between training-lock-top">
-        <span class="pill">防误触已开启</span>
-        <span class="muted small">第 {session.index + 1} / {session.queue.length} 组</span>
-      </div>
-      <div class="training-lock-center">
-        <div class="muted">{session.phase === 'prep' ? '准备开始' : session.phase === 'rest' ? '组间休息' : '正在训练'}</div>
-        <h1>{current.name} · 第 {current.setIndex} 组</h1>
-        <div class="clock" class:orange={session.phase !== 'work'} class:accent={session.phase === 'work'}>
-          {fmt(
-            session.phase === 'work' &&
-              (current.mode === 'reps' || isCountUp(current))
-              ? session.elapsed
-              : Math.ceil(session.remaining),
-          )}
+    {#if focusMode}
+      <div class="training-lock-screen" role="dialog" aria-modal="true" aria-label="训练防误触锁屏">
+        <div class="row between training-lock-top">
+          <span class="pill">防误触已开启</span>
+          <span class="muted small">第 {session.index + 1} / {session.queue.length} 组</span>
         </div>
-        <div class="muted">
-          {session.paused
-            ? '已暂停'
-            : session.phase === 'work' &&
-                (current.mode === 'reps' || isCountUp(current))
-              ? '正计时'
-              : '倒计时'}
+        <div class="training-lock-center">
+          <div class="muted">
+            {session.phase === 'prep'
+              ? '准备开始'
+              : session.phase === 'rest'
+                ? '组间休息'
+                : '正在训练'}
+          </div>
+          <h1>{current.name} · 第 {current.setIndex} 组</h1>
+          <div
+            class="clock"
+            class:orange={session.phase !== 'work'}
+            class:accent={session.phase === 'work'}
+          >
+            {fmt(
+              session.phase === 'work' && (current.mode === 'reps' || isCountUp(current))
+                ? session.elapsed
+                : Math.ceil(session.remaining),
+            )}
+          </div>
+          <div class="muted">
+            {session.paused
+              ? '已暂停'
+              : session.phase === 'work' && (current.mode === 'reps' || isCountUp(current))
+                ? '正计时'
+                : '倒计时'}
+          </div>
+          <div class="progress">
+            <div style={`width:${(session.results.length / session.queue.length) * 100}%`}></div>
+          </div>
+          <div class="muted small">已完成 {session.results.length} / {session.queue.length} 组</div>
         </div>
-        <div class="progress"><div style={`width:${(session.results.length / session.queue.length) * 100}%`}></div></div>
-        <div class="muted small">已完成 {session.results.length} / {session.queue.length} 组</div>
+        <button
+          bind:this={unlockButton}
+          class="unlock-hold"
+          class:is-holding={holding}
+          on:pointerdown|preventDefault={beginUnlock}
+          on:pointerup={cancelUnlock}
+          on:pointercancel={cancelUnlock}
+          on:pointerleave={cancelUnlock}
+          on:keydown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              beginUnlock()
+            }
+          }}
+          on:keyup={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') cancelUnlock()
+          }}
+          on:blur={cancelUnlock}
+          on:contextmenu={(event) => event.preventDefault()}
+          on:selectstart|preventDefault
+          on:dragstart|preventDefault
+        >
+          长按退出防误触
+        </button>
       </div>
-      <button
-        bind:this={unlockButton}
-        class="unlock-hold"
-        class:is-holding={holding}
-        on:pointerdown|preventDefault={beginUnlock}
-        on:pointerup={cancelUnlock}
-        on:pointercancel={cancelUnlock}
-        on:pointerleave={cancelUnlock}
-        on:keydown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); beginUnlock() } }}
-        on:keyup={(event) => { if (event.key === 'Enter' || event.key === ' ') cancelUnlock() }}
-        on:blur={cancelUnlock}
-        on:contextmenu={(event) => event.preventDefault()}
-        on:selectstart|preventDefault
-        on:dragstart|preventDefault
-      >长按退出防误触</button>
-    </div>
-  {:else}
-  <section class="panel">
-    <div class="row between">
-      <span class="pill">
-        {session.phase === 'prep' ? '准备开始' : session.phase === 'rest' ? '组间休息' : '正在训练'}
-      </span>
-      <span class="muted small">第 {session.index + 1} / {session.queue.length} 组</span>
-    </div>
-    <div class="timer">
-      <div class="muted">{current.name} · 第 {current.setIndex} 组</div>
-      <div
-        class="clock"
-        class:orange={session.phase !== 'work'}
-        class:accent={session.phase === 'work'}
-      >
-        {fmt(
-          session.phase === 'work' &&
-          (current.mode === 'reps' || isCountUp(current))
-            ? session.elapsed
-            : Math.ceil(session.remaining),
-        )}
-      </div>
-      <div class="muted">
-        {session.paused
-          ? '已暂停'
-          : session.phase === 'work' && (current.mode === 'reps' || isCountUp(current))
-            ? '正计时 · 手动结束本组'
-            : '倒计时'}
-      </div>
-      {#if !session.paused && !screenAwake}<div class="muted small" style="margin-top:8px">
-          请保持屏幕亮起；息屏后浏览器可能延迟提示音。
-        </div>{/if}
-      <div class="progress">
-        <div style={`width:${(session.results.length / session.queue.length) * 100}%`}></div>
-      </div>
-    </div>
-    <div class="row" style="justify-content:center">
-      <button class="btn ghost" on:click={enterFocus}>开启防误触</button>
-      <button
-        class="btn ghost"
-        on:click={() => {
-          session.paused = !session.paused
-          session.last = Date.now()
-          if (!session.paused) prepareSound()
-          session = session
-        }}
-      >
-        {session.paused ? '继续' : '暂停'}
-      </button>
-      <button class="btn primary" on:click={next}>
-        {session.phase === 'prep'
-          ? '跳过准备 →'
-          : session.phase === 'rest'
-            ? '跳过休息 →'
-            : '结束本组 →'}
-      </button>
-      <button
-        class="btn red"
-        on:click={requestEndTraining}
-      >
-        结束训练
-      </button>
-    </div>
-  </section>
-  <section class="panel">
-    <h3>训练进度 · 已完成 {session.results.length}/{session.queue.length} 组</h3>
-    {#each session.queue as item, i}<div class="setline">
-        <span>
-          {i < session.results.length ? '✓' : i === session.index ? '▶' : '○'}
-          {item.name} · 第 {item.setIndex} 组
-        </span>
-        <span class="muted small">{item.weight} kg</span>
-      </div>{/each}
-</section>
-{/if}
-<ConfirmDialog
-  open={endTrainingConfirmation}
-  title="结束训练"
-  message={session?.results?.length
-    ? '将保存当前已完成的 ' + session.results.length + ' 组动作，是否结束训练？'
-    : '当前还没有完成的动作组，是否结束训练？'}
-  confirmText="结束训练"
-  cancelText="继续训练"
-  destructive
-  on:confirm={endTraining}
-  on:cancel={cancelEndTraining}
-/>
+    {:else}
+      <section class="panel">
+        <div class="row between">
+          <span class="pill">
+            {session.phase === 'prep'
+              ? '准备开始'
+              : session.phase === 'rest'
+                ? '组间休息'
+                : '正在训练'}
+          </span>
+          <span class="muted small">第 {session.index + 1} / {session.queue.length} 组</span>
+        </div>
+        <div class="timer">
+          <div class="muted">{current.name} · 第 {current.setIndex} 组</div>
+          <div
+            class="clock"
+            class:orange={session.phase !== 'work'}
+            class:accent={session.phase === 'work'}
+          >
+            {fmt(
+              session.phase === 'work' && (current.mode === 'reps' || isCountUp(current))
+                ? session.elapsed
+                : Math.ceil(session.remaining),
+            )}
+          </div>
+          <div class="muted">
+            {session.paused
+              ? '已暂停'
+              : session.phase === 'work' && (current.mode === 'reps' || isCountUp(current))
+                ? '正计时 · 手动结束本组'
+                : '倒计时'}
+          </div>
+          {#if !session.paused && !screenAwake}<div class="muted small" style="margin-top:8px">
+              请保持屏幕亮起；息屏后浏览器可能延迟提示音。
+            </div>{/if}
+          <div class="progress">
+            <div style={`width:${(session.results.length / session.queue.length) * 100}%`}></div>
+          </div>
+        </div>
+        <div class="row" style="justify-content:center">
+          <button class="btn ghost" on:click={enterFocus}>开启防误触</button>
+          <button
+            class="btn ghost"
+            on:click={() => {
+              session.paused = !session.paused
+              session.last = Date.now()
+              if (!session.paused) prepareSound()
+              session = session
+            }}
+          >
+            {session.paused ? '继续' : '暂停'}
+          </button>
+          <button class="btn primary" on:click={next}>
+            {session.phase === 'prep'
+              ? '跳过准备 →'
+              : session.phase === 'rest'
+                ? '跳过休息 →'
+                : '结束本组 →'}
+          </button>
+          <button class="btn red" on:click={requestEndTraining}>结束训练</button>
+        </div>
+      </section>
+      <section class="panel">
+        <h3>训练进度 · 已完成 {session.results.length}/{session.queue.length} 组</h3>
+        {#each session.queue as item, i}<div class="setline">
+            <span>
+              {i < session.results.length ? '✓' : i === session.index ? '▶' : '○'}
+              {item.name} · 第 {item.setIndex} 组
+            </span>
+            <span class="muted small">{item.weight} kg</span>
+          </div>{/each}
+      </section>
+    {/if}
   </div>
 {:else}
   <section class="panel">
@@ -534,16 +551,16 @@
               目标次数
               <input type="number" bind:value={item.reps} />
             </label>{:else}
-              {#if item.timerMode !== 'up'}<TimePicker
+            {#if item.timerMode !== 'up'}<TimePicker
                 label="训练时长"
                 max={7200}
                 bind:value={item.duration}
               />{/if}
-              <div class="field">
-                <span>计时方式</span>
-                <Select label="计时方式" options={timeModes} bind:value={item.timerMode} />
-              </div>
-            {/if}
+            <div class="field">
+              <span>计时方式</span>
+              <Select label="计时方式" options={timeModes} bind:value={item.timerMode} />
+            </div>
+          {/if}
           <label class="field">
             负重 kg
             <input type="number" step="0.5" bind:value={item.weight} />
@@ -591,7 +608,9 @@
         </button>
       </div>
       <p class="muted">
-        已选 {selectedItemIds.length}/{plan.items.length} 个动作 · {flatten({ items: plan.items.filter((item, index) => selectedItemIds.includes(itemKey(item, index))) }).length} 组
+        已选 {selectedItemIds.length}/{plan.items.length} 个动作 · {flatten({
+          items: plan.items.filter((item, index) => selectedItemIds.includes(itemKey(item, index))),
+        }).length} 组
       </p>
     </section>
     <section class="panel">
@@ -611,7 +630,8 @@
             <span class="plan-action-copy">
               <b>{i + 1}. {item.name}</b>
               <span class="muted small plan-action-detail">
-                {item.sets} 组 · {item.mode === 'reps' ? item.reps + ' 次' : item.duration + ' 秒'} · {item.weight} kg
+                {item.sets} 组 · {item.mode === 'reps' ? item.reps + ' 次' : item.duration + ' 秒'} ·
+                {item.weight} kg
               </span>
             </span>
           </span>

@@ -6,9 +6,10 @@
   import { playSound } from '../lib/sound.js'
   import Select from '../components/select.svelte'
   import CheckboxGroup from '../components/checkbox-group.svelte'
-  import ConfirmDialog from '../components/confirm-dialog.svelte'
-  import Toast from '../components/toast.svelte'
+  import ConfirmDialogInput from '../components/confirm-dialog-input.svelte'
+  import { requestConfirm } from '../lib/confirm-dialog.js'
   import { soundOptions } from '../lib/select-options.js'
+  import { showToast } from '../lib/toast.js'
   import {
     cloudConfig,
     cloudSession,
@@ -25,13 +26,20 @@
   let email = '',
     password = '',
     status = '',
+    statusType = 'info',
     busy = false
-  let deleteConfirmation = false
   let deletePassword = ''
   let deletePasswordError = ''
   let databaseStatus = '尚未检测'
-  let syncConfirmation = null
   let syncSelection = loadSyncSelection()
+  $: if (status) {
+    showToast(status, { type: statusType })
+  }
+
+  function setStatus(message, type = 'info') {
+    status = message
+    statusType = type
+  }
   const syncOptions = [
     { value: 'exerciseNames', label: '动作' },
     { value: 'plans', label: '训练计划' },
@@ -86,26 +94,48 @@
       await authenticate(action, email.trim(), password)
       session = cloudSession()
       notifyAuthChange()
-      status = action === 'signup' ? '注册成功，请检查邮箱' : '登录成功'
+      setStatus(action === 'signup' ? '注册成功，请检查邮箱' : '登录成功', 'success')
     } catch (error) {
-      status = error.message
+      setStatus(error.message, 'error')
     }
   }
   function requestDeleteAccount() {
     deletePassword = ''
     deletePasswordError = ''
-    deleteConfirmation = true
+    openDeleteAccountDialog()
+  }
+  function openDeleteAccountDialog() {
+    requestConfirm({
+      title: '注销账号',
+      children: ConfirmDialogInput,
+      childrenProps: {
+        input: {
+          label: '当前密码',
+          type: 'password',
+          autocomplete: 'current-password',
+          placeholder: '输入当前账号密码',
+          value: deletePassword,
+          disabled: busy,
+          onInput: (value) => (deletePassword = value),
+          error: deletePasswordError,
+        },
+      },
+      confirmText: busy ? '处理中……' : '确认注销',
+      destructive: true,
+    }).then(({ confirmed }) => {
+      if (confirmed) confirmDeleteAccount()
+    })
   }
   async function confirmDeleteAccount() {
     if (!session?.user?.email) return
     if (!deletePassword) {
       deletePasswordError = '请输入当前账号密码'
-      deleteConfirmation = true
+      openDeleteAccountDialog()
       return
     }
     busy = true
     deletePasswordError = ''
-    status = '正在注销账号……'
+    setStatus('正在注销账号……')
     try {
       await authenticate('signin', session.user.email, deletePassword)
       await deleteAccount()
@@ -114,10 +144,10 @@
       email = ''
       password = ''
       deletePassword = ''
-      status = '账号已注销'
+      setStatus('账号已注销', 'success')
     } catch (error) {
       deletePasswordError = `密码验证失败：${error.message}`
-      deleteConfirmation = true
+      openDeleteAccountDialog()
     } finally {
       busy = false
     }
@@ -125,15 +155,15 @@
   async function sync(direction) {
     if (busy) return
     busy = true
-    status = '正在同步……'
+    setStatus('正在同步……')
     try {
       const result = await syncData(direction, data, syncSelection)
       if (direction === 'download') {
         data = result
       }
-      status = syncStatus(direction, result)
+      setStatus(syncStatus(direction, result), 'success')
     } catch (error) {
-      status = `同步失败：${error.message}`
+      setStatus(`同步失败：${error.message}`, 'error')
     } finally {
       busy = false
     }
@@ -141,16 +171,19 @@
   function requestSync(direction) {
     const selectedOptions = syncOptions.filter((option) => syncSelection[option.value])
     if (!selectedOptions.length) {
-      status = '请至少选择一项同步内容'
+      setStatus('请至少选择一项同步内容', 'error')
       return
     }
-    syncConfirmation = {
-      direction,
+    requestConfirm({
+      title: '确认同步',
       message:
         direction === 'upload'
           ? `将以本地数据为准，同步并覆盖当前账号的云端数据。\n同步内容：${selectedOptions.map((option) => option.label).join('、')}`
           : `将用当前账号的云端数据替换本地同步数据。\n同步内容：${selectedOptions.map((option) => option.label).join('、')}`,
-    }
+      confirmText: '确认同步',
+    }).then(({ confirmed }) => {
+      if (confirmed) sync(direction)
+    })
   }
   function updateSyncSelection(event) {
     syncSelection = Object.fromEntries(
@@ -176,11 +209,6 @@
     if (syncSelection.sounds) details.push('提示音')
     return `远端同步到本地成功：${details.join('、')}已同步`
   }
-  function confirmSync() {
-    const { direction } = syncConfirmation
-    syncConfirmation = null
-    sync(direction)
-  }
   function exportData() {
     const url = URL.createObjectURL(
       new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }),
@@ -201,10 +229,10 @@
       const challenges = normalizeChallenges(parsed.challenges, { strict: true })
       if (confirm('导入将覆盖当前全部本地数据（包括挑战成绩），是否继续？')) {
         data = { ...defaults(), ...parsed, records: completedRecords(parsed.records), challenges }
-        status = '导入成功'
+        setStatus('导入成功', 'success')
       }
     } catch (error) {
-      status = `导入失败：${error.message}`
+      setStatus(`导入失败：${error.message}`, 'error')
     }
     event.currentTarget.value = ''
   }
@@ -217,7 +245,7 @@
       selected: null,
       exerciseNames: [],
     }
-    status = '本地数据已清空'
+    setStatus('本地数据已清空', 'success')
   }
 </script>
 
@@ -337,38 +365,6 @@
     </button>
   </div>
 </section>
-<ConfirmDialog
-  open={syncConfirmation !== null}
-  title="确认同步"
-  message={syncConfirmation?.message}
-  confirmText="确认同步"
-  on:confirm={confirmSync}
-  on:cancel={() => (syncConfirmation = null)}
-/>
-<ConfirmDialog
-  bind:open={deleteConfirmation}
-  title="注销账号"
-  message="注销后账号及云端训练数据将被永久删除，且无法恢复。请输入当前密码确认。"
-  confirmText={busy ? '处理中……' : '确认注销'}
-  destructive
-  on:confirm={confirmDeleteAccount}
-  on:cancel={() => {
-    deletePassword = ''
-    deletePasswordError = ''
-  }}
->
-  <label class="field confirm-dialog-field">
-    当前密码
-    <input
-      type="password"
-      autocomplete="current-password"
-      placeholder="输入当前账号密码"
-      bind:value={deletePassword}
-      disabled={busy}
-    />
-  </label>
-  {#if deletePasswordError}<p class="confirm-dialog-error">{deletePasswordError}</p>{/if}
-</ConfirmDialog>
 <details class="panel settings-advanced">
   <summary>
     <span>云端登录配置</span>
@@ -462,7 +458,7 @@
         style="margin-top:12px"
         on:click={() => {
           saveCloudConfig(config)
-          status = '配置已保存'
+          setStatus('配置已保存', 'success')
         }}
       >
         保存配置
@@ -470,14 +466,6 @@
     </section>
   </div>
 </details>
-<Toast
-  message={status}
-  type={status.includes('失败')
-    ? 'error'
-    : status.includes('成功') || status === '已退出'
-      ? 'success'
-      : 'info'}
-/>
 <section class="panel">
   <h3>独立提示音</h3>
   {#each [['set', '每组训练结束'], ['rest', '休息结束'], ['finish', '全部训练完成']] as [key, label]}<div

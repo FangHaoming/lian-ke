@@ -10,7 +10,9 @@
   import WeightPage from './pages/weight-page.svelte'
   import ChallengesPage from './pages/challenges-page.svelte'
   import AuthCallbackPage from './pages/auth-callback-page.svelte'
-  import ConfirmDialog from './components/confirm-dialog.svelte'
+  import GlobalDialog from './components/global-dialog.svelte'
+  import GlobalToast from './components/global-toast.svelte'
+  import { requestConfirm } from './lib/confirm-dialog.js'
 
   let data = defaults()
   let tab = 'train'
@@ -26,8 +28,6 @@
   let authCallback = false
   let sidebarOpen = typeof window === 'undefined' ? true : window.innerWidth > 760
   let accountSession = cloudSession()
-  let signOutConfirmation = false
-  let leaveChallengeConfirmation = false
   let pendingTab = null
 
   const routes = {
@@ -85,7 +85,15 @@
     if (next === tab) return
     if (tab === 'challenges' && challengeDirty) {
       pendingTab = next
-      leaveChallengeConfirmation = true
+      requestConfirm({
+        title: '放弃本次挑战填写？',
+        message: '这次挑战成绩尚未保存，确定丢弃已填写内容吗？',
+        confirmText: '放弃填写',
+        destructive: true,
+      }).then(({ confirmed }) => {
+        if (confirmed) confirmLeaveChallenge()
+        else pendingTab = null
+      })
       return
     }
     challengeDirty = false
@@ -96,7 +104,6 @@
   function confirmLeaveChallenge() {
     const next = pendingTab
     pendingTab = null
-    leaveChallengeConfirmation = false
     if (!next || next === tab) return
     challengeDirty = false
     tab = next
@@ -110,13 +117,18 @@
   }
 
   function requestSignOut() {
-    signOutConfirmation = true
+    requestConfirm({
+      title: '退出登录',
+      message: '退出后本设备将清除当前登录状态，确定退出吗？',
+      confirmText: '确认退出',
+    }).then(({ confirmed }) => {
+      if (confirmed) confirmSignOut()
+    })
   }
 
   function confirmSignOut() {
     signOut()
     accountSession = null
-    signOutConfirmation = false
     window.dispatchEvent(new CustomEvent('lianke-auth-change'))
   }
 
@@ -185,7 +197,18 @@
       if (next === tab) return
       if (tab === 'challenges' && challengeDirty) {
         pendingTab = next
-        leaveChallengeConfirmation = true
+        requestConfirm({
+          title: '放弃本次挑战填写？',
+          message: '这次挑战成绩尚未保存，确定丢弃已填写内容吗？',
+          confirmText: '放弃填写',
+          destructive: true,
+        }).then(({ confirmed }) => {
+          if (confirmed) confirmLeaveChallenge()
+          else {
+            pendingTab = null
+            history.pushState({ ...(history.state || {}), tab }, '', routePath(tab))
+          }
+        })
         history.pushState({ ...(history.state || {}), tab }, '', routePath(tab))
         return
       }
@@ -340,24 +363,6 @@
       {/if}
     </div>
   {/if}
-  <ConfirmDialog
-    bind:open={signOutConfirmation}
-    title="退出登录"
-    message="退出后本设备将清除当前登录状态，确定退出吗？"
-    confirmText="确认退出"
-    on:confirm={confirmSignOut}
-    on:cancel={() => (signOutConfirmation = false)}
-  />
-  <ConfirmDialog
-    bind:open={leaveChallengeConfirmation}
-    title="放弃本次挑战填写？"
-    message="这次挑战成绩尚未保存，确定丢弃已填写内容吗？"
-    confirmText="放弃填写"
-    destructive
-    on:confirm={confirmLeaveChallenge}
-    on:cancel={() => {
-      pendingTab = null
-      leaveChallengeConfirmation = false
-    }}
-  />
+  <GlobalDialog />
+  <GlobalToast />
 </div>
