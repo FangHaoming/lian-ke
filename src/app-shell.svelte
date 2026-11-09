@@ -27,6 +27,8 @@
   let sidebarOpen = typeof window === 'undefined' ? true : window.innerWidth > 760
   let accountSession = cloudSession()
   let signOutConfirmation = false
+  let leaveChallengeConfirmation = false
+  let pendingTab = null
 
   const routes = {
     train: '',
@@ -79,17 +81,23 @@
     )
   }
 
-  function canLeaveCurrentTab() {
-    return (
-      tab !== 'challenges' ||
-      !challengeDirty ||
-      confirm('这次挑战成绩尚未保存，确定丢弃已填写内容吗？')
-    )
-  }
-
   function switchTab(next) {
     if (next === tab) return
-    if (!canLeaveCurrentTab()) return
+    if (tab === 'challenges' && challengeDirty) {
+      pendingTab = next
+      leaveChallengeConfirmation = true
+      return
+    }
+    challengeDirty = false
+    tab = next
+    history.pushState({ ...(history.state || {}), tab: next }, '', routePath(next))
+  }
+
+  function confirmLeaveChallenge() {
+    const next = pendingTab
+    pendingTab = null
+    leaveChallengeConfirmation = false
+    if (!next || next === tab) return
     challengeDirty = false
     tab = next
     history.pushState({ ...(history.state || {}), tab: next }, '', routePath(next))
@@ -175,7 +183,9 @@
       if (authCallback) authCallback = false
       const next = tabFromLocation()
       if (next === tab) return
-      if (!canLeaveCurrentTab()) {
+      if (tab === 'challenges' && challengeDirty) {
+        pendingTab = next
+        leaveChallengeConfirmation = true
         history.pushState({ ...(history.state || {}), tab }, '', routePath(tab))
         return
       }
@@ -217,11 +227,15 @@
         <span class="brand-icon-shell">
           <img class="brand-icon" src="fit-log-icon.png" alt="练刻图标" />
         </span>
-        {#if sidebarOpen}<strong>
-            练
-            <span>刻</span>
-          </strong>{/if}
+        {#if sidebarOpen}<span class="sidebar-brand-copy">
+            <strong>
+              练
+              <span>刻</span>
+            </strong>
+            <small>FIT LOG</small>
+          </span>{/if}
       </button>
+      {#if sidebarOpen}<div class="sidebar-tagline">你的训练节奏、计划与进步</div>{/if}
       {#if sidebarOpen}
         {#if accountSession?.user?.email}
           <button type="button" class="sidebar-account" on:click={() => selectTab('settings')}>
@@ -333,5 +347,17 @@
     confirmText="确认退出"
     on:confirm={confirmSignOut}
     on:cancel={() => (signOutConfirmation = false)}
+  />
+  <ConfirmDialog
+    bind:open={leaveChallengeConfirmation}
+    title="放弃本次挑战填写？"
+    message="这次挑战成绩尚未保存，确定丢弃已填写内容吗？"
+    confirmText="放弃填写"
+    destructive
+    on:confirm={confirmLeaveChallenge}
+    on:cancel={() => {
+      pendingTab = null
+      leaveChallengeConfirmation = false
+    }}
   />
 </div>

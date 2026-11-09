@@ -14,6 +14,7 @@
   } from '../lib/challenge-model.js'
   import { date } from '../lib/workout-model.js'
   import ConfirmDialog from '../components/confirm-dialog.svelte'
+  import ExerciseIcon from '../components/exercise-icon.svelte'
 
   export let data
   export let dirty = false
@@ -26,6 +27,9 @@
   let feedback = null
   let deleteId = null
   let detailHeading
+  let leaveDraftConfirmation = false
+  let pendingLevel = null
+  let removeGroupConfirmation = false
 
   $: attempts = data.challenges.attempts
   $: summaries = challengeRoutes.map((route) => ({
@@ -61,17 +65,39 @@
     note = ''
     feedback = null
   }
-  function canLeaveDraft() {
-    return !dirty || confirm('这次挑战成绩尚未保存，确定丢弃已填写内容吗？')
-  }
-  async function chooseLevel(nextRoute, nextLevel) {
-    if (nextLevel.id === levelId) return
-    if (!canLeaveDraft()) return
+  async function applyLevel(nextRoute, nextLevel) {
     routeId = nextRoute.id
     levelId = nextLevel.id
     resetDraft(nextLevel)
     await tick()
     detailHeading?.focus({ preventScroll: true })
+  }
+  async function chooseLevel(nextRoute, nextLevel) {
+    if (nextLevel.id === levelId) return
+    if (dirty) {
+      pendingLevel = { nextRoute, nextLevel }
+      leaveDraftConfirmation = true
+      return
+    }
+    await applyLevel(nextRoute, nextLevel)
+  }
+  async function confirmLeaveDraft() {
+    const pending = pendingLevel
+    pendingLevel = null
+    leaveDraftConfirmation = false
+    if (pending) await applyLevel(pending.nextRoute, pending.nextLevel)
+  }
+  function requestRemoveLastGroup() {
+    const last = rows[rows.length - 1]
+    if (Object.values(last).every((value) => value === '' || value === undefined)) {
+      rows = rows.slice(0, -1)
+      return
+    }
+    removeGroupConfirmation = true
+  }
+  function confirmRemoveLastGroup() {
+    rows = rows.slice(0, -1)
+    removeGroupConfirmation = false
   }
   function chooseRoute(nextRoute) {
     const states = getRouteProgress(nextRoute, attempts)
@@ -185,7 +211,7 @@
       on:click={() => chooseRoute(item)}
     >
       <div class="challenge-route-top">
-        <span class="challenge-route-icon" aria-hidden="true">{item.icon}</span>
+        <span class="challenge-route-icon"><ExerciseIcon kind={item.id} size={24} /></span>
         <span class="challenge-route-count">
           {count}
           <small>/ 10</small>
@@ -371,14 +397,7 @@
               type="button"
               class="btn tiny ghost"
               disabled={rows.length <= 1}
-              on:click={() => {
-                const last = rows[rows.length - 1]
-                if (
-                  Object.values(last).every((value) => value === '' || value === undefined) ||
-                  confirm('确定移除最后一组已填写的成绩吗？')
-                )
-                  rows = rows.slice(0, -1)
-              }}
+              on:click={requestRemoveLastGroup}
             >
               移除最后一组
             </button>
@@ -475,4 +494,25 @@
   destructive
   on:confirm={deleteAttempt}
   on:cancel={() => (deleteId = null)}
+/>
+<ConfirmDialog
+  bind:open={leaveDraftConfirmation}
+  title="放弃本次挑战填写？"
+  message="这次挑战成绩尚未保存，确定丢弃已填写内容吗？"
+  confirmText="放弃填写"
+  destructive
+  on:confirm={confirmLeaveDraft}
+  on:cancel={() => {
+    pendingLevel = null
+    leaveDraftConfirmation = false
+  }}
+/>
+<ConfirmDialog
+  bind:open={removeGroupConfirmation}
+  title="移除最后一组成绩？"
+  message="这组成绩已经填写，移除后需要重新录入。"
+  confirmText="移除这一组"
+  destructive
+  on:confirm={confirmRemoveLastGroup}
+  on:cancel={() => (removeGroupConfirmation = false)}
 />
