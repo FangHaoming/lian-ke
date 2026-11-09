@@ -1,6 +1,7 @@
 <script>
   import { onMount, tick } from 'svelte'
   import PdfPage from '../components/pdf-page.svelte'
+  import { appPath, appURL } from '../lib/config.js'
 
   export let page = 1
   let loading = true
@@ -8,7 +9,7 @@
   let totalPages = 0
   let pdf = null
   let pages = []
-  let returnHref = import.meta.env.BASE_URL || '/'
+  let returnHref = appPath()
 
   const scrollToTarget = () => {
     const targetPage = Math.min(Math.max(1, page), totalPages)
@@ -16,16 +17,15 @@
   }
 
   onMount(async () => {
-    const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
     const returnValue = new URLSearchParams(window.location.search).get('return')
     try {
       const returnUrl = returnValue ? new URL(returnValue, window.location.origin) : null
-      const challengesPath = `${base}/challenges`
+      const challengesPath = appPath('challenges')
       if (returnUrl?.origin === window.location.origin && returnUrl.pathname === challengesPath) {
         returnHref = `${returnUrl.pathname}${returnUrl.search}${returnUrl.hash}`
       }
     } catch {
-      returnHref = `${base}/`
+      returnHref = appPath()
     }
     try {
       const pdfjs = await import('pdfjs-dist')
@@ -33,7 +33,7 @@
         'pdfjs-dist/build/pdf.worker.mjs',
         import.meta.url,
       ).toString()
-      pdf = await pdfjs.getDocument(`${base}/convict-conditioning.pdf`).promise
+      pdf = await pdfjs.getDocument(appURL('convict-conditioning.pdf')).promise
       totalPages = pdf.numPages
       pages = Array.from({ length: totalPages }, (_, index) => index + 1)
       await tick()

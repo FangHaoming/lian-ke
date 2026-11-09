@@ -1,11 +1,12 @@
 <script>
   import { onMount } from 'svelte'
   import { cloudSession, consumeAuthCallback } from '../lib/cloud.js'
+  import { appPath } from '../lib/config.js'
 
   let status = '正在处理邮箱授权……'
   let detail = '请稍候，正在确认你的登录状态。'
   let completed = false
-  const homePath = `${(import.meta.env.BASE_URL || '/').replace(/\/+$/, '')}/`
+  const homePath = appPath()
 
   onMount(async () => {
     const callbackSession = await consumeAuthCallback()

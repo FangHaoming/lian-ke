@@ -14,6 +14,7 @@
   } from '../lib/challenge-model.js'
   import { date } from '../lib/workout-model.js'
   import { requestConfirm } from '../lib/confirm-dialog.js'
+  import { appPath, appURL, baseURL } from '../lib/config.js'
   import ExerciseIcon from '../components/exercise-icon.svelte'
 
   export let data
@@ -42,6 +43,14 @@
   let feedback = null
   let detailHeading
   let pendingLevel = null
+  let shareOpen = false
+  let posterCanvas
+  let posterUrl = ''
+  let shareStatus = ''
+  let posterLogo
+  let posterLogoReady = false
+  let posterQr
+  let posterQrReady = false
 
   $: attempts = data.challenges.attempts
   $: summaries = challengeRoutes.map((route) => ({
@@ -64,10 +73,9 @@
   $: masterCount = summaries.filter((item) => item.progress[9].completed).length
   $: eliteCount = summaries.filter((item) => item.progress[9].achieved.elite).length
   $: sourceViewer = (page) => {
-    const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
-    const returnTo = `${base}/challenges?route=${routeId}&level=${levelId}`
+    const returnTo = `${appPath('challenges')}?route=${routeId}&level=${levelId}`
     const params = new URLSearchParams({ page: String(page), return: returnTo })
-    return `${base}/source?${params}`
+    return `${appPath('source')}?${params}`
   }
   $: dirty =
     rows.some((row) => Object.values(row).some((value) => value !== '' && value !== undefined)) ||
@@ -118,6 +126,32 @@
 
   onMount(() => {
     updateSelectionUrl(routeId, levelId)
+    posterLogo = new Image()
+    posterLogo.onload = () => {
+      posterLogoReady = true
+      if (shareOpen) drawPoster()
+    }
+    posterLogo.src = appURL('fit-log-icon.png')
+    const challengeUrl = new URL('challenges', baseURL)
+    challengeUrl.searchParams.set('route', routeId)
+    challengeUrl.searchParams.set('level', levelId)
+    fetch(
+      `https://api.qrserver.com/v1/create-qr-code/?size=220x220&format=png&data=${encodeURIComponent(challengeUrl.href)}`,
+    )
+      .then((response) =>
+        response.ok ? response.blob() : Promise.reject(new Error('二维码加载失败')),
+      )
+      .then((blob) => {
+        posterQr = new Image()
+        posterQr.onload = () => {
+          posterQrReady = true
+          if (shareOpen) drawPoster()
+        }
+        posterQr.src = URL.createObjectURL(blob)
+      })
+      .catch(() => {
+        posterQr = null
+      })
   })
 
   async function chooseLevel(nextRoute, nextLevel) {
@@ -230,6 +264,176 @@
     event.preventDefault()
     event.returnValue = ''
   }
+
+  function posterLines() {
+    const routeState = summaries.find((item) => item.route.id === routeId)
+    return {
+      routeName: routeState?.route.name || route.name,
+      routeCount: routeState?.progress.filter((item) => item.completed).length || 0,
+      currentLevel: level.name,
+    }
+  }
+
+  function drawFittedText(context, text, x, y, maxWidth, size, color, weight = 700) {
+    let fontSize = size
+    context.fillStyle = color
+    context.font = `${weight} ${fontSize}px system-ui, sans-serif`
+    while (context.measureText(text).width > maxWidth && fontSize > 14) {
+      fontSize -= 1
+      context.font = `${weight} ${fontSize}px system-ui, sans-serif`
+    }
+    context.fillText(text, x, y)
+  }
+
+  function drawPoster() {
+    if (!posterCanvas) return
+    const canvas = posterCanvas
+    const context = canvas.getContext('2d')
+    const width = 720
+    const height = 960
+    const info = posterLines()
+    context.clearRect(0, 0, width, height)
+    context.save()
+    context.beginPath()
+    context.roundRect(8, 8, width - 16, height - 16, 28)
+    context.clip()
+    const gradient = context.createLinearGradient(0, 0, width, height)
+    gradient.addColorStop(0, '#17251d')
+    gradient.addColorStop(0.52, '#101a21')
+    gradient.addColorStop(1, '#0b1015')
+    context.fillStyle = gradient
+    context.fillRect(0, 0, width, height)
+
+    context.fillStyle = '#b7f36a'
+    context.globalAlpha = 0.14
+    context.beginPath()
+    context.arc(660, 105, 125, 0, Math.PI * 2)
+    context.fill()
+    context.globalAlpha = 1
+    if (posterLogoReady) context.drawImage(posterLogo, 56, 91, 42, 42)
+    context.fillStyle = '#b7f36a'
+    context.font = '800 24px system-ui, sans-serif'
+    context.fillText('练刻', 116, 113)
+    context.font = '700 17px system-ui, sans-serif'
+    context.fillText('LIAN KE  /  CHALLENGE LOG', 116, 140)
+    drawFittedText(context, '每一步，都算进步', 56, 215, 540, 56, '#eaf2f4', 800)
+    context.fillStyle = '#9fb0b4'
+    context.font = '400 22px system-ui, sans-serif'
+    context.fillText('我的挑战进度，正在变成力量。', 58, 258)
+
+    context.fillStyle = '#b7f36a'
+    context.font = '800 104px system-ui, sans-serif'
+    context.fillText(String(completedCount).padStart(2, '0'), 56, 438)
+    context.fillStyle = '#92a5ac'
+    context.font = '500 24px system-ui, sans-serif'
+    context.fillText('/ 60  已通关', 230, 438)
+    drawFittedText(
+      context,
+      `${info.routeName} · 已完成 ${info.routeCount}/10 关`,
+      58,
+      492,
+      604,
+      26,
+      '#eaf2f4',
+      700,
+    )
+    context.fillStyle = '#2d4039'
+    context.roundRect(58, 528, 604, 14, 7)
+    context.fill()
+    context.fillStyle = '#b7f36a'
+    context.roundRect(58, 528, Math.max(14, 604 * (completedCount / 60)), 14, 7)
+    context.fill()
+
+    const stats = [
+      ['最终技', masterCount, '/ 6'],
+      ['精英成就', eliteCount, '/ 6'],
+      ['挑战记录', attempts.length, '次'],
+    ]
+    stats.forEach(([label, value, suffix], index) => {
+      const x = 58 + index * 205
+      context.fillStyle = '#18242b'
+      context.roundRect(x, 620, 180, 120, 14)
+      context.fill()
+      context.fillStyle = '#a9c5cf'
+      context.font = '500 17px system-ui, sans-serif'
+      context.fillText(label, x + 18, 652)
+      context.fillStyle = '#f1f7f7'
+      context.font = '800 35px system-ui, sans-serif'
+      context.fillText(String(value), x + 18, 700)
+      context.fillStyle = '#788d95'
+      context.font = '500 17px system-ui, sans-serif'
+      context.fillText(suffix, x + 18 + context.measureText(String(value)).width + 6, 700)
+    })
+
+    drawFittedText(context, `当前挑战：${info.currentLevel}`, 58, 822, 440, 18, '#82969d', 400)
+    if (posterQrReady) {
+      context.fillStyle = '#f4f7f1'
+      context.roundRect(540, 788, 122, 122, 10)
+      context.fill()
+      context.drawImage(posterQr, 546, 794, 110, 110)
+      context.fillStyle = '#82969d'
+      context.font = '400 14px system-ui, sans-serif'
+      context.fillText('扫码查看挑战', 540, 934)
+    }
+    context.fillStyle = '#b7f36a'
+    context.font = '700 19px system-ui, sans-serif'
+    context.fillText('循序渐进 · 持续变强', 58, 878)
+    context.fillStyle = '#5d7078'
+    context.font = '400 16px system-ui, sans-serif'
+    context.fillText('练刻 · 我的挑战记录', 58, 918)
+    context.restore()
+    context.beginPath()
+    context.roundRect(8, 8, width - 16, height - 16, 28)
+    context.strokeStyle = '#58745b'
+    context.lineWidth = 3
+    context.stroke()
+    posterUrl = canvas.toDataURL('image/png')
+  }
+
+  async function openSharePoster() {
+    shareOpen = true
+    shareStatus = ''
+    await tick()
+    drawPoster()
+  }
+
+  function closeSharePoster() {
+    shareOpen = false
+    posterUrl = ''
+    shareStatus = ''
+  }
+
+  function posterBlob() {
+    return new Promise((resolve) => posterCanvas.toBlob(resolve, 'image/png'))
+  }
+
+  async function sharePoster() {
+    const blob = await posterBlob()
+    if (!blob) return
+    const file = new File([blob], 'lian-ke-challenge.png', { type: 'image/png' })
+    if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+      try {
+        await navigator.share({
+          title: '我的挑战进度',
+          text: `我在练刻完成了 ${completedCount}/60 关挑战`,
+          files: [file],
+        })
+        shareStatus = '已打开系统分享面板'
+      } catch (error) {
+        if (error?.name !== 'AbortError') shareStatus = '分享未完成，可以改为保存图片'
+      }
+      return
+    }
+    downloadPoster()
+    shareStatus = '当前设备不支持直接分享，请使用“保存图片”'
+  }
+
+  function downloadPoster() {
+    const link = document.createElement('a')
+    link.href = posterUrl
+    link.download = 'lian-ke-challenge.png'
+    link.click()
+  }
 </script>
 
 <svelte:window on:beforeunload={beforeUnload} on:popstate={syncSelectionFromUrl} />
@@ -269,6 +473,14 @@
     <strong>{attempts.length}</strong>
     <span>挑战记录</span>
   </div>
+</div>
+
+<div class="challenge-share-strip">
+  <div>
+    <strong>把进步分享给朋友</strong>
+    <span>生成一张专属于你的挑战进度海报</span>
+  </div>
+  <button type="button" class="btn primary" on:click={openSharePoster}>分享我的进度 ↗</button>
 </div>
 
 <div class="challenge-routes" aria-label="选择挑战路线">
@@ -557,3 +769,44 @@
   成绩由你自行记录与确认，保存在当前浏览器，可在“设置/备份”导出
   JSON。暂不参与云端同步。训练中如有疼痛或不适，请停止本次挑战。
 </p>
+
+{#if shareOpen}
+  <div class="challenge-share-backdrop" role="presentation" on:click|self={closeSharePoster}>
+    <section
+      class="challenge-share-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="share-poster-title"
+    >
+      <div class="row between">
+        <div>
+          <span class="challenge-eyebrow">CHALLENGE POSTER</span>
+          <h2 id="share-poster-title">分享我的进度</h2>
+        </div>
+        <button
+          type="button"
+          class="btn tiny ghost"
+          aria-label="关闭分享海报"
+          on:click={closeSharePoster}
+        >
+          关闭
+        </button>
+      </div>
+      <div class="challenge-poster-preview">
+        <canvas
+          bind:this={posterCanvas}
+          width="720"
+          height="960"
+          aria-label="挑战进度海报预览"
+        ></canvas>
+        {#if posterUrl}<img src={posterUrl} alt="我的挑战进度海报" />{/if}
+      </div>
+      <p class="muted small">海报会展示你的通关数、成就和当前挑战，不包含任何个人账号信息。</p>
+      <div class="row challenge-share-actions">
+        <button type="button" class="btn primary" on:click={sharePoster}>分享</button>
+        <button type="button" class="btn ghost" on:click={downloadPoster}>保存图片</button>
+      </div>
+      {#if shareStatus}<p class="challenge-share-status" role="status">{shareStatus}</p>{/if}
+    </section>
+  </div>
+{/if}

@@ -8,6 +8,7 @@
   import GlobalDialog from './components/global-dialog.svelte'
   import GlobalToast from './components/global-toast.svelte'
   import { requestConfirm } from './lib/confirm-dialog.js'
+  import { appPath, appURL, basePath } from './lib/config.js'
 
   let data = defaults()
   let tab = 'train'
@@ -67,31 +68,27 @@
   }
 
   function routePath(next) {
-    const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
-    return `${base}/${routes[next] || routes.train}`
+    return appPath(routes[next] || routes.train)
   }
 
   function tabFromLocation() {
-    const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
     const pathname = window.location.pathname
-      .replace(new RegExp(`^${base}`), '')
+      .replace(new RegExp(`^${basePath}`), '')
       .replace(/^\/+|\/+$/g, '')
     const hashPath = window.location.hash.replace(/^#\/?/, '').replace(/^\/+|\/+$/g, '')
     return routeTabs[pathname] || routeTabs[hashPath] || 'train'
   }
 
   function isAuthCallbackLocation() {
-    const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
     const pathname = window.location.pathname
-      .replace(new RegExp(`^${base}`), '')
+      .replace(new RegExp(`^${basePath}`), '')
       .replace(/^\/+|\/+$/g, '')
     return pathname === 'auth/callback'
   }
 
   function isSourceViewerLocation() {
-    const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
     const pathname = window.location.pathname
-      .replace(new RegExp(`^${base}`), '')
+      .replace(new RegExp(`^${basePath}`), '')
       .replace(/^\/+|\/+$/g, '')
     return pathname === 'source'
   }
@@ -114,7 +111,7 @@
       sessionStorage.removeItem(key)
       return
     }
-    if (!redirect?.pathname || !redirect.pathname.startsWith('/lian-ke/')) return
+    if (!redirect?.pathname || !redirect.pathname.startsWith(`${basePath}/`)) return
     history.replaceState(
       history.state,
       '',
@@ -300,7 +297,7 @@
         on:click={() => (sidebarOpen = !sidebarOpen)}
       >
         <span class="brand-icon-shell">
-          <img class="brand-icon" src="fit-log-icon.png" alt="练刻图标" />
+          <img class="brand-icon" src={appURL('fit-log-icon.png')} alt="练刻图标" />
         </span>
         {#if sidebarOpen}<span class="sidebar-brand-copy">
             <strong>
