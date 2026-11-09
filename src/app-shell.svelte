@@ -219,14 +219,14 @@
       </div>
       {#if sidebarOpen}
         {#if accountSession?.user?.email}
-          <div class="sidebar-account">
+          <button type="button" class="sidebar-account" on:click={() => (sidebarOpen = false)}>
             <span class="sidebar-account-label">当前账号</span>
             <strong>{accountSession.user.email}</strong>
-          </div>
+          </button>
         {:else}
           <button
             class="sidebar-account sidebar-account-empty"
-            on:click={() => switchTab('settings')}
+            on:click={() => selectTab('settings')}
           >
             <span class="sidebar-account-label">未登录</span>
             <strong>去设置登录账号</strong>
