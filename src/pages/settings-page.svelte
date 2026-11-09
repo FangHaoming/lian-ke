@@ -491,7 +491,7 @@
 <section class="panel">
   <h3>本地数据</h3>
   <p class="muted">
-    计划、记录和挑战成绩保存在当前浏览器，请定期备份。挑战成绩包含在 JSON 备份中，暂不参与云端同步。
+    计划、记录、体重和挑战成绩保存在当前浏览器，也可通过“数据同步”同步到云端。建议定期备份。
   </p>
   <div class="row">
     <button class="btn primary" on:click={exportData}>导出 JSON 备份</button>
