@@ -240,7 +240,7 @@
     <h1>每一步，都算进步</h1>
     <p class="muted">从第一式出发，走向你的最终技。一次只挑战眼前这一关。</p>
   </div>
-  <span class="challenge-local">● 本地保存</span>
+  <span class="challenge-local">● 本地保存 · 可同步远端</span>
 </section>
 
 <div class="challenge-metrics" aria-label="挑战成就">

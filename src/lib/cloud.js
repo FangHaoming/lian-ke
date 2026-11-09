@@ -1,4 +1,5 @@
 import { defaults, dailyWeights, dayKey, completedRecords } from './workout-model.js'
+import { normalizeChallenges } from './challenge-model.js'
 
 const CONFIG_KEY = 'lianke_supabase_config'
 const SESSION_KEY = 'lianke_supabase_session'
@@ -17,6 +18,7 @@ const defaultSyncSelection = {
   records: true,
   weights: true,
   sounds: true,
+  challenges: true,
 }
 
 export function loadSyncSelection() {
@@ -267,9 +269,9 @@ function sameTime(left, right) {
   return left === right || (left && right && Date.parse(left) === Date.parse(right))
 }
 
-async function readCloudData(api) {
+async function readCloudData(api, selection = defaultSyncSelection) {
   const user = `user_id=eq.${encodeURIComponent(api.userId)}`
-  const [names, plans, records, weights, settings] = await Promise.all([
+  const [names, plans, records, weights, settings, challengeAttempts] = await Promise.all([
     readRows(api, 'exercise_names', `${user}&select=name&order=name`),
     readRows(api, 'plans', `${user}&select=id,name,updated_at&order=created_at,id`),
     readRows(
@@ -283,6 +285,13 @@ async function readCloudData(api) {
       `${user}&select=id,recorded_at,recorded_on,kg,note&order=recorded_at,id`,
     ),
     readRows(api, 'user_settings', `${user}&select=sounds`),
+    selection.challenges
+      ? readRows(
+          api,
+          'challenge_attempts',
+          `${user}&select=id,level_id,stage,recorded_at,rows,quality_confirmed,note,snapshot&order=recorded_at,id`,
+        )
+      : [],
   ])
   const [items, sets] = await Promise.all([
     plans.length
@@ -367,12 +376,25 @@ async function readCloudData(api) {
       })),
     ),
     sounds: { ...defaults().sounds, ...(settings[0]?.sounds || {}) },
+    challenges: normalizeChallenges({
+      version: 1,
+      attempts: challengeAttempts.map((attempt) => ({
+        id: attempt.id,
+        levelId: attempt.level_id,
+        stage: attempt.stage,
+        recordedAt: attempt.recorded_at,
+        rows: attempt.rows,
+        qualityConfirmed: attempt.quality_confirmed,
+        note: attempt.note || '',
+        snapshot: attempt.snapshot,
+      })),
+    }),
   }
 }
 
 async function uploadCloudData(api, data, selection) {
   const user = `user_id=eq.${encodeURIComponent(api.userId)}`
-  const [oldPlans, oldRecords, oldWeights, oldNames] = await Promise.all([
+  const [oldPlans, oldRecords, oldWeights, oldNames, oldChallenges] = await Promise.all([
     readRows(api, 'plans', `${user}&select=id,name`),
     readRows(
       api,
@@ -381,6 +403,13 @@ async function uploadCloudData(api, data, selection) {
     ),
     readRows(api, 'body_weights', `${user}&select=id,recorded_at,recorded_on,kg,note`),
     readRows(api, 'exercise_names', `${user}&select=id,name`),
+    selection.challenges
+      ? readRows(
+          api,
+          'challenge_attempts',
+          `${user}&select=id,level_id,stage,recorded_at,rows,quality_confirmed,note,snapshot`,
+        )
+      : [],
   ])
   const [oldItems, oldSets] = await Promise.all([
     oldPlans.length
@@ -585,6 +614,28 @@ async function uploadCloudData(api, data, selection) {
   if (selection.sounds)
     await insertRows(api, 'user_settings', [{ user_id: api.userId, sounds }], 'on_conflict=user_id')
 
+  const challenges = normalizeChallenges(data.challenges)
+  const challengeRows = challenges.attempts.map((attempt) => ({
+    id: attempt.id,
+    user_id: api.userId,
+    level_id: attempt.levelId,
+    stage: attempt.stage,
+    recorded_at: attempt.recordedAt,
+    rows: attempt.rows,
+    quality_confirmed: attempt.qualityConfirmed,
+    note: attempt.note || null,
+    snapshot: attempt.snapshot,
+  }))
+  if (selection.challenges) {
+    await insertRows(api, 'challenge_attempts', challengeRows, 'on_conflict=id')
+    const localChallengeIds = new Set(challengeRows.map((row) => row.id))
+    const staleChallengeIds = oldChallenges
+      .filter((row) => !localChallengeIds.has(row.id))
+      .map((row) => row.id)
+    if (staleChallengeIds.length)
+      await deleteRows(api, 'challenge_attempts', inQuery('id', staleChallengeIds))
+  }
+
   const localDays = new Set(weightRows.map((item) => item.recorded_on))
   const staleWeightIds = oldWeights
     .filter((row) => !localDays.has(row.recorded_on))
@@ -612,6 +663,7 @@ async function uploadCloudData(api, data, selection) {
     deletedWeights: selection.weights ? staleWeightIds.length : 0,
     names: selection.exerciseNames ? names.length : 0,
     sounds: selection.sounds ? Object.keys(sounds).length : 0,
+    challenges: selection.challenges ? challengeRows.length : 0,
   }
 }
 
@@ -621,7 +673,7 @@ export async function syncData(direction, localData, selection = defaultSyncSele
   if (direction === 'upload') {
     return uploadCloudData(api, localData, selection)
   }
-  const remote = await readCloudData(api)
+  const remote = await readCloudData(api, selection)
   const selected = selection.plans
     ? remote.plans.some((plan) => plan.id === localData.selected)
       ? localData.selected
@@ -634,6 +686,7 @@ export async function syncData(direction, localData, selection = defaultSyncSele
     ...(selection.records && { records: remote.records }),
     ...(selection.weights && { weights: remote.weights }),
     ...(selection.sounds && { sounds: remote.sounds }),
+    ...(selection.challenges && { challenges: remote.challenges }),
     selected,
   }
 }
@@ -646,6 +699,7 @@ export async function syncNames(direction, localNames) {
     records: false,
     weights: false,
     sounds: false,
+    challenges: false,
   }
   if (direction === 'upload') {
     await syncData(direction, data, namesOnly)

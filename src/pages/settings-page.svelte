@@ -46,6 +46,7 @@
     { value: 'records', label: '训练记录' },
     { value: 'weights', label: '体重' },
     { value: 'sounds', label: '提示音' },
+    { value: 'challenges', label: '挑战成绩' },
   ]
   onMount(() => {
     const onAuthChange = () => (session = cloudSession())
@@ -70,6 +71,7 @@
       'training_sets',
       'user_settings',
       'body_weights',
+      'challenge_attempts',
     ]
     const results = await Promise.all(
       tables.map(async (table) => {
@@ -87,7 +89,7 @@
     const missing = tables.filter((_, index) => !results[index])
     databaseStatus = missing.length
       ? `缺少：${missing.join('、')}`
-      : '数据库已初始化，六张表均可访问'
+      : '数据库已初始化，八张表均可访问'
   }
   async function auth(action) {
     try {
@@ -200,6 +202,7 @@
         details.push(`体重新增/更新 ${result.weights} 条、删除 ${result.deletedWeights} 条`)
       if (syncSelection.exerciseNames) details.push(`${result.names} 个动作`)
       if (syncSelection.sounds) details.push('提示音')
+      if (syncSelection.challenges) details.push(`挑战成绩 ${result.challenges} 条`)
       return `本地同步到远端成功：${details.join('；')}已同步`
     }
     if (syncSelection.plans) details.push(`${result.plans.length} 个计划`)
@@ -207,6 +210,7 @@
     if (syncSelection.weights) details.push(`${result.weights.length} 条体重记录`)
     if (syncSelection.exerciseNames) details.push(`${result.exerciseNames.length} 个动作`)
     if (syncSelection.sounds) details.push('提示音')
+    if (syncSelection.challenges) details.push(`${result.challenges.attempts.length} 条挑战成绩`)
     return `远端同步到本地成功：${details.join('、')}已同步`
   }
   function exportData() {

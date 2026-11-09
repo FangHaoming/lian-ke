@@ -263,7 +263,7 @@ test('legacy data, local save/reload and backup round trips preserve the expecte
   assert.equal(defaults().challenges.attempts.length, 0)
 })
 
-test('existing cloud downloads keep local challenge attempts intact and uploads add no challenge fields', async (t) => {
+test('challenge attempts can be downloaded and uploaded as a dedicated sync selection', async (t) => {
   const map = localStore(t)
   map.set(
     'lianke_supabase_config',
@@ -274,25 +274,49 @@ test('existing cloud downloads keep local challenge attempts intact and uploads 
     JSON.stringify({ access_token: 'test', user: { id: 'test-user' } }),
   )
   const calls = []
+  const remoteAttempt = attempt(first)
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     calls.push({ url, options })
+    if (url.includes('/challenge_attempts')) {
+      return new Response(
+        JSON.stringify([
+          {
+            id: remoteAttempt.id,
+            level_id: remoteAttempt.levelId,
+            stage: remoteAttempt.stage,
+            recorded_at: remoteAttempt.recordedAt,
+            rows: remoteAttempt.rows,
+            quality_confirmed: remoteAttempt.qualityConfirmed,
+            note: remoteAttempt.note,
+            snapshot: remoteAttempt.snapshot,
+          },
+        ]),
+        { status: 200 },
+      )
+    }
     return new Response(JSON.stringify([]), { status: 200 })
   })
   const d = defaults()
-  d.challenges = clearRoute(route)
-  const result = await syncData('download', d)
-  assert.deepEqual(result.challenges, d.challenges)
-  await syncData('upload', d, {
+  const challengeOnly = {
     exerciseNames: false,
     plans: false,
     records: false,
     weights: false,
     sounds: false,
-  })
+    challenges: true,
+  }
+  const result = await syncData('download', d, challengeOnly)
+  assert.deepEqual(result.challenges, { version: 1, attempts: [remoteAttempt] })
+  d.challenges = { version: 1, attempts: [attempt(first, completionStage(first), 1)] }
+  calls.length = 0
+  const withoutChallenges = await syncData('download', d, { ...challengeOnly, challenges: false })
+  assert.equal(withoutChallenges.challenges.attempts[0].rows[0].both, 1)
   assert.equal(
-    calls.some(
-      (call) => call.url.includes('challenge') || call.options.body?.includes('challenge'),
-    ),
+    calls.some((call) => call.url.includes('/challenge_attempts')),
     false,
   )
+  calls.length = 0
+  d.challenges = { version: 1, attempts: [remoteAttempt] }
+  await syncData('upload', d, challengeOnly)
+  assert.ok(calls.some((call) => call.url.includes('/challenge_attempts')))
 })
