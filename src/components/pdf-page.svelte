@@ -5,11 +5,21 @@
   export let pdf
   export let pageNumber
   export let scale = 1.05
+  export let enabled = true
   let canvas
   let error = ''
+  let mounted = false
+  let started = false
   const dispatch = createEventDispatcher()
 
-  onMount(async () => {
+  onMount(() => (mounted = true))
+
+  $: if (mounted && enabled && !started) {
+    started = true
+    void renderPage()
+  }
+
+  async function renderPage() {
     try {
       const page = await pdf.getPage(pageNumber)
       const viewport = page.getViewport({ scale })
@@ -21,7 +31,7 @@
     } finally {
       dispatch('rendered', pageNumber)
     }
-  })
+  }
 </script>
 
 <section class="pdf-page" id={`source-page-${pageNumber}`}>
@@ -40,6 +50,7 @@
     display: block;
     width: 100%;
     height: auto;
+    aspect-ratio: 612 / 792;
     background: #fff;
     box-shadow: 0 8px 30px #0006;
   }

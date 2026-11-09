@@ -1,5 +1,5 @@
 <script>
-  import { onMount, tick } from 'svelte'
+  import { onMount, onDestroy, tick } from 'svelte'
   import PdfPage from '../components/pdf-page.svelte'
   import { appPath, appURL } from '../lib/config.js'
 
@@ -12,6 +12,15 @@
   let priorityPages = new Set()
   let priorityRendered = new Set()
   let returnHref = appPath()
+  let loadingTask
+  let loadTimeout
+  let remainingPages = []
+  let backgroundPage = 0
+
+  onDestroy(() => {
+    window.clearTimeout(loadTimeout)
+    void loadingTask?.destroy()
+  })
 
   const scrollToTarget = () => {
     const targetPage = Math.min(Math.max(1, page), totalPages)
@@ -19,10 +28,16 @@
   }
 
   function handlePageRendered(pageNumber) {
+    if (pageNumber === backgroundPage) {
+      backgroundPage = remainingPages.shift() || 0
+      return
+    }
     if (!priorityPages.has(pageNumber) || priorityRendered.has(pageNumber)) return
     priorityRendered = new Set(priorityRendered).add(pageNumber)
     if (priorityRendered.size === priorityPages.size) {
       pages = Array.from({ length: totalPages }, (_, index) => index + 1)
+      remainingPages = pages.filter((number) => !priorityPages.has(number))
+      backgroundPage = remainingPages.shift() || 0
       window.setTimeout(scrollToTarget, 0)
     }
   }
@@ -44,7 +59,22 @@
         'pdfjs-dist/build/pdf.worker.mjs',
         import.meta.url,
       ).toString()
-      pdf = await pdfjs.getDocument(appURL('convict-conditioning.pdf')).promise
+      loadingTask = pdfjs.getDocument({
+        url: appURL('convict-conditioning.pdf'),
+        disableStream: true,
+        disableAutoFetch: true,
+        rangeChunkSize: 262144,
+      })
+      pdf = await Promise.race([
+        loadingTask.promise,
+        new Promise((_, reject) => {
+          loadTimeout = window.setTimeout(() => {
+            reject(new Error('原书加载超时，请刷新重试，或直接打开 PDF。'))
+            void loadingTask.destroy()
+          }, 60000)
+        }),
+      ])
+      window.clearTimeout(loadTimeout)
       totalPages = pdf.numPages
       const targetPage = Math.min(Math.max(1, page), totalPages)
       const firstPriorityPage = Math.max(1, targetPage - 5)
@@ -62,6 +92,7 @@
     } catch (cause) {
       error = cause?.message || '原书 PDF 加载失败'
     } finally {
+      window.clearTimeout(loadTimeout)
       loading = false
     }
   })
@@ -72,11 +103,21 @@
     <a href={returnHref}>返回练刻</a>
   </header>
   {#if loading}<p>正在加载原书页面…</p>{/if}
-  {#if error}<p class="error">{error}</p>{/if}
+  {#if error}
+    <p class="error">
+      {error}
+      <a href={appURL('convict-conditioning.pdf')}>直接打开 PDF</a>
+    </p>
+  {/if}
   {#if pdf}
     <div class="source-document">
       {#each pages as pageNumber (pageNumber)}
-        <PdfPage {pdf} {pageNumber} on:rendered={(event) => handlePageRendered(event.detail)} />
+        <PdfPage
+          {pdf}
+          {pageNumber}
+          enabled={priorityPages.has(pageNumber) || pageNumber === backgroundPage}
+          on:rendered={(event) => handlePageRendered(event.detail)}
+        />
       {/each}
     </div>
   {/if}
