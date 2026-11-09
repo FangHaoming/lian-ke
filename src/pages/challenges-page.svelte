@@ -1,6 +1,6 @@
 <script>
   import { tick } from 'svelte'
-  import { challengeRoutes, CHALLENGE_SOURCE, stageLabels } from '../lib/challenge-catalog.js'
+  import { challengeRoutes, stageLabels } from '../lib/challenge-catalog.js'
   import {
     appendAttempt,
     attemptSides,
@@ -48,6 +48,10 @@
   )
   $: masterCount = summaries.filter((item) => item.progress[9].completed).length
   $: eliteCount = summaries.filter((item) => item.progress[9].achieved.elite).length
+  $: sourceViewer = (page) => {
+    const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
+    return `${base}/source?page=${page}`
+  }
   $: dirty =
     rows.some((row) => Object.values(row).some((value) => value !== '' && value !== undefined)) ||
     qualityConfirmed ||
@@ -343,11 +347,11 @@
       </div>
       <a
         class="challenge-source"
-        href={`${CHALLENGE_SOURCE}#page=${level.sourcePage}`}
+        href={sourceViewer(level.sourcePage)}
         target="_blank"
         rel="noreferrer"
       >
-        查看《囚徒健身》原书 · PDF 第 {level.sourcePage} 页 ↗
+        在线查看《囚徒健身》原书 · 第 {level.sourcePage} 页 ↗
       </a>
       {#if selected.completedAt}<p class="muted small">
           首次达成：{date(selected.completedAt)}

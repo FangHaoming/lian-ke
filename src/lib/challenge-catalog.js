@@ -30,7 +30,7 @@ export const challengeRoutes = [
           },
         },
         tip: '身体保持一线，屈肘靠近墙面后推回。',
-        sourcePage: 73,
+        sourcePage: 79,
         version: 'cc-v1',
       },
       {
@@ -55,7 +55,7 @@ export const challengeRoutes = [
           },
         },
         tip: '双手支撑稳定的高台，身体保持一线完成推起。',
-        sourcePage: 75,
+        sourcePage: 82,
         version: 'cc-v1',
       },
       {
@@ -80,7 +80,7 @@ export const challengeRoutes = [
           },
         },
         tip: '以膝盖支撑，躯干与大腿保持对齐。',
-        sourcePage: 77,
+        sourcePage: 84,
         version: 'cc-v1',
       },
       {
@@ -105,7 +105,7 @@ export const challengeRoutes = [
           },
         },
         tip: '只完成俯卧撑上半程，保持躯干稳定。',
-        sourcePage: 79,
+        sourcePage: 87,
         version: 'cc-v1',
       },
       {
@@ -130,7 +130,7 @@ export const challengeRoutes = [
           },
         },
         tip: '全程控制下降至胸部接近地面，再推回。',
-        sourcePage: 81,
+        sourcePage: 89,
         version: 'cc-v1',
       },
       {
@@ -155,7 +155,7 @@ export const challengeRoutes = [
           },
         },
         tip: '双手靠近，完整屈肘和推起。',
-        sourcePage: 83,
+        sourcePage: 92,
         version: 'cc-v1',
       },
       {
@@ -180,7 +180,7 @@ export const challengeRoutes = [
           },
         },
         tip: '一手放在高处，另一手在地面；换侧分别完成。',
-        sourcePage: 85,
+        sourcePage: 94,
         version: 'cc-v1',
       },
       {
@@ -205,7 +205,7 @@ export const challengeRoutes = [
           },
         },
         tip: '单手支撑，完成上半程；左右分别记录。',
-        sourcePage: 87,
+        sourcePage: 97,
         version: 'cc-v1',
       },
       {
@@ -230,7 +230,7 @@ export const challengeRoutes = [
           },
         },
         tip: '辅助臂向侧面伸直，控制下降推起；两侧分别完成。',
-        sourcePage: 89,
+        sourcePage: 99,
         version: 'cc-v1',
       },
       {
@@ -255,7 +255,7 @@ export const challengeRoutes = [
           },
         },
         tip: '单手支撑完整下压推起，保持躯干稳定，左右分别完成。',
-        sourcePage: 91,
+        sourcePage: 102,
         version: 'cc-v1',
       },
     ],
@@ -288,7 +288,7 @@ export const challengeRoutes = [
           },
         },
         tip: '肩背着地、双手托腰，双腿同步屈伸。',
-        sourcePage: 115,
+        sourcePage: 130,
         version: 'cc-v1',
       },
       {
@@ -313,7 +313,7 @@ export const challengeRoutes = [
           },
         },
         tip: '扶稳定物体、髋部折叠，用双腿力量蹲起。',
-        sourcePage: 117,
+        sourcePage: 133,
         version: 'cc-v1',
       },
       {
@@ -338,7 +338,7 @@ export const challengeRoutes = [
           },
         },
         tip: '扶稳定支撑完成深蹲，控制辅助力度。',
-        sourcePage: 119,
+        sourcePage: 135,
         version: 'cc-v1',
       },
       {
@@ -363,7 +363,7 @@ export const challengeRoutes = [
           },
         },
         tip: '下蹲到大腿接近平行地面再站起。',
-        sourcePage: 121,
+        sourcePage: 138,
         version: 'cc-v1',
       },
       {
@@ -388,7 +388,7 @@ export const challengeRoutes = [
           },
         },
         tip: '脚跟保持着地，下蹲至完整幅度再站起。',
-        sourcePage: 123,
+        sourcePage: 140,
         version: 'cc-v1',
       },
       {
@@ -413,7 +413,7 @@ export const challengeRoutes = [
           },
         },
         tip: '双脚靠拢完成完整深蹲，保持平衡。',
-        sourcePage: 125,
+        sourcePage: 143,
         version: 'cc-v1',
       },
       {
@@ -438,7 +438,7 @@ export const challengeRoutes = [
           },
         },
         tip: '一脚放在高处、另一脚承担主要负荷；两侧分别完成。',
-        sourcePage: 127,
+        sourcePage: 145,
         version: 'cc-v1',
       },
       {
@@ -463,7 +463,7 @@ export const challengeRoutes = [
           },
         },
         tip: '单腿站立，下蹲至半程再起身；两侧分别完成。',
-        sourcePage: 130,
+        sourcePage: 148,
         version: 'cc-v1',
       },
       {
@@ -488,7 +488,7 @@ export const challengeRoutes = [
           },
         },
         tip: '单腿深蹲，底部借助手部支撑起身；两侧分别完成。',
-        sourcePage: 132,
+        sourcePage: 150,
         version: 'cc-v1',
       },
       {
@@ -513,7 +513,7 @@ export const challengeRoutes = [
           },
         },
         tip: '一腿悬空，支撑腿完成完整蹲起；两侧分别完成。',
-        sourcePage: 134,
+        sourcePage: 153,
         version: 'cc-v1',
       },
     ],
@@ -546,7 +546,7 @@ export const challengeRoutes = [
           },
         },
         tip: '抓住稳定的竖直支撑，身体后倾后拉回。',
-        sourcePage: 157,
+        sourcePage: 179,
         version: 'cc-v1',
       },
       {
@@ -571,7 +571,7 @@ export const challengeRoutes = [
           },
         },
         tip: '身体在稳定横杆下方，保持对齐向上拉近横杆。',
-        sourcePage: 159,
+        sourcePage: 182,
         version: 'cc-v1',
       },
       {
@@ -596,7 +596,7 @@ export const challengeRoutes = [
           },
         },
         tip: '脚放在稳定高处辅助，完成完整引体动作。',
-        sourcePage: 161,
+        sourcePage: 184,
         version: 'cc-v1',
       },
       {
@@ -621,7 +621,7 @@ export const challengeRoutes = [
           },
         },
         tip: '从肘部约直角的位置拉至下巴过杆，再回到半程。',
-        sourcePage: 163,
+        sourcePage: 187,
         version: 'cc-v1',
       },
       {
@@ -646,7 +646,7 @@ export const challengeRoutes = [
           },
         },
         tip: '从手臂伸展位置拉至下巴过杆，控制下降。',
-        sourcePage: 165,
+        sourcePage: 189,
         version: 'cc-v1',
       },
       {
@@ -671,7 +671,7 @@ export const challengeRoutes = [
           },
         },
         tip: '双手靠近握杆，完成完整引体动作。',
-        sourcePage: 167,
+        sourcePage: 192,
         version: 'cc-v1',
       },
       {
@@ -696,7 +696,7 @@ export const challengeRoutes = [
           },
         },
         tip: '一手握杆、另一手握住该侧手腕辅助；两侧分别完成。',
-        sourcePage: 169,
+        sourcePage: 194,
         version: 'cc-v1',
       },
       {
@@ -721,7 +721,7 @@ export const challengeRoutes = [
           },
         },
         tip: '单臂完成引体上半程；两侧分别完成。',
-        sourcePage: 171,
+        sourcePage: 197,
         version: 'cc-v1',
       },
       {
@@ -746,7 +746,7 @@ export const challengeRoutes = [
           },
         },
         tip: '另一手抓毛巾或绳辅助单臂引体；两侧分别完成。',
-        sourcePage: 173,
+        sourcePage: 199,
         version: 'cc-v1',
       },
       {
@@ -771,7 +771,7 @@ export const challengeRoutes = [
           },
         },
         tip: '单手握杆完成完整引体，左右分别记录。',
-        sourcePage: 175,
+        sourcePage: 202,
         version: 'cc-v1',
       },
     ],
@@ -804,7 +804,7 @@ export const challengeRoutes = [
           },
         },
         tip: '坐在稳定座位边缘，双膝收向胸前后伸出。',
-        sourcePage: 193,
+        sourcePage: 223,
         version: 'cc-v1',
       },
       {
@@ -829,7 +829,7 @@ export const challengeRoutes = [
           },
         },
         tip: '仰卧、膝约直角，保持角度抬起再放下，脚不落地。',
-        sourcePage: 196,
+        sourcePage: 226,
         version: 'cc-v1',
       },
       {
@@ -854,7 +854,7 @@ export const challengeRoutes = [
           },
         },
         tip: '仰卧、膝保持约 45 度屈曲，双腿同步抬放。',
-        sourcePage: 198,
+        sourcePage: 228,
         version: 'cc-v1',
       },
       {
@@ -879,7 +879,7 @@ export const challengeRoutes = [
           },
         },
         tip: '先屈腿抬起，在顶部伸直，再以直腿缓慢放下。',
-        sourcePage: 200,
+        sourcePage: 231,
         version: 'cc-v1',
       },
       {
@@ -904,7 +904,7 @@ export const challengeRoutes = [
           },
         },
         tip: '双腿伸直，从接近地面抬至竖直，再控制放下。',
-        sourcePage: 202,
+        sourcePage: 233,
         version: 'cc-v1',
       },
       {
@@ -929,7 +929,7 @@ export const challengeRoutes = [
           },
         },
         tip: '悬垂时双膝向上收起，控制下降与摆动。',
-        sourcePage: 204,
+        sourcePage: 236,
         version: 'cc-v1',
       },
       {
@@ -954,7 +954,7 @@ export const challengeRoutes = [
           },
         },
         tip: '悬垂、保持膝部屈曲角度，双腿抬至髋部高度。',
-        sourcePage: 206,
+        sourcePage: 238,
         version: 'cc-v1',
       },
       {
@@ -979,7 +979,7 @@ export const challengeRoutes = [
           },
         },
         tip: '屈腿抬起，在顶部伸直，再以直腿缓慢放下。',
-        sourcePage: 208,
+        sourcePage: 241,
         version: 'cc-v1',
       },
       {
@@ -1004,7 +1004,7 @@ export const challengeRoutes = [
           },
         },
         tip: '直腿从约 45 度抬至水平，再回到 45 度。',
-        sourcePage: 211,
+        sourcePage: 244,
         version: 'cc-v1',
       },
       {
@@ -1029,7 +1029,7 @@ export const challengeRoutes = [
           },
         },
         tip: '保持双腿伸直，从垂直悬垂抬至水平再放下。',
-        sourcePage: 213,
+        sourcePage: 246,
         version: 'cc-v1',
       },
     ],
@@ -1062,7 +1062,7 @@ export const challengeRoutes = [
           },
         },
         tip: '仰卧屈膝，以双脚与肩部支撑抬髋，再控制放下。',
-        sourcePage: 236,
+        sourcePage: 272,
         version: 'cc-v1',
       },
       {
@@ -1087,7 +1087,7 @@ export const challengeRoutes = [
           },
         },
         tip: '坐姿双手在身后支撑，伸腿抬髋形成直桥。',
-        sourcePage: 238,
+        sourcePage: 274,
         version: 'cc-v1',
       },
       {
@@ -1112,7 +1112,7 @@ export const challengeRoutes = [
           },
         },
         tip: '双手支撑稳定高处，抬身成桥再控制下降。',
-        sourcePage: 240,
+        sourcePage: 277,
         version: 'cc-v1',
       },
       {
@@ -1137,7 +1137,7 @@ export const challengeRoutes = [
           },
         },
         tip: '从桥位屈肘下降至头部轻触地面，再推回桥位。',
-        sourcePage: 242,
+        sourcePage: 279,
         version: 'cc-v1',
       },
       {
@@ -1162,7 +1162,7 @@ export const challengeRoutes = [
           },
         },
         tip: '借助背下方的支撑控制幅度，完成半程桥起落。',
-        sourcePage: 244,
+        sourcePage: 282,
         version: 'cc-v1',
       },
       {
@@ -1187,7 +1187,7 @@ export const challengeRoutes = [
           },
         },
         tip: '从仰卧推起到完整桥位，再控制下降。',
-        sourcePage: 246,
+        sourcePage: 284,
         version: 'cc-v1',
       },
       {
@@ -1212,7 +1212,7 @@ export const challengeRoutes = [
           },
         },
         tip: '沿墙下行到双手着地的桥位，落地站起后开始下一次。',
-        sourcePage: 248,
+        sourcePage: 286,
         version: 'cc-v1',
       },
       {
@@ -1237,7 +1237,7 @@ export const challengeRoutes = [
           },
         },
         tip: '站立沿墙下行到桥位，再沿墙上行恢复独立站姿，整个循环计一次。',
-        sourcePage: 251,
+        sourcePage: 289,
         version: 'cc-v1',
       },
       {
@@ -1262,7 +1262,7 @@ export const challengeRoutes = [
           },
         },
         tip: '从站立后屈至桥位，落地再站起；无需从桥位直接起身。',
-        sourcePage: 253,
+        sourcePage: 292,
         version: 'cc-v1',
       },
       {
@@ -1288,7 +1288,7 @@ export const challengeRoutes = [
           },
         },
         tip: '站立下桥，再从桥位直接恢复站姿，完整循环计一次；不是静态保持。',
-        sourcePage: 255,
+        sourcePage: 295,
         version: 'cc-v1',
       },
     ],
@@ -1321,7 +1321,7 @@ export const challengeRoutes = [
           },
         },
         tip: '靠墙头手支撑的顶立；头部参与支撑，保持时长不可中断累计。',
-        sourcePage: 276,
+        sourcePage: 319,
         version: 'cc-v1',
       },
       {
@@ -1346,7 +1346,7 @@ export const challengeRoutes = [
           },
         },
         tip: '双手撑地、双膝靠在上臂，脚离地保持平衡；连续保持。',
-        sourcePage: 278,
+        sourcePage: 322,
         version: 'cc-v1',
       },
       {
@@ -1371,7 +1371,7 @@ export const challengeRoutes = [
           },
         },
         tip: '双手支撑、头不着地，脚跟靠墙；连续保持。',
-        sourcePage: 280,
+        sourcePage: 324,
         version: 'cc-v1',
       },
       {
@@ -1396,7 +1396,7 @@ export const challengeRoutes = [
           },
         },
         tip: '靠墙双手倒立，只下降到半程再撑起。',
-        sourcePage: 282,
+        sourcePage: 327,
         version: 'cc-v1',
       },
       {
@@ -1421,7 +1421,7 @@ export const challengeRoutes = [
           },
         },
         tip: '靠墙双手倒立，控制下降至头部轻触地面再撑起。',
-        sourcePage: 285,
+        sourcePage: 330,
         version: 'cc-v1',
       },
       {
@@ -1446,7 +1446,7 @@ export const challengeRoutes = [
           },
         },
         tip: '靠墙、双手靠拢，完成倒立撑。',
-        sourcePage: 287,
+        sourcePage: 333,
         version: 'cc-v1',
       },
       {
@@ -1471,7 +1471,7 @@ export const challengeRoutes = [
           },
         },
         tip: '靠墙，一手放在高处；完成倒立撑并换侧。',
-        sourcePage: 289,
+        sourcePage: 336,
         version: 'cc-v1',
       },
       {
@@ -1496,7 +1496,7 @@ export const challengeRoutes = [
           },
         },
         tip: '靠墙单手支撑，下降到半程再撑起；两侧分别完成。',
-        sourcePage: 292,
+        sourcePage: 339,
         version: 'cc-v1',
       },
       {
@@ -1521,7 +1521,7 @@ export const challengeRoutes = [
           },
         },
         tip: '靠墙，辅助手以手背接地、臂向前伸直；两侧分别完成。',
-        sourcePage: 295,
+        sourcePage: 342,
         version: 'cc-v1',
       },
       {
@@ -1546,7 +1546,7 @@ export const challengeRoutes = [
           },
         },
         tip: '原书版本：靠墙、脚跟接触墙面，可用腿部蹬伸助力；两侧分别完成。',
-        sourcePage: 298,
+        sourcePage: 345,
         version: 'cc-v1',
       },
     ],

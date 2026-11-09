@@ -10,6 +10,7 @@
   import WeightPage from './pages/weight-page.svelte'
   import ChallengesPage from './pages/challenges-page.svelte'
   import AuthCallbackPage from './pages/auth-callback-page.svelte'
+  import SourceViewerPage from './pages/source-viewer-page.svelte'
   import GlobalDialog from './components/global-dialog.svelte'
   import GlobalToast from './components/global-toast.svelte'
   import { requestConfirm } from './lib/confirm-dialog.js'
@@ -26,6 +27,8 @@
   let screenAwake = false
   let challengeDirty = false
   let authCallback = false
+  let sourceViewer = false
+  let sourcePage = 1
   let sidebarOpen = typeof window === 'undefined' ? true : window.innerWidth > 760
   let accountSession = cloudSession()
   let pendingTab = null
@@ -61,6 +64,22 @@
       .replace(new RegExp(`^${base}`), '')
       .replace(/^\/+|\/+$/g, '')
     return pathname === 'auth/callback'
+  }
+
+  function isSourceViewerLocation() {
+    const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
+    const pathname = window.location.pathname
+      .replace(new RegExp(`^${base}`), '')
+      .replace(/^\/+|\/+$/g, '')
+    return pathname === 'source'
+  }
+
+  function sourcePageFromLocation() {
+    const value = Number.parseInt(
+      new URLSearchParams(window.location.search).get('page') || '1',
+      10,
+    )
+    return Number.isFinite(value) && value > 0 ? value : 1
   }
 
   function restoreGithubPagesRoute() {
@@ -175,7 +194,9 @@
     restoreGithubPagesRoute()
     data = loadData()
     authCallback = isAuthCallbackLocation()
-    if (!authCallback) {
+    sourceViewer = isSourceViewerLocation()
+    sourcePage = sourcePageFromLocation()
+    if (!authCallback && !sourceViewer) {
       consumeAuthCallback()
       tab = tabFromLocation()
       history.replaceState({ ...(history.state || {}), tab }, '', routePath(tab))
@@ -234,8 +255,10 @@
   $: if (ready) syncWakeLock(Boolean(session && !session.paused))
 </script>
 
-<div class="app">
-  {#if authCallback}
+<div class:source-mode={sourceViewer} class="app">
+  {#if sourceViewer}
+    <SourceViewerPage page={sourcePage} />
+  {:else if authCallback}
     <div class="app-content">
       {#if ready}<AuthCallbackPage />{/if}
     </div>
