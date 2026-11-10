@@ -22,7 +22,6 @@
     .sort((a, b) =>
       deletable ? Number(isChallengeExercise(a)) - Number(isChallengeExercise(b)) : 0,
     )
-
   onMount(() => {
     const closeOutside = (event) => {
       if (root && !root.contains(event.target)) open = false

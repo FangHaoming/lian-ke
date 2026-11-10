@@ -1,5 +1,5 @@
 import { defaults, dailyWeights, dayKey, completedRecords } from './workout-model.js'
-import { normalizeChallenges } from './challenge-model.js'
+import { isChallengeExercise, normalizeChallenges } from './challenge-model.js'
 import { appURL } from './config.js'
 
 const CONFIG_KEY = 'lianke_supabase_config'
@@ -75,6 +75,19 @@ export async function deleteAccount() {
     throw Error(message)
   }
   signOut()
+}
+
+export async function deleteRemoteData(selection = {}) {
+  const api = await client()
+  const user = `user_id=eq.${encodeURIComponent(api.userId)}`
+  const tables = []
+  if (selection.exerciseNames) tables.push('exercise_names')
+  if (selection.plans) tables.push('plans')
+  if (selection.records) tables.push('training_records')
+  if (selection.sounds) tables.push('user_settings')
+  if (selection.weights) tables.push('body_weights')
+  if (selection.challenges) tables.push('challenge_attempts')
+  for (const table of tables) await deleteRows(api, table, user)
 }
 
 function userFromAccessToken(token) {
@@ -344,7 +357,7 @@ async function readCloudData(api, selection = defaultSyncSelection) {
     setsByRecord.set(item.record_id, list)
   })
   return {
-    exerciseNames: names.map((item) => item.name),
+    exerciseNames: names.map((item) => item.name).filter((name) => !isChallengeExercise(name)),
     plans: plans.map((plan) => ({
       id: plan.id,
       name: plan.name,
@@ -596,7 +609,9 @@ async function uploadCloudData(api, data, selection) {
   if (selection.weights)
     await insertRows(api, 'body_weights', changedWeights, 'on_conflict=user_id,recorded_on')
 
-  const names = [...new Set((data.exerciseNames || []).filter(Boolean))]
+  const names = [
+    ...new Set((data.exerciseNames || []).filter((name) => name && !isChallengeExercise(name))),
+  ]
   const sounds = { ...defaults().sounds, ...(data.sounds || {}) }
   if (selection.exerciseNames)
     await insertRows(

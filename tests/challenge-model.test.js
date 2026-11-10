@@ -383,3 +383,57 @@ test('challenge attempts can be downloaded and uploaded as a dedicated sync sele
   await syncData('upload', d, challengeOnly)
   assert.ok(calls.some((call) => call.url.includes('/challenge_attempts')))
 })
+
+test('challenge actions are excluded from ordinary action-name sync', async (t) => {
+  const map = localStore(t)
+  map.set(
+    'lianke_supabase_config',
+    JSON.stringify({ url: 'https://test.invalid', anonKey: 'public-test' }),
+  )
+  map.set(
+    'lianke_supabase_session',
+    JSON.stringify({ access_token: 'test', user: { id: 'test-user' } }),
+  )
+  const calls = []
+  t.mock.method(globalThis, 'fetch', async (url, options = {}) => {
+    calls.push({ url, options })
+    if (url.includes('/exercise_names')) {
+      return new Response(
+        JSON.stringify([
+          { id: 'legacy-challenge', name: first.name },
+          { id: 'ordinary-remote', name: '远端普通动作' },
+        ]),
+        { status: 200 },
+      )
+    }
+    return new Response(JSON.stringify([]), { status: 200 })
+  })
+  const namesOnly = {
+    exerciseNames: true,
+    plans: false,
+    records: false,
+    weights: false,
+    sounds: false,
+    challenges: false,
+  }
+  const local = { ...defaults(), exerciseNames: [first.name, '本地普通动作'] }
+
+  const downloaded = await syncData('download', local, namesOnly)
+  assert.deepEqual(downloaded.exerciseNames, ['远端普通动作'])
+
+  calls.length = 0
+  await syncData('upload', local, namesOnly)
+  const nameInsert = calls.find(
+    (call) => call.url.includes('/exercise_names') && call.options.method === 'POST',
+  )
+  assert.deepEqual(JSON.parse(nameInsert.options.body), [
+    { user_id: 'test-user', name: '本地普通动作' },
+  ])
+  assert.ok(
+    calls.some(
+      (call) =>
+        call.options.method === 'DELETE' &&
+        call.url.includes('id=in.(legacy-challenge,ordinary-remote)'),
+    ),
+  )
+})

@@ -14,6 +14,7 @@
     cloudConfig,
     cloudSession,
     deleteAccount,
+    deleteRemoteData,
     saveCloudConfig,
     authenticate,
     syncData,
@@ -112,6 +113,72 @@
     deletePassword = ''
     deletePasswordError = ''
     openDeleteAccountDialog()
+  }
+  function requestDeleteRemoteData() {
+    if (!session?.user?.email || busy) return
+    const selectedOptions = syncOptions.filter((option) => syncSelection[option.value])
+    if (!selectedOptions.length) {
+      setStatus('请至少选择一项要删除的远端数据', 'error')
+      return
+    }
+    deletePassword = ''
+    deletePasswordError = ''
+    openDeleteRemoteDataDialog(selectedOptions)
+  }
+  function openDeleteRemoteDataDialog(selectedOptions) {
+    requestConfirm({
+      title: '删除远端数据',
+      children: ConfirmDialogInput,
+      childrenProps: {
+        message: `本次将删除：${selectedOptions.map((option) => option.label).join('、')}。\n未选中的数据和当前设备的本地数据不会受影响。此操作不可撤销。`,
+        input: {
+          label: '当前密码',
+          type: 'password',
+          autocomplete: 'current-password',
+          placeholder: '输入当前账号密码',
+          value: deletePassword,
+          disabled: busy,
+          onInput: (value) => (deletePassword = value),
+          error: deletePasswordError,
+        },
+      },
+      confirmText: busy ? '验证中……' : deletePasswordError ? '重新验证' : '确认删除远端数据',
+      destructive: true,
+    }).then(({ confirmed }) => {
+      if (confirmed) confirmDeleteRemoteData(selectedOptions)
+    })
+  }
+  async function confirmDeleteRemoteData(selectedOptions) {
+    if (!session?.user?.email || busy) return
+    if (!deletePassword) {
+      deletePasswordError = '请输入当前账号密码'
+      openDeleteRemoteDataDialog(selectedOptions)
+      return
+    }
+    busy = true
+    deletePasswordError = ''
+    setStatus('正在验证密码……')
+    try {
+      await authenticate('signin', session.user.email, deletePassword)
+    } catch (error) {
+      deletePasswordError = deletePasswordMessage(error)
+      deletePassword = ''
+      busy = false
+      openDeleteRemoteDataDialog(selectedOptions)
+      return
+    }
+    setStatus('正在删除远端数据……')
+    try {
+      await deleteRemoteData(
+        Object.fromEntries(selectedOptions.map((option) => [option.value, true])),
+      )
+      setStatus('当前账号的远端数据已删除，本地数据未改变', 'success')
+    } catch (error) {
+      setStatus(`删除远端数据失败：${error.message}`, 'error')
+    } finally {
+      busy = false
+      deletePassword = ''
+    }
   }
   function openDeleteAccountDialog() {
     requestConfirm({
@@ -338,7 +405,7 @@
   <div class="cloud-sync-heading">
     <div>
       <h3>数据同步</h3>
-      <p class="muted small">选择本次需要同步的数据；选择会保存在本机。</p>
+      <p class="muted small">选择本次需要同步或删除的数据；选择会保存在本机。</p>
     </div>
     {#if busy}<span class="cloud-syncing">同步中</span>{/if}
   </div>
@@ -376,6 +443,17 @@
         <small>用当前账号的云端数据替换本地同步数据</small>
       </span>
     </button>
+  </div>
+  <div class="cloud-remote-danger-zone">
+    <button
+      type="button"
+      class="btn red cloud-delete-remote"
+      disabled={busy}
+      on:click={requestDeleteRemoteData}
+    >
+      删除远端数据
+    </button>
+    <small>仅删除当前登录账号的云端数据，不影响本地数据和账号。</small>
   </div>
 </section>
 <details class="panel settings-advanced">

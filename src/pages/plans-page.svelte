@@ -6,6 +6,7 @@
   import Select from '../components/select.svelte'
   import { timeModes, trainingModes } from '../lib/select-options.js'
   import ExerciseNameSelect from '../components/exercise-name-select.svelte'
+  import ChallengeActionLink from '../components/challenge-action-link.svelte'
   import ExerciseMultiSelect from '../components/exercise-multi-select.svelte'
   import { challengeLevels } from '../lib/challenge-catalog.js'
   import { isChallengeExercise } from '../lib/challenge-model.js'
@@ -268,6 +269,7 @@
               on:change={(event) => setItemOrder(item.id, event)}
             />
             <b>{item.name}</b>
+            <ChallengeActionLink name={item.name} />
           </div>
           <button
             class="btn tiny red"

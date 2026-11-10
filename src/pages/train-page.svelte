@@ -7,8 +7,10 @@
   import TimePicker from '../components/time-picker.svelte'
   import { timeModes, trainingModes } from '../lib/select-options.js'
   import ExerciseNameSelect from '../components/exercise-name-select.svelte'
+  import ChallengeActionLink from '../components/challenge-action-link.svelte'
   import { requestConfirm } from '../lib/confirm-dialog.js'
   import { appendTrainingEvaluation, isChallengeExercise } from '../lib/challenge-model.js'
+  import { challengeLevels } from '../lib/challenge-catalog.js'
   export let data
   export let quickItems
   let selected = data.selected || data.plans[0]?.id || ''
@@ -36,7 +38,9 @@
   const REVIEW_DRAFT_KEY = 'lianke_review_draft'
   $: plan = data.plans.find((item) => item.id === selected) || data.plans[0]
   $: current = session?.queue?.[session.index] || null
-  $: availableNames = data.exerciseNames || []
+  $: availableNames = [
+    ...new Set([...(data.exerciseNames || []), ...challengeLevels.map((level) => level.name)]),
+  ]
   $: canStartQuick = quickItems.length > 0 && quickItems.every((item) => item.name.trim())
   $: if (plan && selectionPlanId !== plan.id) {
     selectionPlanId = plan.id
@@ -645,9 +649,12 @@
     </div>
     {#each quickItems as item, i (item.id)}<div class="quick-card">
         <div class="row between">
-          <b class:quick-action-placeholder={!item.name.trim()}>
-            {i + 1}. {item.name.trim() || '选择动作'}
-          </b>
+          <div class="row quick-action-title">
+            <b class:quick-action-placeholder={!item.name.trim()}>
+              {i + 1}. {item.name.trim() || '选择动作'}
+            </b>
+            <ChallengeActionLink name={item.name} />
+          </div>
           <button
             class="btn"
             on:click={() => (quickItems = quickItems.filter((_, index) => index !== i))}
