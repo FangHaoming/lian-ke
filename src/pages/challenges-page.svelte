@@ -247,13 +247,7 @@
   }
 
   async function chooseLevel(nextRoute, nextLevel) {
-    if (nextLevel.id === levelId) {
-      const currentState = getRouteProgress(nextRoute, attempts).find(
-        (item) => item.level.id === nextLevel.id,
-      )
-      if (currentState?.unlocked) openQuickStartPicker()
-      return
-    }
+    if (nextLevel.id === levelId && nextRoute.id === routeId) return
     if (dirty) {
       pendingLevel = { nextRoute, nextLevel }
       requestConfirm({
