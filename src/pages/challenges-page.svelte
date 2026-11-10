@@ -92,8 +92,8 @@
     eliteCount,
     attempts,
   }
-  $: sourceViewer = (page) => {
-    const returnTo = `${appPath('challenges')}?route=${routeId}&level=${levelId}`
+  $: sourceViewer = (page, nextRouteId = routeId, nextLevelId = levelId) => {
+    const returnTo = `${appPath('challenges')}?route=${nextRouteId}&level=${nextLevelId}`
     const params = new URLSearchParams({ page: String(page), return: returnTo })
     return `${appPath('source')}?${params}`
   }
@@ -190,6 +190,14 @@
       return
     }
     await applyLevel(nextRoute, nextLevel)
+  }
+
+  function openLevelSource(nextRoute, nextLevel) {
+    window.open(
+      sourceViewer(nextLevel.sourcePage, nextRoute.id, nextLevel.id),
+      '_blank',
+      'noopener,noreferrer',
+    )
   }
   async function confirmLeaveDraft() {
     const pending = pendingLevel
@@ -437,6 +445,10 @@
       <h2>{route.name}</h2>
       <span class="badge">十式进阶</span>
     </div>
+    <p id="challenge-source-hint" class="challenge-path-hint">
+      <span aria-hidden="true">↗</span>
+      双击关卡查看原书
+    </p>
     <ol>
       {#each progress as state}
         <li>
@@ -447,7 +459,10 @@
             class:complete={state.completed}
             class:locked={!state.unlocked}
             aria-current={levelId === state.level.id ? 'step' : undefined}
+            aria-describedby="challenge-source-hint"
+            title={`双击查看《囚徒健身》第 ${state.level.sourcePage} 页`}
             on:click={() => chooseLevel(route, state.level)}
+            on:dblclick={() => openLevelSource(route, state.level)}
           >
             <span class="challenge-step-number" aria-hidden="true">
               {state.completed ? '✓' : String(state.level.step).padStart(2, '0')}
