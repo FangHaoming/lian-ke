@@ -678,15 +678,15 @@
               目标次数
               <input type="number" bind:value={item.reps} />
             </label>{:else}
+            <div class="field">
+              <span>计时方式</span>
+              <Select label="计时方式" options={timeModes} bind:value={item.timerMode} />
+            </div>
             {#if item.timerMode !== 'up'}<TimePicker
                 label="训练时长"
                 max={7200}
                 bind:value={item.duration}
               />{/if}
-            <div class="field">
-              <span>计时方式</span>
-              <Select label="计时方式" options={timeModes} bind:value={item.timerMode} />
-            </div>
           {/if}
           <label class="field">
             负重 kg
