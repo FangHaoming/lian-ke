@@ -1,5 +1,6 @@
 <script>
   import { createEventDispatcher, onMount } from 'svelte'
+  import { isChallengeExercise } from '../lib/challenge-model.js'
 
   export let value = ''
   export let options = []
@@ -14,9 +15,13 @@
   let menu
   let open = false
   let showAll = true
-  $: matches = options.filter(
-    (name) => showAll || name.toLocaleLowerCase().includes(value.trim().toLocaleLowerCase()),
-  )
+  $: matches = options
+    .filter(
+      (name) => showAll || name.toLocaleLowerCase().includes(value.trim().toLocaleLowerCase()),
+    )
+    .sort((a, b) =>
+      deletable ? Number(isChallengeExercise(a)) - Number(isChallengeExercise(b)) : 0,
+    )
 
   onMount(() => {
     const closeOutside = (event) => {
@@ -95,7 +100,7 @@
           >
             {name}
           </button>
-          {#if deletable}<button
+          {#if deletable && !isChallengeExercise(name)}<button
               type="button"
               class="btn tiny red"
               aria-label={`删除已保存动作 ${name}`}

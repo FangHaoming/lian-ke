@@ -8,7 +8,7 @@
   import { timeModes, trainingModes } from '../lib/select-options.js'
   import ExerciseNameSelect from '../components/exercise-name-select.svelte'
   import { requestConfirm } from '../lib/confirm-dialog.js'
-  import { appendTrainingEvaluation } from '../lib/challenge-model.js'
+  import { appendTrainingEvaluation, isChallengeExercise } from '../lib/challenge-model.js'
   export let data
   export let quickItems
   let selected = data.selected || data.plans[0]?.id || ''
@@ -397,6 +397,7 @@
     quickItems = [...quickItems, mk('', 1)]
   }
   function removeName(name) {
+    if (isChallengeExercise(name)) return
     data.exerciseNames = availableNames.filter((item) => item !== name)
     data = data
   }

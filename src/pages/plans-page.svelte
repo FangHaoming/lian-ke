@@ -8,6 +8,7 @@
   import ExerciseNameSelect from '../components/exercise-name-select.svelte'
   import ExerciseMultiSelect from '../components/exercise-multi-select.svelte'
   import { challengeLevels } from '../lib/challenge-catalog.js'
+  import { isChallengeExercise } from '../lib/challenge-model.js'
   export let data
   let editing = null
   let draggingIndex = -1
@@ -104,6 +105,7 @@
     data = data
   }
   function removeName(name) {
+    if (isChallengeExercise(name)) return
     data.exerciseNames = names.filter((item) => item !== name)
     data = data
   }

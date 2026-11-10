@@ -2,6 +2,7 @@ import { challengeLevels } from './challenge-catalog.js'
 
 const byId = new Map(challengeLevels.map((level) => [level.id, level]))
 const byName = new Map(challengeLevels.map((level) => [level.name, level]))
+export const isChallengeExercise = (name) => byName.has(String(name || '').trim())
 const validStage = (level, stage) =>
   typeof stage === 'string' && Object.hasOwn(level.standards, stage)
 export const challengeDefaults = () => ({ version: 1, attempts: [] })
