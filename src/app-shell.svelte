@@ -479,6 +479,7 @@
             this={pageComponents.challenges}
             bind:data
             bind:dirty={challengeDirty}
+            on:startChallengeTraining={(event) => startChallengeTraining(event)}
           />
         {:else if tab === 'weight'}<svelte:component this={pageComponents.weight} bind:data />
         {:else if tab === 'stats'}<svelte:component this={pageComponents.stats} bind:data />

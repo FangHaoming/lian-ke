@@ -11,7 +11,7 @@ export const attemptSides = (level) => (level.unilateral ? ['left', 'right'] : [
 export const sideLabels = { left: '左侧', right: '右侧', both: '双侧动作' }
 
 export function formatGoal(level, stage) {
-  const goal = validStage(level, stage) ? level.standards[stage] : null
+  const goal = level && validStage(level, stage) ? level.standards[stage] : null
   if (!goal) return ''
   const amount = goal.upper ? `${goal.value}–${goal.upper}` : goal.value
   const target = level.mode === 'time' ? `连续 ${amount} 秒` : `${goal.sets} 组 × ${amount} 次`

@@ -1,5 +1,5 @@
 <script>
-  import { onMount, tick } from 'svelte'
+  import { createEventDispatcher, onMount, tick } from 'svelte'
   import { challengeRoutes, stageLabels } from '../lib/challenge-catalog.js'
   import {
     appendAttempt,
@@ -21,6 +21,7 @@
 
   export let data
   export let dirty = false
+  const dispatch = createEventDispatcher()
   const defaultRoute = challengeRoutes[0]
   const defaultLevel = defaultRoute.levels[0]
 
@@ -48,6 +49,12 @@
   let detailHeading
   let pendingLevel = null
   let shareOpen = false
+  let quickStartOpen = false
+  let floatingPosition = null
+  let floatingDrag = null
+  let suppressFloatingClick = false
+  let floatingButton
+  const FLOATING_BUTTON_KEY = 'lianke_challenge_floating_button'
 
   $: attempts = data.challenges.attempts
   $: summaries = challengeRoutes.map((route) => ({
@@ -154,6 +161,42 @@
   }
 
   onMount(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(FLOATING_BUTTON_KEY) || 'null')
+      if (Number.isFinite(saved?.x) && Number.isFinite(saved?.y))
+        floatingPosition = clampFloatingPosition(saved.x, saved.y)
+    } catch {}
+    const moveFloatingButton = (event) => {
+      if (!floatingDrag) return
+      const next = clampFloatingPosition(
+        event.clientX - floatingDrag.offsetX,
+        event.clientY - floatingDrag.offsetY,
+      )
+      if (Math.abs(next.x - floatingDrag.startX) > 4 || Math.abs(next.y - floatingDrag.startY) > 4)
+        floatingDrag.moved = true
+      floatingPosition = next
+    }
+    const finishFloatingDrag = () => {
+      if (!floatingDrag) return
+      const moved = floatingDrag.moved
+      if (floatingPosition)
+        localStorage.setItem(FLOATING_BUTTON_KEY, JSON.stringify(floatingPosition))
+      floatingDrag = null
+      if (moved) {
+        suppressFloatingClick = true
+        setTimeout(() => (suppressFloatingClick = false), 0)
+      }
+    }
+    const resizeFloatingButton = () => {
+      if (!floatingPosition) return
+      const next = clampFloatingPosition(floatingPosition.x, floatingPosition.y)
+      if (next.x === floatingPosition.x && next.y === floatingPosition.y) return
+      floatingPosition = next
+      localStorage.setItem(FLOATING_BUTTON_KEY, JSON.stringify(next))
+    }
+    window.addEventListener('pointermove', moveFloatingButton)
+    window.addEventListener('pointerup', finishFloatingDrag)
+    window.addEventListener('resize', resizeFloatingButton)
     const params = new URLSearchParams(window.location.search)
     if (!initialHasExplicitLevel) {
       const nextRoute =
@@ -173,10 +216,44 @@
         document.getElementById(anchorId)?.scrollIntoView({ block: 'start' }),
       )
     }
+    return () => {
+      window.removeEventListener('pointermove', moveFloatingButton)
+      window.removeEventListener('pointerup', finishFloatingDrag)
+      window.removeEventListener('resize', resizeFloatingButton)
+    }
   })
 
+  function clampFloatingPosition(x, y) {
+    const width = floatingButton?.offsetWidth || 178
+    const height = floatingButton?.offsetHeight || 48
+    return {
+      x: Math.max(8, Math.min(x, window.innerWidth - width - 8)),
+      y: Math.max(8, Math.min(y, window.innerHeight - height - 8)),
+    }
+  }
+
+  function beginFloatingDrag(event) {
+    if (event.button !== undefined && event.button !== 0) return
+    const rect = event.currentTarget.getBoundingClientRect()
+    const position = floatingPosition || { x: rect.left, y: rect.top }
+    floatingPosition = clampFloatingPosition(position.x, position.y)
+    floatingDrag = {
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+      startX: floatingPosition.x,
+      startY: floatingPosition.y,
+      moved: false,
+    }
+  }
+
   async function chooseLevel(nextRoute, nextLevel) {
-    if (nextLevel.id === levelId) return
+    if (nextLevel.id === levelId) {
+      const currentState = getRouteProgress(nextRoute, attempts).find(
+        (item) => item.level.id === nextLevel.id,
+      )
+      if (currentState?.unlocked) openQuickStartPicker()
+      return
+    }
     if (dirty) {
       pendingLevel = { nextRoute, nextLevel }
       requestConfirm({
@@ -261,32 +338,60 @@
       feedback = { passed: false, title: error.message, messages: [] }
     }
   }
-  function startQuickChallenge() {
-    const goal = level.standards[stage]
+  function startQuickChallenge(
+    targetLevel = level,
+    targetStage = stage,
+    targetRouteId = routeId,
+    targetLevelId = levelId,
+  ) {
+    const goal = targetLevel.standards[targetStage]
     const item = {
-      id: `challenge-${level.id}-${stage}`,
-      name: level.name,
+      id: `challenge-${targetLevel.id}-${targetStage}`,
+      name: targetLevel.name,
       sets: goal.sets,
-      reps: level.mode === 'reps' ? goal.value : 0,
-      duration: level.mode === 'time' ? goal.value : 40,
+      reps: targetLevel.mode === 'reps' ? goal.value : 0,
+      duration: targetLevel.mode === 'time' ? goal.value : 40,
       weight: 0,
-      mode: level.mode,
-      challengeUnilateral: level.unilateral,
+      mode: targetLevel.mode,
+      challengeUnilateral: targetLevel.unilateral,
       rest: 60,
       timerMode: 'down',
-      challengeStage: stage,
+      challengeStage: targetStage,
     }
-    window.dispatchEvent(
-      new CustomEvent('lianke-start-challenge-training', {
-        detail: {
-          items: [item],
-          planName: `挑战 · ${level.name} · ${stageLabels[stage]}`,
-          planId: 'challenge-quick',
-          returnTo: 'challenges',
-          returnSelection: { routeId, levelId },
-        },
-      }),
-    )
+    const detail = {
+      items: [item],
+      planName: `挑战 · ${targetLevel.name} · ${stageLabels[targetStage]}`,
+      planId: 'challenge-quick',
+      returnTo: 'challenges',
+      returnSelection: { routeId: targetRouteId, levelId: targetLevelId },
+    }
+    dispatch('startChallengeTraining', detail)
+  }
+
+  function startFloatingChallenge() {
+    if (suppressFloatingClick) return
+    openQuickStartPicker()
+  }
+
+  function openQuickStartPicker() {
+    quickStartOpen = true
+  }
+
+  function closeQuickStartPicker() {
+    quickStartOpen = false
+  }
+
+  function startSelectedQuickChallenge(nextStage) {
+    quickStartOpen = false
+    if (selected?.unlocked) {
+      startQuickChallenge(level, nextStage, routeId, levelId)
+      return
+    }
+    const latest = [...progress].reverse().find((item) => item.unlocked)?.level
+    if (latest) {
+      const fallbackStage = latest.standards[nextStage] ? nextStage : defaultStageFor(latest)
+      startQuickChallenge(latest, fallbackStage, routeId, latest.id)
+    }
   }
   function requestDeleteAttempt(id) {
     requestConfirm({
@@ -551,59 +656,6 @@
         </p>{/if}
     </section>
 
-    <section class="panel challenge-attempt-panel">
-      <h2>记录本次挑战</h2>
-      {#if !selected.unlocked}
-        <div class="warning">
-          先通过第 {level.step - 1} 关「{route.levels[level.step - 2]
-            .name}」，再来挑战这一关。你可以提前查看本关标准。
-        </div>
-      {:else}
-        <p class="muted small">
-          选择目标难度，开始一次快速挑战。训练完成并核对成绩后，会自动返回本关。
-        </p>
-        <div class="challenge-quick-start">
-          <fieldset class="challenge-targets">
-            <legend>本次目标</legend>
-            {#each stages as key}
-              <button
-                type="button"
-                class:active={stage === key}
-                aria-pressed={stage === key}
-                on:click={() => chooseStage(key)}
-              >
-                {stageLabels[key]}
-              </button>
-            {/each}
-          </fieldset>
-          <p class="challenge-target-caption">
-            {formatGoal(level, stage)}{level.step !== 10 && stage !== 'progression'
-              ? ' · 达成进阶目标后才解锁下一关'
-              : ''}
-          </p>
-          <button type="button" class="btn primary challenge-save" on:click={startQuickChallenge}>
-            开始快速挑战 →
-          </button>
-          <p class="muted small challenge-quick-hint">
-            完成训练后核对每组实际成绩，保存训练记录即可自动判定。
-          </p>
-        </div>
-      {/if}
-      {#if feedback}
-        <div
-          class="challenge-feedback"
-          class:success={feedback.passed}
-          role="status"
-          aria-live="polite"
-        >
-          <strong>{feedback.title}</strong>
-          {#if feedback.messages.length}<ul>
-              {#each feedback.messages as message}<li>{message}</li>{/each}
-            </ul>{/if}
-        </div>
-      {/if}
-    </section>
-
     <section id="challenge-history" class="panel challenge-history">
       <div class="row between">
         <h2>本关挑战记录</h2>
@@ -678,5 +730,64 @@
   成绩由你自行记录与确认，保存在当前浏览器，可在“设置/备份”导出
   JSON，也可通过“设置/备份”同步到云端。训练中如有疼痛或不适，请停止本次挑战。
 </p>
+
+{#if selected}
+  <button
+    type="button"
+    class="challenge-floating-start"
+    bind:this={floatingButton}
+    style={floatingPosition
+      ? `left:${floatingPosition.x}px;top:${floatingPosition.y}px;right:auto;bottom:auto;`
+      : ''}
+    aria-label="拖动或点击快速开始挑战"
+    on:pointerdown={beginFloatingDrag}
+    on:click={startFloatingChallenge}
+  >
+    <span aria-hidden="true">⚑</span>
+    快速开始挑战
+  </button>
+{/if}
+
+{#if quickStartOpen}
+  <div class="challenge-start-backdrop" role="presentation" on:click|self={closeQuickStartPicker}>
+    <section
+      class="challenge-start-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="challenge-start-title"
+    >
+      <div class="row between">
+        <div>
+          <span class="challenge-eyebrow">QUICK CHALLENGE</span>
+          <h2 id="challenge-start-title">选择挑战难度</h2>
+        </div>
+        <button
+          type="button"
+          class="btn tiny ghost"
+          aria-label="关闭"
+          on:click={closeQuickStartPicker}
+        >
+          ×
+        </button>
+      </div>
+      <p class="muted small">
+        {selected?.unlocked ? `当前动作：${level.name}` : '当前动作尚未解锁，将使用最新可挑战动作'}
+      </p>
+      <div class="challenge-start-options">
+        {#each stages as key}
+          <button type="button" on:click={() => startSelectedQuickChallenge(key)}>
+            <strong>{stageLabels[key]}</strong>
+            <span>
+              {formatGoal(
+                selected?.unlocked ? level : progress.find((item) => item.unlocked)?.level,
+                key,
+              )}
+            </span>
+          </button>
+        {/each}
+      </div>
+    </section>
+  </div>
+{/if}
 
 <ChallengeShareDialog open={shareOpen} posterData={sharePosterData} on:close={closeSharePoster} />
