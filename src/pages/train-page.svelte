@@ -20,6 +20,8 @@
   let ticker
   let focusMode = false
   let nativeFullscreenActive = false
+  let fullscreenRequestId = 0
+  let pendingFullscreenRequest = null
   let holding = false
   let unlockTimer
   let unlockButton
@@ -69,7 +71,8 @@
     document.addEventListener('visibilitychange', tick)
     window.addEventListener('beforeunload', persistSessionBeforeUnload)
     const onFullscreenChange = () => {
-      if (focusMode && nativeFullscreenActive && !document.fullscreenElement) exitFocus()
+      nativeFullscreenActive = document.fullscreenElement === document.documentElement
+      if (focusMode && !document.fullscreenElement) void exitFocus()
     }
     document.addEventListener('fullscreenchange', onFullscreenChange)
     return () => {
@@ -81,7 +84,8 @@
   onDestroy(() => {
     clearInterval(ticker)
     cancelUnlock()
-    if (focusMode && document.fullscreenElement === document.documentElement)
+    fullscreenRequestId += 1
+    if (document.fullscreenElement)
       void document.exitFullscreen().catch(() => {})
   })
   $: if (pageMounted) persistActiveSession(session)
@@ -91,25 +95,40 @@
       focusHistoryEntry = true
     }
     focusMode = true
+    const requestId = ++fullscreenRequestId
     // The request must run in the button's user gesture. The fixed view is
     // still available on browsers that do not support the Fullscreen API.
     if (!document.fullscreenElement) {
       const request = document.documentElement.requestFullscreen?.()
-      if (request)
+      if (request) {
+        pendingFullscreenRequest = request
         void request
           .then(() => {
+            if (
+              requestId !== fullscreenRequestId ||
+              !focusMode ||
+              document.fullscreenElement !== document.documentElement
+            ) {
+              if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+              return
+            }
             nativeFullscreenActive = true
           })
           .catch(() => {})
+          .finally(() => {
+            if (pendingFullscreenRequest === request) pendingFullscreenRequest = null
+          })
+      }
     }
   }
-  function exitFocus() {
-    const wasFocused = focusMode
+  async function exitFocus() {
     cancelUnlock()
+    fullscreenRequestId += 1
     focusMode = false
     nativeFullscreenActive = false
-    if (wasFocused && document.fullscreenElement === document.documentElement)
-      void document.exitFullscreen().catch(() => {})
+    const pendingRequest = pendingFullscreenRequest
+    if (pendingRequest) await pendingRequest.catch(() => {})
+    if (document.fullscreenElement) await document.exitFullscreen().catch(() => {})
     if (focusHistoryEntry) {
       focusHistoryEntry = false
       releasingFocusHistory = true
@@ -264,7 +283,7 @@
     session.last = Date.now()
     session = session
   }
-  function finishSet() {
+  async function finishSet() {
     const item = session.queue[session.index]
     session.results.push({
       name: item.name,
@@ -288,7 +307,7 @@
     })
     if (session.index === session.queue.length - 1) {
       playSound(data.sounds.finish)
-      exitFocus()
+      await exitFocus()
       review = { ...session, finishedAt: new Date().toISOString(), notes: '' }
       session = null
       clearInterval(ticker)
@@ -371,26 +390,26 @@
       session = session
     }
   }
-  function endTraining() {
+  async function endTraining() {
     if (!session) return
     const results = completedResults(session.results)
     if (!results.length) {
       const returnToChallenges = session.returnTo === 'challenges'
       const returnSelection = session.returnSelection
       clearInterval(ticker)
-      exitFocus()
+      await exitFocus()
       session = null
       if (returnToChallenges) returnToChallenge(returnSelection)
       return
     }
+    clearInterval(ticker)
+    await exitFocus()
     review = {
       ...session,
       results,
       finishedAt: new Date().toISOString(),
       notes: '',
     }
-    clearInterval(ticker)
-    exitFocus()
     session = null
   }
   function addQuick() {
