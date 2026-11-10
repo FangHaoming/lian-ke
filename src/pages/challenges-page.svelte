@@ -65,6 +65,8 @@
   $: progress = summaries.find((item) => item.route.id === routeId).progress
   $: selected = progress.find((item) => item.level.id === levelId)
   $: level = selected.level
+  $: quickStartLevel =
+    selected?.unlocked ? level : progress.find((item) => item.unlocked)?.level || level
   $: stages = Object.keys(level.standards)
   $: allHistory = attempts.filter((item) => item.levelId === level.id).slice()
   $: history = allHistory
@@ -546,8 +548,7 @@
       <span class="badge">十式进阶</span>
     </div>
     <p id="challenge-source-hint" class="challenge-path-hint">
-      <span aria-hidden="true">↗</span>
-      双击关卡查看原书
+      双击关卡查看动作
     </p>
     <ol>
       {#each progress as state}
@@ -765,17 +766,22 @@
         </button>
       </div>
       <p class="muted small">
-        {selected?.unlocked ? `当前动作：${level.name}` : '当前动作尚未解锁，将使用最新可挑战动作'}
+        {selected?.unlocked ? `当前动作：${quickStartLevel.name}` : '当前动作尚未解锁，将使用最新可挑战动作'}
       </p>
+      <a
+        class="btn ghost challenge-start-source-button"
+        href={sourceViewer(quickStartLevel.sourcePage, routeId, quickStartLevel.id)}
+        target="_blank"
+        rel="noreferrer"
+      >
+        查看动作原文 · 第 {quickStartLevel.sourcePage} 页 ↗
+      </a>
       <div class="challenge-start-options">
         {#each stages as key}
           <button type="button" on:click={() => startSelectedQuickChallenge(key)}>
             <strong>{stageLabels[key]}</strong>
             <span>
-              {formatGoal(
-                selected?.unlocked ? level : progress.find((item) => item.unlocked)?.level,
-                key,
-              )}
+              {formatGoal(quickStartLevel, key)}
             </span>
           </button>
         {/each}
