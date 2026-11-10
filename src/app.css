@@ -325,6 +325,7 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .challenge-record{padding:17px;border:1px solid #2c3a44;border-radius:14px;background:#131d25}
 .challenge-record+.challenge-record{margin-top:12px}
 .challenge-record:last-child{border:1px solid #2c3a44;padding-bottom:17px}
+.challenge-record-actions{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px}
 .challenge-history{scroll-margin-top:20px}
 .challenge-path-hint{display:flex;align-items:center;gap:5px;margin:-4px 8px 9px;color:#8298a5;font-size:10px;line-height:1.5}.challenge-path-hint span{color:#b7f36a;font-size:12px}.challenge-step{cursor:pointer}.challenge-step:hover .challenge-step-text small{color:#b7c8d0}
 .challenge-path{scroll-margin-top:14px}
@@ -332,3 +333,6 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .challenge-step.failed .challenge-step-number{border-color:#35434c;background:#18232a;color:#788c98}
 .challenge-step.failed strong{color:#9aabb5}
 .challenge-step-check{display:block;width:7px;height:13px;border-right:2.5px solid currentColor;border-bottom:2.5px solid currentColor;border-radius:1px;transform:rotate(45deg) translate(-1px,-1px);transform-origin:center}
+.challenge-celebration{position:fixed;inset:0;z-index:160;display:grid;place-items:center;overflow:hidden;pointer-events:none;animation:challenge-celebration-fade 3.4s ease-out forwards}
+.challenge-celebration-canvas{position:absolute;inset:0;width:100%;height:100%}
+@keyframes challenge-celebration-fade{0%,78%{opacity:1}100%{opacity:0}}

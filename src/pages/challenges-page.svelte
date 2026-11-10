@@ -1,5 +1,5 @@
 <script>
-  import { createEventDispatcher, onMount, tick } from 'svelte'
+  import { createEventDispatcher, onDestroy, onMount, tick } from 'svelte'
   import { challengeRoutes, stageLabels } from '../lib/challenge-catalog.js'
   import {
     appendAttempt,
@@ -54,6 +54,12 @@
   let floatingDrag = null
   let suppressFloatingClick = false
   let floatingButton
+  let celebration = false
+  let celebrationTimer
+  let celebrationCanvas
+  let celebrationFrame
+  let celebrationParticles = []
+  const celebrationColors = ['#b7f36a', '#f8d66d', '#ff8b7b', '#8ed8ff', '#d2a8ff']
   const FLOATING_BUTTON_KEY = 'lianke_challenge_floating_button'
 
   $: attempts = data.challenges.attempts
@@ -225,6 +231,77 @@
       window.removeEventListener('resize', resizeFloatingButton)
     }
   })
+
+  onDestroy(() => {
+    clearTimeout(celebrationTimer)
+    cancelAnimationFrame(celebrationFrame)
+  })
+
+  function triggerCelebration() {
+    clearTimeout(celebrationTimer)
+    celebration = true
+    tick().then(startCelebrationAnimation)
+    celebrationTimer = setTimeout(() => (celebration = false), 3400)
+  }
+
+  function startCelebrationAnimation() {
+    if (!celebrationCanvas) return
+    cancelAnimationFrame(celebrationFrame)
+    const canvas = celebrationCanvas
+    const context = canvas.getContext('2d')
+    const width = window.innerWidth
+    const height = window.innerHeight
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2)
+    canvas.width = width * pixelRatio
+    canvas.height = height * pixelRatio
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
+    celebrationParticles = []
+    for (const side of [-1, 1]) {
+      for (let index = 0; index < 32; index += 1) {
+        const direction = side === -1 ? 1 : -1
+        const launchSpeed = 11 + Math.random() * 8
+        const launchAngle = (12 + Math.random() * 66) * (Math.PI / 180)
+        celebrationParticles.push({
+          x: side === -1 ? -12 : width + 12,
+          y: height * (0.76 + (Math.random() - 0.5) * 0.18),
+          width: 4 + Math.random() * 4,
+          height: 7 + Math.random() * 7,
+          vx: direction * launchSpeed * Math.cos(launchAngle),
+          vy: -launchSpeed * Math.sin(launchAngle),
+          gravity: 0.2 + Math.random() * 0.06,
+          airResistance: 0.992 + Math.random() * 0.006,
+          wind: (Math.random() - 0.5) * 0.018,
+          rotation: Math.random() * Math.PI,
+          spin: (Math.random() - 0.5) * 0.28,
+          color: celebrationColors[index % celebrationColors.length],
+          delay: Math.random() * 350,
+        })
+      }
+    }
+    const startedAt = performance.now()
+    const render = (now) => {
+      const elapsed = now - startedAt
+      context.clearRect(0, 0, width, height)
+      for (const particle of celebrationParticles) {
+        const activeElapsed = elapsed - particle.delay
+        if (activeElapsed < 0) continue
+        particle.vx = particle.vx * particle.airResistance + particle.wind
+        particle.vy = particle.vy * particle.airResistance + particle.gravity
+        particle.x += particle.vx
+        particle.y += particle.vy
+        particle.rotation += particle.spin
+        context.save()
+        context.translate(particle.x, particle.y)
+        context.rotate(particle.rotation)
+        context.globalAlpha = Math.max(0, 1 - Math.max(0, activeElapsed - 2200) / 900)
+        context.fillStyle = particle.color
+        context.fillRect(-particle.width / 2, -particle.height / 2, particle.width, particle.height)
+        context.restore()
+      }
+      if (elapsed < 3200) celebrationFrame = requestAnimationFrame(render)
+    }
+    celebrationFrame = requestAnimationFrame(render)
+  }
 
   function clampFloatingPosition(x, y) {
     const width = floatingButton?.offsetWidth || 178
@@ -400,9 +477,13 @@
     try {
       data = { ...data, challenges: confirmTrainingEvaluation(data.challenges, attempt.id) }
       feedback = { passed: true, title: '已确认训练数据，挑战正式达成', messages: [] }
+      triggerCelebration()
       const currentIndex = route.levels.findIndex((item) => item.id === level.id)
       const nextLevel = route.levels[currentIndex + 1]
-      if (nextLevel) await chooseLevel(route, nextLevel)
+      if (attempt.stage === 'progression' && nextLevel) {
+        await new Promise((resolve) => setTimeout(resolve, 900))
+        await chooseLevel(route, nextLevel)
+      }
     } catch (error) {
       feedback = { passed: false, title: error.message, messages: [] }
     }
@@ -475,6 +556,16 @@
 </script>
 
 <svelte:window on:beforeunload={beforeUnload} on:popstate={syncSelectionFromUrl} />
+
+{#if celebration}
+  <div class="challenge-celebration" aria-hidden="true">
+    <canvas
+      class="challenge-celebration-canvas"
+      bind:this={celebrationCanvas}
+      aria-hidden="true"
+    ></canvas>
+  </div>
+{/if}
 
 <section class="challenge-hero">
   <div>
@@ -704,20 +795,22 @@
                   : '未达到本次挑战标准'}
               </p>
               {#if autoPassed && !attempt.qualityConfirmed}
-                <button
-                  type="button"
-                  class="btn tiny primary"
-                  on:click={() => confirmTrainingAttempt(attempt)}
-                >
-                  确认并计入通关
-                </button>
-                <button
-                  type="button"
-                  class="btn tiny ghost"
-                  on:click={() => requestRejectTrainingAttempt(attempt)}
-                >
-                  不计入
-                </button>
+                <div class="challenge-record-actions">
+                  <button
+                    type="button"
+                    class="btn tiny primary"
+                    on:click={() => confirmTrainingAttempt(attempt)}
+                  >
+                    确认并计入通关
+                  </button>
+                  <button
+                    type="button"
+                    class="btn tiny ghost"
+                    on:click={() => requestRejectTrainingAttempt(attempt)}
+                  >
+                    不计入
+                  </button>
+                </div>
               {/if}
             {/if}
             {#if !attempt.qualityConfirmed && attempt.source?.type !== 'training-record'}
