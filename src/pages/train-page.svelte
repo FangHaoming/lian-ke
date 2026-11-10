@@ -147,6 +147,9 @@
     clearTimeout(unlockTimer)
     holding = false
   }
+  function handleLockTouchStart(event) {
+    if (unlockButton?.contains(event.target)) beginUnlock()
+  }
   function persistReviewDraft() {
     try {
       if (review) localStorage.setItem(REVIEW_DRAFT_KEY, JSON.stringify(review))
@@ -491,6 +494,10 @@
         aria-label="训练防误触锁屏"
         on:contextmenu|preventDefault
         on:selectstart|preventDefault
+        on:touchstart|preventDefault={handleLockTouchStart}
+        on:touchmove|preventDefault
+        on:touchend={cancelUnlock}
+        on:touchcancel={cancelUnlock}
       >
         <div class="row between training-lock-top">
           <span class="pill">防误触已开启</span>

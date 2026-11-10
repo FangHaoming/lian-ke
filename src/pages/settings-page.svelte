@@ -40,6 +40,13 @@
     status = message
     statusType = type
   }
+  function deletePasswordMessage(error) {
+    const message = String(error?.message || '').toLowerCase()
+    if (message.includes('invalid login credentials') || message.includes('invalid password'))
+      return '当前密码不正确，请重新输入。'
+    if (message.includes('email not confirmed')) return '账号邮箱尚未验证，请先完成邮箱验证。'
+    return '密码验证失败，请检查密码后重试。'
+  }
   const syncOptions = [
     { value: 'exerciseNames', label: '动作' },
     { value: 'plans', label: '训练计划' },
@@ -122,7 +129,7 @@
           error: deletePasswordError,
         },
       },
-      confirmText: busy ? '处理中……' : '确认注销',
+      confirmText: busy ? '处理中……' : deletePasswordError ? '重新验证' : '确认注销',
       destructive: true,
     }).then(({ confirmed }) => {
       if (confirmed) confirmDeleteAccount()
@@ -148,7 +155,9 @@
       deletePassword = ''
       setStatus('账号已注销', 'success')
     } catch (error) {
-      deletePasswordError = `密码验证失败：${error.message}`
+      deletePasswordError = deletePasswordMessage(error)
+      deletePassword = ''
+      busy = false
       openDeleteAccountDialog()
     } finally {
       busy = false
