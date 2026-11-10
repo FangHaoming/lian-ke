@@ -51,7 +51,20 @@
 
 <main class="source-viewer-page">
   <header>
-    <a href={returnHref}>返回练刻</a>
+    <div class="source-brand">
+      <img src={appURL('fit-log-icon.png')} alt="练刻图标" />
+      <div>
+        <div class="source-brand-name">
+          <strong>
+            练
+            <span>刻</span>
+          </strong>
+          <small>FIT LOG</small>
+        </div>
+        <p>你的训练节奏、计划与进步</p>
+      </div>
+    </div>
+    <a class="source-return" href={returnHref}>← 返回练刻</a>
   </header>
   {#if loading}<p>正在加载原书页面…</p>{/if}
   {#if pages.length}
@@ -92,6 +105,47 @@
     color: #b7f36a;
     text-decoration: none;
   }
+  .source-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .source-brand > img {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    border-radius: 10px;
+  }
+  .source-brand-name {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    white-space: nowrap;
+  }
+  .source-brand-name strong {
+    color: #eff7f8;
+    font-size: 20px;
+    letter-spacing: 1px;
+  }
+  .source-brand-name strong span {
+    color: #b7f36a;
+  }
+  .source-brand-name small {
+    color: #7c909b;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+  }
+  .source-brand p {
+    margin: 2px 0 0;
+    color: #8196a0;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .source-return {
+    flex: 0 0 auto;
+    font-weight: 700;
+  }
   .source-document {
     display: flex;
     flex-direction: column;
@@ -103,5 +157,17 @@
     max-width: 920px;
     margin: 40px auto;
     color: #aebfc8;
+  }
+  @media (max-width: 520px) {
+    .source-viewer-page {
+      padding: 12px;
+    }
+    .source-brand p,
+    .source-brand-name small {
+      display: none;
+    }
+    .source-return {
+      font-size: 14px;
+    }
   }
 </style>

@@ -93,7 +93,7 @@
     attempts,
   }
   $: sourceViewer = (page, nextRouteId = routeId, nextLevelId = levelId) => {
-    const returnTo = `${appPath('challenges')}?route=${nextRouteId}&level=${nextLevelId}`
+    const returnTo = `${appPath('challenges')}?route=${nextRouteId}&level=${nextLevelId}#challenge-path`
     const params = new URLSearchParams({ page: String(page), return: returnTo })
     return `${appPath('source')}?${params}`
   }
@@ -167,9 +167,10 @@
       resetDraft(current)
     }
     updateSelectionUrl(routeId, levelId)
-    if (window.location.hash === '#challenge-history') {
+    const anchorId = window.location.hash.replace(/^#/, '')
+    if (anchorId === 'challenge-path' || anchorId === 'challenge-history') {
       requestAnimationFrame(() =>
-        document.getElementById('challenge-history')?.scrollIntoView({ block: 'start' }),
+        document.getElementById(anchorId)?.scrollIntoView({ block: 'start' }),
       )
     }
   })
@@ -440,7 +441,7 @@
 </div>
 
 <div class="challenge-layout">
-  <section class="panel challenge-path" aria-label={`${route.name}十关路线`}>
+  <section id="challenge-path" class="panel challenge-path" aria-label={`${route.name}十关路线`}>
     <div class="row between challenge-section-heading">
       <h2>{route.name}</h2>
       <span class="badge">十式进阶</span>
