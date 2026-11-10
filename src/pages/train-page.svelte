@@ -484,7 +484,14 @@
 {:else if session && current}
   <div class:training-focus={focusMode} class="training-session">
     {#if focusMode}
-      <div class="training-lock-screen" role="dialog" aria-modal="true" aria-label="训练防误触锁屏">
+      <div
+        class="training-lock-screen"
+        role="dialog"
+        aria-modal="true"
+        aria-label="训练防误触锁屏"
+        on:contextmenu|preventDefault
+        on:selectstart|preventDefault
+      >
         <div class="row between training-lock-top">
           <span class="pill">防误触已开启</span>
           <span class="muted small">第 {session.index + 1} / {session.queue.length} 组</span>
