@@ -33,8 +33,8 @@
     }
     totalPages = TOTAL_PAGES
     const targetPage = Math.min(Math.max(1, page), totalPages)
-    const firstPriorityPage = Math.max(1, targetPage - 5)
-    const lastPriorityPage = Math.min(totalPages, targetPage + 10)
+    const firstPriorityPage = Math.max(1, targetPage - 2)
+    const lastPriorityPage = Math.min(totalPages, targetPage + 2)
     priorityPages = new Set(
       Array.from(
         { length: lastPriorityPage - firstPriorityPage + 1 },
