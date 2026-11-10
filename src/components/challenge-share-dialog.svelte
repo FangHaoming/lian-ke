@@ -221,7 +221,7 @@
               [
                 '最终技',
                 posterData.routeCount === 10 ? '✓' : '未达成',
-                posterData.routeCount === 10 ? '已完成' : '',
+                posterData.routeCount === 10 ? '已达成' : '',
               ],
               ['挑战记录', posterData.attempts.length, '次'],
             ]

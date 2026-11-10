@@ -9,8 +9,8 @@
     evaluateAttempt,
     formatGoal,
     getRouteProgress,
-    removeAttempt,
     confirmTrainingEvaluation,
+    rejectTrainingEvaluation,
     sideLabels,
   } from '../lib/challenge-model.js'
   import { date } from '../lib/workout-model.js'
@@ -65,8 +65,9 @@
   $: progress = summaries.find((item) => item.route.id === routeId).progress
   $: selected = progress.find((item) => item.level.id === levelId)
   $: level = selected.level
-  $: quickStartLevel =
-    selected?.unlocked ? level : progress.find((item) => item.unlocked)?.level || level
+  $: quickStartLevel = selected?.unlocked
+    ? level
+    : progress.find((item) => item.unlocked)?.level || level
   $: stages = Object.keys(level.standards)
   $: allHistory = attempts.filter((item) => item.levelId === level.id).slice()
   $: history = allHistory
@@ -324,7 +325,7 @@
         title: passed
           ? level.step === 10
             ? '最终技达成！本条路线已通关'
-            : '本关通过，下一关已解锁'
+            : '本关通过，前序动作已同步标记为通过'
           : result.passed
             ? `${stageLabels[attempt.stage]}目标达成`
             : '成绩已保存，继续积累力量',
@@ -389,29 +390,38 @@
       startQuickChallenge(latest, fallbackStage, routeId, latest.id)
     }
   }
-  function requestDeleteAttempt(id) {
-    requestConfirm({
-      title: '删除这次挑战成绩？',
-      message:
-        '删除后会重新计算达成状态。如果这是前置关卡唯一的通关成绩，后续关卡将重新锁定；后续历史成绩保留，前置恢复通过后可重新计入。',
-      confirmText: '删除成绩',
-      destructive: true,
-    }).then(({ confirmed }) => {
-      if (confirmed) deleteAttempt(id)
+  async function confirmTrainingAttempt(attempt) {
+    const { confirmed } = await requestConfirm({
+      title: '确认计入本关？',
+      message: '确认后将把这次训练成绩计入本关通关，动作质量确认后不可撤回。',
+      confirmText: '确认计入',
     })
-  }
-
-  function deleteAttempt(id) {
-    data = { ...data, challenges: removeAttempt(data.challenges, id) }
-    feedback = { passed: false, title: '成绩已删除，关卡进度已重新计算', messages: [] }
-  }
-  function confirmTrainingAttempt(attempt) {
+    if (!confirmed) return
     try {
       data = { ...data, challenges: confirmTrainingEvaluation(data.challenges, attempt.id) }
       feedback = { passed: true, title: '已确认训练数据，挑战正式达成', messages: [] }
+      const currentIndex = route.levels.findIndex((item) => item.id === level.id)
+      const nextLevel = route.levels[currentIndex + 1]
+      if (nextLevel) await chooseLevel(route, nextLevel)
     } catch (error) {
       feedback = { passed: false, title: error.message, messages: [] }
     }
+  }
+  function requestRejectTrainingAttempt(attempt) {
+    requestConfirm({
+      title: '不计入这次训练判定？',
+      message: '不计入本关通关，但原训练记录会保留。',
+      confirmText: '不计入',
+      destructive: true,
+    }).then(({ confirmed }) => {
+      if (!confirmed) return
+      try {
+        data = { ...data, challenges: rejectTrainingEvaluation(data.challenges, attempt.id) }
+        feedback = { passed: false, title: '已不计入训练判定', messages: [] }
+      } catch (error) {
+        feedback = { passed: false, title: error.message, messages: [] }
+      }
+    })
   }
   function attemptDescription(attempt) {
     const unit = level.mode === 'time' ? '秒' : '次'
@@ -547,9 +557,7 @@
       <h2>{route.name}</h2>
       <span class="badge">十式进阶</span>
     </div>
-    <p id="challenge-source-hint" class="challenge-path-hint">
-      双击关卡查看动作
-    </p>
+    <p id="challenge-source-hint" class="challenge-path-hint">双击关卡查看动作</p>
     <ol>
       {#each progress as state}
         <li>
@@ -558,7 +566,8 @@
             class="challenge-step"
             class:current={levelId === state.level.id}
             class:complete={state.completed}
-            class:locked={!state.unlocked}
+            class:inferred={state.inferred}
+            class:failed={!state.completed}
             aria-current={levelId === state.level.id ? 'step' : undefined}
             aria-describedby="challenge-source-hint"
             title={`双击查看《囚徒健身》第 ${state.level.sourcePage} 页`}
@@ -566,18 +575,16 @@
             on:dblclick={() => openLevelSource(route, state.level)}
           >
             <span class="challenge-step-number" aria-hidden="true">
-              {state.completed ? '✓' : String(state.level.step).padStart(2, '0')}
+              {#if state.completed}
+                <span class="challenge-step-check"></span>
+              {:else}
+                {String(state.level.step).padStart(2, '0')}
+              {/if}
             </span>
             <span class="challenge-step-text">
               <strong>{state.level.name}</strong>
               <small>
-                {state.completed
-                  ? state.level.step === 10
-                    ? '最终技已达成'
-                    : '已通关'
-                  : state.unlocked
-                    ? '可挑战'
-                    : '未解锁 · 可查看标准'}
+                {state.completed ? '已达标' : '未通过'}
               </small>
             </span>
             {#if state.level.step === 10}<span class="challenge-master-label">最终技</span>{/if}
@@ -605,7 +612,7 @@
         <small>
           {level.step === 10
             ? '入门达标即获得最终技成就；精英成就独立展示。'
-            : '同一次挑战逐组达标，并确认动作质量，解锁下一关。'}
+            : '同一次挑战逐组达标，并确认动作质量；每个动作都可独立挑战。'}
         </small>
       </div>
       <div class="challenge-standards" aria-label="三档达成标准">
@@ -621,6 +628,11 @@
           </div>
         {/each}
       </div>
+      {#if selected.inferred}
+        <p class="warning">
+          当前动作因后续动作已达标而标记为通过。单独挑战并达标后，会切换为正常的已达成状态。
+        </p>
+      {/if}
       {#if level.id === 'cc-bridge-10'}
         <p class="notice">
           精英目标原文为 2 组×10–30 次。本应用以 2 组、每组至少 10 次授予精英成就，30
@@ -671,47 +683,52 @@
             <div class="row between">
               <strong>
                 {stageLabels[attempt.stage]} · {autoPassed && !attempt.qualityConfirmed
-                  ? '训练数据达标 · 待确认动作质量'
+                  ? '待确认'
                   : result.passed
                     ? '目标达成'
                     : result.valid
                       ? '未达目标'
                       : '历史版本'}
               </strong>
-              <button
-                type="button"
-                class="btn tiny ghost"
-                aria-label={`删除 ${date(attempt.recordedAt)} 的挑战成绩`}
-                on:click={() => requestDeleteAttempt(attempt.id)}
-              >
-                删除
-              </button>
             </div>
             <p class="muted small">
-              {date(attempt.recordedAt)}{!selected.unlocked
-                ? ' · 前置关卡未通过，暂不计入进度'
-                : ''}
+              {date(attempt.recordedAt)}
             </p>
             <p>{attemptDescription(attempt)}</p>
             {#if attempt.source?.type === 'training-record'}
               <p class="notice small">
-                来自训练记录的自动判定：{trainingDataPassed(attempt)
-                  ? '成绩达标'
+                训练记录：{autoPassed
+                  ? attempt.qualityConfirmed
+                    ? '已确认'
+                    : '已达标'
                   : '未达到本次挑战标准'}
               </p>
-              {#if trainingDataPassed(attempt) && !attempt.qualityConfirmed}
+              {#if autoPassed && !attempt.qualityConfirmed}
                 <button
                   type="button"
                   class="btn tiny primary"
                   on:click={() => confirmTrainingAttempt(attempt)}
                 >
-                  确认动作质量并计入通关
+                  确认并计入通关
+                </button>
+                <button
+                  type="button"
+                  class="btn tiny ghost"
+                  on:click={() => requestRejectTrainingAttempt(attempt)}
+                >
+                  不计入
                 </button>
               {/if}
             {/if}
-            {#if !attempt.qualityConfirmed}<p class="muted small">未确认动作质量</p>{/if}
-            {#if attempt.note}<p class="challenge-record-note">{attempt.note}</p>{/if}
-            {#if !result.passed}<p class="muted small">
+            {#if !attempt.qualityConfirmed && attempt.source?.type !== 'training-record'}
+              <p class="muted small">未确认动作质量</p>
+            {/if}
+            {#if attempt.note && attempt.source?.type !== 'training-record'}
+              <p class="challenge-record-note">{attempt.note}</p>
+            {/if}
+            {#if !result.passed && !(attempt.source?.type === 'training-record' && autoPassed)}<p
+                class="muted small"
+              >
                 {trainingDataMessage(attempt, result)}
               </p>{/if}
           </article>
@@ -766,7 +783,7 @@
         </button>
       </div>
       <p class="muted small">
-        {selected?.unlocked ? `当前动作：${quickStartLevel.name}` : '当前动作尚未解锁，将使用最新可挑战动作'}
+        当前动作：{quickStartLevel.name}
       </p>
       <a
         class="btn ghost challenge-start-source-button"

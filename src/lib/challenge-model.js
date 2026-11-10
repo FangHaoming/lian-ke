@@ -187,26 +187,42 @@ export function normalizeChallenges(value, { strict = false } = {}) {
 }
 
 export function getRouteProgress(route, attempts = []) {
-  let unlocked = true
-  return route.levels.map((level) => {
+  const directProgress = route.levels.map((level) => {
     const history = attempts.filter((attempt) => attempt.levelId === level.id)
-    const achieved = Object.fromEntries(
+    const directAchieved = Object.fromEntries(
       Object.keys(level.standards).map((stage) => [
         stage,
-        unlocked && history.some((attempt) => evaluateAttempt(level, attempt, stage).passed),
+        history.some((attempt) => evaluateAttempt(level, attempt, stage).passed),
       ]),
     )
-    const completed = achieved[completionStage(level)]
-    const completedAt = completed
+    const stages = Object.keys(level.standards)
+    const achieved = Object.fromEntries(
+      stages.map((stage, index) => [
+        stage,
+        directAchieved[stage] || stages.slice(index + 1).some((later) => directAchieved[later]),
+      ]),
+    )
+    const directlyCompleted = achieved[completionStage(level)]
+    const completedAt = directlyCompleted
       ? history
           .filter((attempt) => evaluateAttempt(level, attempt, completionStage(level)).passed)
           .map((attempt) => attempt.recordedAt)
           .sort()[0]
       : null
-    const progress = { level, unlocked, completed, achieved, completedAt }
-    unlocked = completed
-    return progress
+    return { level, directlyCompleted, achieved, completedAt }
   })
+  const latestDirectCompletion = directProgress.reduce(
+    (latest, item, index) => (item.directlyCompleted ? Math.max(latest, index) : latest),
+    -1,
+  )
+  return directProgress.map((item, index) => ({
+    ...item,
+    // Later achievements imply that skipped earlier actions were passed,
+    // but they remain visually distinct until challenged on their own.
+    inferred: !item.directlyCompleted && index < latestDirectCompletion,
+    completed: item.directlyCompleted || index < latestDirectCompletion,
+    unlocked: true,
+  }))
 }
 
 export function appendAttempt(state, attempt) {
@@ -214,17 +230,6 @@ export function appendAttempt(state, attempt) {
   const valid = normalizeAttempt(attempt)
   if (!valid || normalized.attempts.some((item) => item.id === valid.id))
     throw Error('挑战成绩无效或重复')
-  const level = byId.get(valid.levelId)
-  // The level ID contains the route prefix, but progression is derived from
-  // actual catalog order, never from user-editable completion flags.
-  const route = {
-    levels: challengeLevels.filter((item) => item.id.split('-')[1] === level.id.split('-')[1]),
-  }
-  if (
-    !getRouteProgress(route, normalized.attempts).find((item) => item.level.id === level.id)
-      ?.unlocked
-  )
-    throw Error('请先通过本路线的前置关卡')
   return { version: 1, attempts: [...normalized.attempts, valid] }
 }
 
@@ -305,4 +310,12 @@ export function confirmTrainingEvaluation(state, attemptId) {
   const confirmed = { ...candidate, id: `${candidate.id}-confirmed`, qualityConfirmed: true }
   const withoutCandidate = removeAttempt(normalized, attemptId)
   return appendAttempt(withoutCandidate, confirmed)
+}
+
+export function rejectTrainingEvaluation(state, attemptId) {
+  const normalized = normalizeChallenges(state, { strict: true })
+  const candidate = normalized.attempts.find((item) => item.id === attemptId)
+  if (!candidate || candidate.source?.type !== 'training-record')
+    throw Error('找不到可拒绝的训练判定')
+  return removeAttempt(normalized, attemptId)
 }

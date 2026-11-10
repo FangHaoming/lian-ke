@@ -14,6 +14,7 @@ import {
   snapshotLevel,
   appendTrainingEvaluation,
   confirmTrainingEvaluation,
+  rejectTrainingEvaluation,
 } from '../src/lib/challenge-model.js'
 import { defaults, KEY } from '../src/lib/workout-model.js'
 import { loadData, saveData } from '../src/lib/data.js'
@@ -157,16 +158,19 @@ test('quality must be confirmed; unconfirmed attempts remain in history', () => 
   const a = { ...attempt(first), qualityConfirmed: false }
   assert.equal(evaluateAttempt(first, a).passed, false)
   assert.equal(appendAttempt(challengeDefaults(), a).attempts.length, 1)
-  assert.equal(getRouteProgress(route, [a])[1].unlocked, false)
+  assert.equal(getRouteProgress(route, [a])[1].unlocked, true)
 })
 
-test('progression is sequential and route-specific, including the write boundary', () => {
-  assert.throws(() => appendAttempt(challengeDefaults(), attempt(route.levels[1])), /前置/)
-  const state = appendAttempt(challengeDefaults(), attempt(first))
+test('actions are independently challengeable and later passes infer earlier progress', () => {
+  const state = appendAttempt(challengeDefaults(), attempt(route.levels[1]))
   const p = getRouteProgress(route, state.attempts)
   assert.equal(p[0].completed, true)
+  assert.equal(p[0].directlyCompleted, false)
+  assert.equal(p[0].inferred, true)
+  assert.equal(p[1].completed, true)
+  assert.equal(p[1].directlyCompleted, true)
   assert.equal(p[1].unlocked, true)
-  assert.equal(p[2].unlocked, false)
+  assert.equal(p[2].unlocked, true)
   assert.equal(getRouteProgress(challengeRoutes[1], state.attempts)[0].completed, false)
   assert.equal(getRouteProgress(challengeRoutes[1], state.attempts)[0].unlocked, true)
 })
@@ -186,6 +190,15 @@ test('all six final skills complete at beginner; elite is independent', () => {
   assert.equal(evaluateAttempt(final, elite, 'beginner').passed, true)
 })
 
+test('a later stage achievement also marks earlier stage targets as achieved', () => {
+  const final = route.levels[9]
+  const state = appendAttempt(challengeDefaults(), attempt(final, 'elite'))
+  const achieved = getRouteProgress(route, state.attempts)[9].achieved
+  assert.equal(achieved.beginner, true)
+  assert.equal(achieved.intermediate, true)
+  assert.equal(achieved.elite, true)
+})
+
 test('bridge elite preserves the range and grants at its lower bound', () => {
   const level = challengeRoutes[4].levels[9]
   assert.deepEqual(level.standards.elite, { sets: 2, value: 10, upper: 30 })
@@ -195,11 +208,11 @@ test('bridge elite preserves the range and grants at its lower bound', () => {
   assert.equal(evaluateAttempt(level, a, 'elite').passed, false)
 })
 
-test('removing a prerequisite relocks later levels without deleting their history', () => {
+test('removing a direct pass removes only its own and inferred progress', () => {
   const state = clearRoute(route)
   const removed = removeAttempt(state, state.attempts[0].id)
   assert.equal(removed.attempts.length, 9)
-  assert.equal(getRouteProgress(route, removed.attempts)[9].unlocked, false)
+  assert.equal(getRouteProgress(route, removed.attempts)[9].completed, true)
   const restored = appendAttempt(removed, attempt(first))
   assert.equal(getRouteProgress(route, restored.attempts)[9].completed, true)
 })
@@ -267,6 +280,8 @@ test('linked training records produce automatic candidates and can be confirmed 
   const confirmed = confirmTrainingEvaluation(state, state.attempts[0].id)
   assert.equal(confirmed.attempts.length, 1)
   assert.equal(getRouteProgress(route, confirmed.attempts)[0].completed, true)
+  const rejected = rejectTrainingEvaluation(state, state.attempts[0].id)
+  assert.equal(rejected.attempts.length, 0)
 })
 
 test('linked training records keep incomplete results as non-passing evidence', () => {
