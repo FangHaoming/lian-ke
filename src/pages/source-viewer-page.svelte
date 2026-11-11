@@ -12,6 +12,7 @@
   let priorityPages = new Set()
   let lazyReady = false
   let returnHref = appPath()
+  let leaving = false
 
   const pageImageURL = (pageNumber) =>
     appURL(`convict-conditioning-pages/page-${String(pageNumber).padStart(4, '0')}.webp`)
@@ -19,6 +20,16 @@
   const scrollToTarget = () => {
     const targetPage = Math.min(Math.max(1, page), totalPages)
     document.getElementById(`source-page-${targetPage}`)?.scrollIntoView()
+  }
+
+  function returnToPreviousPage() {
+    if (leaving) return
+    leaving = true
+    window.location.href = returnHref
+  }
+
+  function interceptBrowserBack() {
+    returnToPreviousPage()
   }
 
   onMount(async () => {
@@ -32,6 +43,12 @@
     } catch {
       returnHref = appPath()
     }
+    history.pushState(
+      { ...(history.state || {}), sourceViewerGuard: true },
+      '',
+      window.location.href,
+    )
+    window.addEventListener('popstate', interceptBrowserBack)
     totalPages = TOTAL_PAGES
     const targetPage = Math.min(Math.max(1, page), totalPages)
     const firstPriorityPage = Math.max(1, targetPage - 2)
@@ -66,7 +83,7 @@
       </div>
     </div>
   </header>
-  <FloatingBackButton label="返回练刻" on:click={() => (window.location.href = returnHref)} />
+  <FloatingBackButton label="返回练刻" on:click={returnToPreviousPage} />
   {#if loading}<p>正在加载原书页面…</p>{/if}
   {#if pages.length}
     <div class="source-document">

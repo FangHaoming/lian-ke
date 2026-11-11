@@ -19,8 +19,6 @@
   <a
     class="btn tiny ghost challenge-view-link"
     {href}
-    target="_blank"
-    rel="noreferrer"
     aria-label={`查看挑战动作 ${target.level.name}`}
   >
     查看动作 ↗

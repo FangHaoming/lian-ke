@@ -345,11 +345,7 @@
   }
 
   function openLevelSource(nextRoute, nextLevel) {
-    window.open(
-      sourceViewer(nextLevel.sourcePage, nextRoute.id, nextLevel.id),
-      '_blank',
-      'noopener,noreferrer',
-    )
+    window.location.href = sourceViewer(nextLevel.sourcePage, nextRoute.id, nextLevel.id)
   }
   async function confirmLeaveDraft() {
     const pending = pendingLevel
@@ -741,12 +737,7 @@
             : ''}
         </p>
       </div>
-      <a
-        class="challenge-source"
-        href={sourceViewer(level.sourcePage)}
-        target="_blank"
-        rel="noreferrer"
-      >
+      <a class="challenge-source" href={sourceViewer(level.sourcePage)}>
         在线查看《囚徒健身》原书 · 第 {level.sourcePage} 页 ↗
       </a>
       {#if selected.completedAt}<p class="muted small">
@@ -881,8 +872,6 @@
       <a
         class="btn ghost challenge-start-source-button"
         href={sourceViewer(quickStartLevel.sourcePage, routeId, quickStartLevel.id)}
-        target="_blank"
-        rel="noreferrer"
       >
         查看动作原文 · 第 {quickStartLevel.sourcePage} 页 ↗
       </a>
