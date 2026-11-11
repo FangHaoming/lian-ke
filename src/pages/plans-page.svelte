@@ -10,6 +10,7 @@
   import ExerciseMultiSelect from '../components/exercise-multi-select.svelte'
   import { challengeLevels } from '../lib/challenge-catalog.js'
   import { isChallengeExercise } from '../lib/challenge-model.js'
+  import { appPath } from '../lib/config.js'
   export let data
   let editing = null
   let draggingIndex = -1
@@ -269,7 +270,7 @@
               on:change={(event) => setItemOrder(item.id, event)}
             />
             <b>{item.name}</b>
-            <ChallengeActionLink name={item.name} />
+            <ChallengeActionLink name={item.name} returnPath={appPath('plans')} />
           </div>
           <button
             class="btn tiny red"

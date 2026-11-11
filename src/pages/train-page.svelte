@@ -11,6 +11,7 @@
   import { requestConfirm } from '../lib/confirm-dialog.js'
   import { appendTrainingEvaluation, isChallengeExercise } from '../lib/challenge-model.js'
   import { challengeLevels } from '../lib/challenge-catalog.js'
+  import { appPath } from '../lib/config.js'
   export let data
   export let quickItems
   let selected = data.selected || data.plans[0]?.id || ''
@@ -652,7 +653,7 @@
             <b class:quick-action-placeholder={!item.name.trim()}>
               {i + 1}. {item.name.trim() || '选择动作'}
             </b>
-            <ChallengeActionLink name={item.name} />
+            <ChallengeActionLink name={item.name} returnPath={appPath()} />
           </div>
           <button
             class="btn"

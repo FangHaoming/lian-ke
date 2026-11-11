@@ -3,11 +3,16 @@
   import { appPath } from '../lib/config.js'
 
   export let name = ''
+  export let returnPath = appPath()
 
   $: target = challengeRoutes
     .flatMap((route) => route.levels.map((level) => ({ level })))
     .find((entry) => entry.level.name === name.trim())
-  $: href = target ? appPath(`source?page=${encodeURIComponent(target.level.sourcePage)}`) : ''
+  $: href = target
+    ? appPath(
+        `source?page=${encodeURIComponent(target.level.sourcePage)}&return=${encodeURIComponent(returnPath)}`,
+      )
+    : ''
 </script>
 
 {#if target}

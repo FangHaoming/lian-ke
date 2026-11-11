@@ -24,8 +24,8 @@
     const returnValue = new URLSearchParams(window.location.search).get('return')
     try {
       const returnUrl = returnValue ? new URL(returnValue, window.location.origin) : null
-      const challengesPath = appPath('challenges')
-      if (returnUrl?.origin === window.location.origin && returnUrl.pathname === challengesPath) {
+      const returnPaths = new Set([appPath(), appPath('plans'), appPath('challenges')])
+      if (returnUrl?.origin === window.location.origin && returnPaths.has(returnUrl.pathname)) {
         returnHref = `${returnUrl.pathname}${returnUrl.search}${returnUrl.hash}`
       }
     } catch {
