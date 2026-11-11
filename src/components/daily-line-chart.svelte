@@ -1,23 +1,6 @@
 <script>
   import { createEventDispatcher, onDestroy, onMount } from 'svelte'
-  import * as echarts from 'echarts/core'
-  import { LineChart } from 'echarts/charts'
-  import {
-    DataZoomComponent,
-    GridComponent,
-    TitleComponent,
-    TooltipComponent,
-  } from 'echarts/components'
-  import { CanvasRenderer } from 'echarts/renderers'
-
-  echarts.use([
-    LineChart,
-    DataZoomComponent,
-    GridComponent,
-    TitleComponent,
-    TooltipComponent,
-    CanvasRenderer,
-  ])
+  import * as echarts from 'echarts'
 
   export let points = []
   export let metrics = ['sets', 'minutes']
@@ -28,22 +11,21 @@
   let zoomStart = null
   let zoomEnd = null
   let chartRoot
+  let disposed = false
   const dispatch = createEventDispatcher()
 
   $: labels = points.map((point) => point.key.slice(5))
   $: initialStart = points.length > 7 ? 100 - (7 / points.length) * 100 : 0
-  $: if (chart && points && metrics) renderChart()
+  $: if (chart && !disposed && Array.isArray(points) && Array.isArray(metrics)) renderChart()
 
   function renderChart() {
+    if (disposed || !chart || !Array.isArray(points) || !Array.isArray(metrics)) return
     const series = metrics.map((metric) => {
       const isSets = metric === 'sets'
       return {
         name: isSets ? '组数' : '分钟',
         type: 'line',
-        data: points.map((point) => ({
-          value: Number(point[metric]) || 0,
-          details: point.details || [],
-        })),
+        data: points.map((point) => Number(point?.[metric]) || 0),
         smooth: 0.25,
         symbol: 'circle',
         symbolSize: 8,
@@ -59,7 +41,7 @@
     })
     const maxValue = Math.max(
       1,
-      ...series.flatMap((item) => item.data.map((value) => Number(value.value) || 0)),
+      ...series.flatMap((item) => item.data.map((value) => Number(value) || 0)),
     )
     chart.setOption(
       {
@@ -74,7 +56,7 @@
           textStyle: { color: '#eaf2f4', fontSize: 12 },
           formatter: (items) => {
             if (!items?.length) return ''
-            const details = items[0].data?.details || []
+            const details = points[items[0].dataIndex]?.details || []
             const detailHtml = details.length
               ? '<div style="margin-top:8px;padding-top:7px;border-top:1px solid #49606c">' +
                 details
@@ -170,6 +152,7 @@
   }
 
   onMount(() => {
+    disposed = false
     chart = echarts.init(root, null, { renderer: 'canvas' })
     chart.on('datazoom', () => {
       const dataZoom = chart.getOption().dataZoom?.[0]
@@ -214,18 +197,15 @@
   })
 
   onDestroy(() => {
+    disposed = true
     resizeObserver?.disconnect()
     chartRoot?.off('click')
     chart?.dispose()
+    chart = null
   })
 </script>
 
-<div
-  class="daily-line-chart"
-  bind:this={root}
-  role="img"
-  aria-label="按天训练趋势折线图"
-></div>
+<div class="daily-line-chart" bind:this={root} role="img" aria-label="按天训练趋势折线图"></div>
 
 <style>
   .daily-line-chart {

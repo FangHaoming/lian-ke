@@ -21,6 +21,7 @@
   let touchDragTimer
   let touchDragPointer = null
   let editorHistoryEntry = false
+  let leavingEditor = false
   $: creating = editing && !data.plans.some((plan) => plan.id === editing.id)
   $: names = [
     ...new Set([...(data.exerciseNames || []), ...challengeLevels.map((level) => level.name)]),
@@ -41,6 +42,10 @@
   })
   onMount(() => {
     const handlePopState = () => {
+      if (leavingEditor) {
+        leavingEditor = false
+        return
+      }
       if (editing) {
         editing = null
         editorHistoryEntry = false
@@ -82,7 +87,10 @@
     const shouldGoBack = editorHistoryEntry
     editing = null
     editorHistoryEntry = false
-    if (shouldGoBack) history.back()
+    if (shouldGoBack) {
+      leavingEditor = true
+      history.back()
+    }
   }
   function save() {
     if (
@@ -344,6 +352,7 @@
     <button type="button" aria-label="滚动到底部" on:click={() => scrollEditor('bottom')}>↓</button>
   </div>
 {:else}
+  <FloatingBackButton label="返回训练" on:click={() => dispatch('close')} />
   <div class="row between">
     <div>
       <h1>训练计划</h1>

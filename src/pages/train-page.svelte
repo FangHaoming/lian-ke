@@ -20,7 +20,6 @@
   import { challengeLevels } from '../lib/challenge-catalog.js'
   import { appPath } from '../lib/config.js'
   import PlansPage from './plans-page.svelte'
-  import FloatingBackButton from '../components/floating-back-button.svelte'
   export let data
   export let quickItems
   let selected = data.selected || data.plans[0]?.id || ''
@@ -677,7 +676,6 @@
     {/if}
   </div>
 {:else if managingPlans}
-  <FloatingBackButton label="返回训练" on:click={closePlanManager} />
   <PlansPage
     bind:data
     openNew={creatingPlan}
