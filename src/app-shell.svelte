@@ -461,7 +461,7 @@
         aria-label="收起导航"
         on:click={() => (sidebarOpen = false)}
       ></button>{/if}
-    <div class="app-content">
+    <main class="app-content">
       <header class="top">
         <div>
           <div class="brand-lockup">
@@ -506,7 +506,7 @@
         {:else if tab === 'stats'}<svelte:component this={pageComponents.stats} bind:data />
         {:else}<svelte:component this={pageComponents.settings} bind:data />{/if}
       {/if}
-    </div>
+    </main>
   {/if}
   <GlobalDialog />
   <GlobalToast />
