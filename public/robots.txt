@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /lian-ke/auth/
+Disallow: /lian-ke/source
+Disallow: /lian-ke/settings
+
+Sitemap: https://fanghaoming.github.io/lian-ke/sitemap.xml

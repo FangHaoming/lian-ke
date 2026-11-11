@@ -34,6 +34,27 @@
   let sessionPersistTimer
   const ACTIVE_SESSION_KEY = 'lianke_active_training_session'
 
+  const seo = {
+    train: {
+      title: '练刻 · 训练计划与记录',
+      description: '安排训练计划、记录训练数据，用练刻保持稳定训练。',
+    },
+    challenges: {
+      title: '挑战闯关 · 练刻',
+      description: '在练刻挑战闯关，按标准完成自重训练动作并记录进度。',
+    },
+    weight: {
+      title: '体重记录 · 练刻',
+      description: '在练刻记录体重变化，持续观察训练与身体状态。',
+    },
+    stats: { title: '训练统计 · 练刻', description: '在练刻查看训练次数、时长和历史训练记录。' },
+    settings: { title: '设置 · 练刻', description: '管理练刻的训练数据、账号和应用设置。' },
+  }
+
+  $: currentSeo = seo[tab] || seo.train
+  $: isPublicSeoPage = tab === 'train' || tab === 'challenges'
+  $: seoURL = appURL(tab === 'train' ? '' : routes[tab])
+
   const routes = {
     train: '',
     challenges: 'challenges',
@@ -335,6 +356,16 @@
   $: if (ready) syncWakeLock(Boolean(session && !session.paused))
   $: if (ready && !authCallback && !sourceViewer) void loadPageComponent(tab)
 </script>
+
+<svelte:head>
+  <title>{currentSeo.title}</title>
+  <meta name="description" content={currentSeo.description} />
+  <meta name="robots" content={isPublicSeoPage ? 'index,follow' : 'noindex,nofollow'} />
+  <link rel="canonical" href={seoURL} />
+  <meta property="og:title" content={currentSeo.title} />
+  <meta property="og:description" content={currentSeo.description} />
+  <meta property="og:url" content={seoURL} />
+</svelte:head>
 
 <div class:source-mode={sourceViewer} class="app">
   {#if sourceViewer}
