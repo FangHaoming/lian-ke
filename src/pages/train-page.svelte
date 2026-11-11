@@ -1,6 +1,13 @@
 <script>
   import { onMount, onDestroy } from 'svelte'
-  import { mk, uid, fmt, num, completedResults, normalizeActiveSession } from '../lib/workout-model.js'
+  import {
+    mk,
+    uid,
+    fmt,
+    num,
+    completedResults,
+    normalizeActiveSession,
+  } from '../lib/workout-model.js'
   import { flatten } from '../lib/data.js'
   import { playSound, prepareSound } from '../lib/sound.js'
   import Select from '../components/select.svelte'
@@ -12,6 +19,8 @@
   import { appendTrainingEvaluation, isChallengeExercise } from '../lib/challenge-model.js'
   import { challengeLevels } from '../lib/challenge-catalog.js'
   import { appPath } from '../lib/config.js'
+  import PlansPage from './plans-page.svelte'
+  import FloatingBackButton from '../components/floating-back-button.svelte'
   export let data
   export let quickItems
   let selected = data.selected || data.plans[0]?.id || ''
@@ -36,6 +45,8 @@
   let finishingSet = false
   let reviewHydrated = false
   let pageMounted = false
+  let managingPlans = false
+  let creatingPlan = false
   const ACTIVE_SESSION_KEY = 'lianke_active_training_session'
   const REVIEW_DRAFT_KEY = 'lianke_review_draft'
   $: plan = data.plans.find((item) => item.id === selected) || data.plans[0]
@@ -91,8 +102,7 @@
     clearInterval(ticker)
     cancelUnlock()
     fullscreenRequestId += 1
-    if (document.fullscreenElement)
-      void document.exitFullscreen().catch(() => {})
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
   })
   $: if (pageMounted) persistActiveSession(session)
   function enterFocus() {
@@ -422,6 +432,32 @@
   function addQuick() {
     quickItems = [...quickItems, mk('', 1)]
   }
+  function openPlanManager() {
+    history.pushState({ ...(history.state || {}), trainingPlans: true }, '', window.location.href)
+    managingPlans = true
+  }
+  function openPlanCreator() {
+    history.pushState({ ...(history.state || {}), trainingPlans: true }, '', window.location.href)
+    creatingPlan = true
+    managingPlans = true
+  }
+  function syncSelectedPlan() {
+    const nextPlan = data.plans.find((item) => item.id === data.selected) || data.plans[0]
+    selected = nextPlan?.id || ''
+    selectedPlanName = nextPlan?.name || ''
+  }
+  function closePlanManager() {
+    syncSelectedPlan()
+    managingPlans = false
+    creatingPlan = false
+    history.back()
+  }
+  function startPlanFromManager(event) {
+    const planToStart = event.detail?.plan
+    if (!planToStart?.items?.length) return
+    closePlanManager()
+    start(planToStart.items, planToStart.name, planToStart.id)
+  }
   function removeName(name) {
     if (isChallengeExercise(name)) return
     data.exerciseNames = availableNames.filter((item) => item !== name)
@@ -640,6 +676,18 @@
       </section>
     {/if}
   </div>
+{:else if managingPlans}
+  <FloatingBackButton label="返回训练" on:click={closePlanManager} />
+  <PlansPage
+    bind:data
+    openNew={creatingPlan}
+    on:close={() => {
+      syncSelectedPlan()
+      managingPlans = false
+      creatingPlan = false
+    }}
+    on:startTraining={startPlanFromManager}
+  />
 {:else}
   <section class="panel">
     <h2>快速训练</h2>
@@ -713,15 +761,25 @@
       </button>
     </div>
   </section>
-  {#if plan}<section class="panel">
-      <h1>开始今天的训练</h1>
-      <p class="muted">选择计划，准备好后开始。每组动作可设置计次数或倒计时。</p>
+  {#if plan}<section class="panel plan-start-panel">
+      <div class="row between">
+        <div>
+          <h1>开始今天的训练</h1>
+          <p class="muted">选择计划，准备好后开始。每组动作可设置计次数或倒计时。</p>
+        </div>
+      </div>
       <div class="plan-start-row">
         <div class="field plan-start-picker">
-          <span>训练计划</span>
+          <div class="plan-picker-label">
+            <span>训练计划</span>
+            <button class="btn tiny ghost plan-manage-button" on:click={openPlanManager}>
+              管理训练计划
+            </button>
+          </div>
           <ExerciseNameSelect
             label="训练计划"
             placeholder="输入计划名称筛选"
+            emptyMessage="无匹配计划，请检查计划名称"
             options={data.plans.map((option) => option.name)}
             bind:value={selectedPlanName}
             on:change={() => {
@@ -749,7 +807,7 @@
     </section>
     <section class="panel">
       <div class="row between">
-        <h3>今日训练内容</h3>
+        <h3>训练内容</h3>
         <button class="btn tiny ghost" on:click={selectAllPlanItems}>全选动作</button>
       </div>
       <p class="muted small">勾选本次要练的动作，默认全部选中。</p>
@@ -771,5 +829,9 @@
           </span>
           <span class="pill">休息 {item.rest}s</span>
         </label>{/each}
+    </section>{:else}<section class="panel empty">
+      <h2>还没有训练计划</h2>
+      <p class="muted">先创建一个计划，再开始今天的训练。</p>
+      <button class="btn primary" on:click={openPlanCreator}>新建训练计划</button>
     </section>{/if}
 {/if}

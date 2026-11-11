@@ -6,6 +6,7 @@
   export let options = []
   export let label = '动作名称'
   export let placeholder = '选择或输入动作名称'
+  export let emptyMessage = '无匹配动作，可直接输入自定义名称'
   export let id = undefined
   export let deletable = false
 
@@ -59,7 +60,15 @@
   }
 </script>
 
-<div class:open class="unified-select exercise-name-picker" bind:this={root}>
+<div
+  class:open
+  class="unified-select exercise-name-picker"
+  bind:this={root}
+  on:focusin={() => {
+    open = true
+    showAll = true
+  }}
+>
   <input
     {id}
     class="unified-input"
@@ -70,6 +79,18 @@
     {placeholder}
     bind:value
     bind:this={input}
+    on:mousedown={() => {
+      open = true
+      showAll = true
+    }}
+    on:pointerdown={() => {
+      open = true
+      showAll = true
+    }}
+    on:touchstart={() => {
+      open = true
+      showAll = true
+    }}
     on:focus={() => {
       open = true
       showAll = true
@@ -111,7 +132,7 @@
               删除
             </button>{/if}
         </div>
-      {:else}<div class="exercise-name-empty">无匹配动作，可直接输入自定义名称</div>{/each}
+      {:else}<div class="exercise-name-empty">{emptyMessage}</div>{/each}
     </div>
   {/if}
 </div>

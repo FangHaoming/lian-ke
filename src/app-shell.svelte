@@ -36,7 +36,6 @@
 
   const routes = {
     train: '',
-    plans: 'plans',
     challenges: 'challenges',
     weight: 'weight',
     stats: 'stats',
@@ -47,7 +46,6 @@
 
   const pageLoaders = {
     train: () => import('./pages/train-page.svelte'),
-    plans: () => import('./pages/plans-page.svelte'),
     challenges: () => import('./pages/challenges-page.svelte'),
     weight: () => import('./pages/weight-page.svelte'),
     stats: () => import('./pages/stats-page.svelte'),
@@ -382,7 +380,7 @@
         {/if}
       {/if}
       <nav class="sidebar-nav" aria-label="主导航">
-        {#each [['train', '◉', '训练'], ['plans', '▦', '训练计划'], ['challenges', '⚑', '挑战闯关'], ['weight', '◒', '体重'], ['stats', '▥', '数据分析'], ['settings', '⚙', '设置/备份']] as [id, icon, label]}
+        {#each [['train', '◉', '训练'], ['challenges', '⚑', '挑战闯关'], ['weight', '◒', '体重'], ['stats', '▥', '数据分析'], ['settings', '⚙', '设置/备份']] as [id, icon, label]}
           <button
             class:active={tab === id}
             class="sidebar-link"
@@ -467,7 +465,6 @@
             bind:quickStartRequest
             {screenAwake}
           />
-        {:else if tab === 'plans'}<svelte:component this={pageComponents.plans} bind:data />
         {:else if tab === 'challenges'}<svelte:component
             this={pageComponents.challenges}
             bind:data

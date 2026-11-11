@@ -1,6 +1,7 @@
 <script>
   import { onMount, tick } from 'svelte'
   import PdfPage from '../components/pdf-page.svelte'
+  import FloatingBackButton from '../components/floating-back-button.svelte'
   import { appPath, appURL } from '../lib/config.js'
 
   export let page = 1
@@ -64,8 +65,8 @@
         <p>你的训练节奏、计划与进步</p>
       </div>
     </div>
-    <a class="source-return" href={returnHref}>← 返回练刻</a>
   </header>
+  <FloatingBackButton label="返回练刻" on:click={() => (window.location.href = returnHref)} />
   {#if loading}<p>正在加载原书页面…</p>{/if}
   {#if pages.length}
     <div class="source-document">
@@ -100,10 +101,6 @@
     margin: 0 auto;
     padding: 12px 0;
     background: #202124ee;
-  }
-  header a {
-    color: #b7f36a;
-    text-decoration: none;
   }
   .source-brand {
     display: flex;
@@ -142,10 +139,6 @@
     font-size: 10px;
     white-space: nowrap;
   }
-  .source-return {
-    flex: 0 0 auto;
-    font-weight: 700;
-  }
   .source-document {
     display: flex;
     flex-direction: column;
@@ -165,9 +158,6 @@
     .source-brand p,
     .source-brand-name small {
       display: none;
-    }
-    .source-return {
-      font-size: 14px;
     }
   }
 </style>

@@ -29,7 +29,7 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .unified-option{display:block;width:100%;min-height:44px;text-align:left;padding:11px 13px;background:transparent;border:0;border-radius:8px;color:#eaf2f4;touch-action:manipulation}
 .unified-option.selected{color:#b7f36a;background:#304337}
 .unified-option:hover,.unified-option:focus-visible{background:#334752;outline:none}
-.exercise:has(.unified-select.open),.quick-card:has(.unified-select.open),.panel:has(.unified-select.open){position:relative;z-index:12}
+.exercise:has(.unified-select.open),.quick-card:has(.unified-select.open),.panel:has(.unified-select.open){position:relative;z-index:20}
 
 /* Training type: single-line, vertically centered and consistent with adjacent fields */
 .training-mode-select .unified-trigger{display:flex;align-items:center;min-height:48px;height:48px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:clamp(12px,1.05vw,16px);padding:10px 34px 10px 12px;font-weight:500}
@@ -60,9 +60,12 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .plan-start-picker>.unified-select>.unified-trigger{height:48px!important;min-height:48px!important;box-sizing:border-box;display:flex;align-items:center;padding-top:0;padding-bottom:0;line-height:1.2}
 .quick-grid .field>.unified-select>.unified-trigger{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:34px}
 .quick-grid .field>.unified-select>.unified-trigger:after{top:50%;transform:translateY(-65%) rotate(45deg)}
-.plan-start-row{display:flex;align-items:flex-end;gap:16px;max-width:760px}
+.plan-start-row{display:flex;align-items:flex-end;gap:10px;max-width:860px}
+.plan-start-panel{position:relative;z-index:12}
 .plan-start-picker{flex:1 1 auto;min-width:0;max-width:560px}
+.plan-picker-label{display:flex;align-items:center;justify-content:flex-start;gap:8px;min-height:36px}
 .plan-start-button{height:48px;min-height:48px;flex:0 0 auto;white-space:nowrap}
+.plan-manage-button{height:32px;min-height:32px;flex:0 0 auto;white-space:nowrap;padding:5px 9px}
 .plan-action-option{cursor:pointer;user-select:none}
 .plan-action-option:hover{background:#18232c}
 .plan-action-option:has(.plan-action-checkbox:checked){background:#141f26}
@@ -74,6 +77,8 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .plan-action-option>.pill{flex-shrink:0;margin-left:12px;color:#8fa4ae;background:#202f38}
 .plan-start-summary{margin-top:12px}
 .plan-filter-panel{margin-top:18px}
+.plan-list-scroll{max-height:calc(100dvh - 390px);overflow-y:auto;padding:2px 8px 4px 0;scrollbar-color:#536874 #151e26;scrollbar-width:thin}
+.plan-list-scroll .panel:last-child{margin-bottom:0}
 .plan-filter-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
 .plan-filter-summary{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;color:#a7b8c2;font-size:13px}
 .exercise-multi-picker{position:relative}
@@ -83,6 +88,7 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .exercise-multi-option.selected .exercise-multi-check{background:#b7f36a;border-color:#b7f36a}
 @media(max-width:520px){.plan-start-row{gap:10px}.plan-start-button{padding-inline:12px}.plan-start-picker{flex:1;min-width:0}}
 @media(max-width:650px){.plan-filter-grid{grid-template-columns:1fr}}
+@media(max-width:760px){.plan-list-scroll{max-height:calc(100dvh - 365px)}}
 .quick-sound-panel{margin-top:18px;padding:14px;border:1px solid #354956;border-radius:12px}.quick-sound-tests{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.quick-sound-tests .btn{min-height:42px;font-size:13px}
 
 .quick-action-name-field{grid-column:span 1;min-width:0}

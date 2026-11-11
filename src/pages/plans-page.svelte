@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from 'svelte'
+  import { createEventDispatcher, onMount } from 'svelte'
   import { mk, uid, num } from '../lib/workout-model.js'
   import { flatten } from '../lib/data.js'
   import TimePicker from '../components/time-picker.svelte'
@@ -11,13 +11,17 @@
   import { challengeLevels } from '../lib/challenge-catalog.js'
   import { isChallengeExercise } from '../lib/challenge-model.js'
   import { appPath } from '../lib/config.js'
+  import FloatingBackButton from '../components/floating-back-button.svelte'
   export let data
+  export let openNew = false
+  const dispatch = createEventDispatcher()
   let editing = null
   let draggingIndex = -1
   let dragOverIndex = -1
   let touchDragTimer
   let touchDragPointer = null
   let editorHistoryEntry = false
+  $: creating = editing && !data.plans.some((plan) => plan.id === editing.id)
   $: names = [
     ...new Set([...(data.exerciseNames || []), ...challengeLevels.map((level) => level.name)]),
   ]
@@ -40,7 +44,9 @@
       if (editing) {
         editing = null
         editorHistoryEntry = false
+        return
       }
+      dispatch('close')
     }
     window.addEventListener('popstate', handlePopState)
     const handleSelectionChange = () => {
@@ -54,6 +60,9 @@
     }
     document.addEventListener('selectionchange', handleSelectionChange)
     document.addEventListener('contextmenu', handleContextMenu)
+    if (openNew) {
+      enterEditor({ id: uid(), name: '新训练计划', items: [mk(names[0] || '')] })
+    }
     return () => {
       window.removeEventListener('popstate', handlePopState)
       document.removeEventListener('selectionchange', handleSelectionChange)
@@ -206,9 +215,9 @@
 
 {#if editing}
   <div class="row between">
-    <h1>编辑训练计划</h1>
-    <button class="btn ghost" on:click={leaveEditor}>返回</button>
+    <h1>{creating ? '新建训练计划' : '编辑训练计划'}</h1>
   </div>
+  <FloatingBackButton label="返回计划" on:click={leaveEditor} />
   <section class="panel">
     <label class="field">
       计划名称
@@ -270,7 +279,7 @@
               on:change={(event) => setItemOrder(item.id, event)}
             />
             <b>{item.name}</b>
-            <ChallengeActionLink name={item.name} returnPath={appPath('plans')} />
+            <ChallengeActionLink name={item.name} returnPath={appPath()} />
           </div>
           <button
             class="btn tiny red"
@@ -354,6 +363,7 @@
         <ExerciseNameSelect
           label="按训练名称搜索"
           placeholder="输入训练名称"
+          emptyMessage="无匹配计划，请检查计划名称"
           options={data.plans.map((plan) => plan.name)}
           bind:value={planNameQuery}
         />
@@ -385,37 +395,31 @@
       </div>
     {/if}
   </section>
-  {#each filteredPlans as plan (plan.id)}<section class="panel">
-      <div class="row between">
-        <div>
-          <h2>{plan.name}</h2>
-          <span class="muted small">{plan.items.length} 个动作 · {flatten(plan).length} 组</span>
+  <div class="plan-list-scroll">
+    {#each filteredPlans as plan (plan.id)}<section class="panel">
+        <div class="row between">
+          <div>
+            <h2>{plan.name}</h2>
+            <span class="muted small">{plan.items.length} 个动作 · {flatten(plan).length} 组</span>
+          </div>
+          <div class="row">
+            <button class="btn tiny primary" on:click={() => dispatch('startTraining', { plan })}>
+              开始训练
+            </button>
+            <button class="btn tiny" on:click={() => enterEditor(structuredClone(plan))}>
+              编辑
+            </button>
+            <button class="btn tiny red" on:click={() => remove(plan.id)}>删除</button>
+          </div>
         </div>
-        <div class="row">
-          <button class="btn tiny" on:click={() => enterEditor(structuredClone(plan))}>编辑</button>
-          <button
-            class="btn tiny"
-            on:click={() => {
-              const copy = structuredClone(plan)
-              copy.id = uid()
-              copy.name += '（副本）'
-              copy.items.forEach((item) => (item.id = uid()))
-              data.plans = [...data.plans, copy]
-              data = data
-            }}
-          >
-            复制
-          </button>
-          <button class="btn tiny red" on:click={() => remove(plan.id)}>删除</button>
-        </div>
-      </div>
-      {#each plan.items as item}<div class="setline">
-          <span>{item.name}</span>
-          <span class="muted small">
-            {item.sets}组 · {item.mode === 'reps' ? item.reps + '次' : item.duration + '秒'} · {item.weight}kg
-          </span>
-        </div>{/each}
-    </section>{:else}<div class="panel empty">
-      {data.plans.length ? '没有符合条件的训练计划' : '还没有训练计划'}
-    </div>{/each}
+        {#each plan.items as item}<div class="setline">
+            <span>{item.name}</span>
+            <span class="muted small">
+              {item.sets}组 · {item.mode === 'reps' ? item.reps + '次' : item.duration + '秒'} · {item.weight}kg
+            </span>
+          </div>{/each}
+      </section>{:else}<div class="panel empty">
+        {data.plans.length ? '没有符合条件的训练计划' : '还没有训练计划'}
+      </div>{/each}
+  </div>
 {/if}
