@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte'
-  import { defaults } from './lib/workout-model.js'
+  import { defaults, normalizeActiveSession } from './lib/workout-model.js'
   import { loadData, saveData } from './lib/data.js'
   import { consumeAuthCallback, cloudSession, signOut } from './lib/cloud.js'
   import AuthCallbackPage from './pages/auth-callback-page.svelte'
@@ -216,16 +216,9 @@
   function restoreActiveSession() {
     try {
       const saved = JSON.parse(localStorage.getItem(ACTIVE_SESSION_KEY) || 'null')
-      if (
-        saved &&
-        Array.isArray(saved.queue) &&
-        saved.queue.length &&
-        Number.isInteger(saved.index) &&
-        saved.index >= 0 &&
-        saved.index < saved.queue.length &&
-        typeof saved.phase === 'string'
-      )
-        session = saved
+      const restored = normalizeActiveSession(saved)
+      if (restored) session = restored
+      else if (saved) localStorage.removeItem(ACTIVE_SESSION_KEY)
     } catch {
       localStorage.removeItem(ACTIVE_SESSION_KEY)
     }

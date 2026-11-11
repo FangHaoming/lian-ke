@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte'
-  import { mk, uid, fmt, num, completedResults } from '../lib/workout-model.js'
+  import { mk, uid, fmt, num, completedResults, normalizeActiveSession } from '../lib/workout-model.js'
   import { flatten } from '../lib/data.js'
   import { playSound, prepareSound } from '../lib/sound.js'
   import Select from '../components/select.svelte'
@@ -32,6 +32,7 @@
   let selectionPlanId = ''
   let selectedItemIds = []
   let wasPausedBeforeEndConfirmation = true
+  let finishingSet = false
   let reviewHydrated = false
   let pageMounted = false
   const ACTIVE_SESSION_KEY = 'lianke_active_training_session'
@@ -172,16 +173,9 @@
   function restoreActiveSession() {
     try {
       const saved = JSON.parse(localStorage.getItem(ACTIVE_SESSION_KEY) || 'null')
-      if (
-        saved &&
-        Array.isArray(saved.queue) &&
-        saved.queue.length &&
-        Number.isInteger(saved.index) &&
-        saved.index >= 0 &&
-        saved.index < saved.queue.length &&
-        typeof saved.phase === 'string'
-      )
-        session = saved
+      const restored = normalizeActiveSession(saved)
+      if (restored) session = restored
+      else if (saved) localStorage.removeItem(ACTIVE_SESSION_KEY)
     } catch {
       localStorage.removeItem(ACTIVE_SESSION_KEY)
     }
@@ -223,6 +217,7 @@
       results: [],
       startedAt: new Date().toISOString(),
     }
+    finishingSet = false
     clearInterval(ticker)
     ticker = setInterval(tick, 150)
   }
@@ -291,6 +286,8 @@
     session = session
   }
   async function finishSet() {
+    if (finishingSet || !session) return
+    finishingSet = true
     const item = session.queue[session.index]
     session.results.push({
       name: item.name,
@@ -314,10 +311,11 @@
     })
     if (session.index === session.queue.length - 1) {
       playSound(data.sounds.finish)
-      await exitFocus()
-      review = { ...session, finishedAt: new Date().toISOString(), notes: '' }
+      const finishedSession = { ...session, results: [...session.results] }
       session = null
       clearInterval(ticker)
+      await exitFocus()
+      review = { ...finishedSession, finishedAt: new Date().toISOString(), notes: '' }
       return
     }
     playSound(data.sounds.set)
@@ -327,6 +325,7 @@
     session.last = Date.now()
     if (!session.remaining) advance()
     session = session
+    finishingSet = false
   }
   function next() {
     if (session.phase === 'prep') beginWork()

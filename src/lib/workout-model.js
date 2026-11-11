@@ -3,6 +3,45 @@ import { challengeDefaults } from './challenge-model.js'
 export const KEY = 'lianke_v3'
 export const completedResults = (results) =>
   (results || []).filter((item) => item.completed === true)
+
+// Active sessions are persisted while the timer is running. Keep recovery
+// bounded even if an older client wrote duplicate results while finishing a
+// set, otherwise parsing/rendering the session can lock up the app on reload.
+export const normalizeActiveSession = (value) => {
+  if (
+    !value ||
+    !Array.isArray(value.queue) ||
+    !value.queue.length ||
+    !Number.isInteger(value.index) ||
+    value.index < 0 ||
+    value.index >= value.queue.length ||
+    !['prep', 'work', 'rest'].includes(value.phase)
+  )
+    return null
+
+  const resultsByOrder = new Map()
+  for (const result of Array.isArray(value.results) ? value.results : []) {
+    const order = Number(result?.sortOrder)
+    if (Number.isInteger(order) && order >= 0 && order < value.queue.length)
+      resultsByOrder.set(order, result)
+  }
+  const results = [...resultsByOrder.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([, result]) => result)
+  const nextIndex = value.queue.findIndex((_, index) => !resultsByOrder.has(index))
+  if (nextIndex < 0) return null
+
+  return {
+    ...value,
+    index: nextIndex,
+    phase: nextIndex === value.index ? value.phase : 'prep',
+    paused: value.paused === true,
+    remaining: Number.isFinite(Number(value.remaining)) ? Math.max(0, Number(value.remaining)) : 3,
+    elapsed: Number.isFinite(Number(value.elapsed)) ? Math.max(0, Number(value.elapsed)) : 0,
+    last: Date.now(),
+    results,
+  }
+}
 export const completedRecords = (records) =>
   (records || [])
     .map((record) => ({ ...record, results: completedResults(record.results) }))
