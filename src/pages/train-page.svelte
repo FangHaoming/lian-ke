@@ -385,6 +385,22 @@
       returnToChallenge(returnSelection)
     }
   }
+  function discardReview() {
+    requestConfirm({
+      title: '放弃本次记录？',
+      message: '本次训练的已完成动作和核对修改都会丢弃，且不会写入训练记录。',
+      confirmText: '放弃记录',
+      cancelText: '继续核对',
+      destructive: true,
+    }).then(({ confirmed }) => {
+      if (!confirmed || !review) return
+      const returnToChallenges = review.returnTo === 'challenges'
+      const returnSelection = review.returnSelection
+      review = null
+      persistReviewDraft()
+      if (returnToChallenges) returnToChallenge(returnSelection)
+    })
+  }
   function returnToChallenge(selection) {
     window.dispatchEvent(new CustomEvent('lianke-return-to-challenges', { detail: selection }))
   }
@@ -539,11 +555,14 @@
       训练备注
       <textarea rows="3" bind:value={review.notes}></textarea>
     </label>
-    <button class="btn primary" style="margin-top:12px" on:click={saveReview}>
-      {review.results.some((item) => item.completed)
-        ? '保存本次训练记录'
-        : '结束本次训练（无完成组）'}
-    </button>
+    <div class="review-actions">
+      <button class="btn primary" on:click={saveReview}>
+        {review.results.some((item) => item.completed)
+          ? '保存本次训练记录'
+          : '结束本次训练（无完成组）'}
+      </button>
+      <button class="btn ghost review-discard" on:click={discardReview}>放弃记录</button>
+    </div>
   </section>
 {:else if session && current}
   <div class:training-focus={focusMode} class="training-session">

@@ -107,6 +107,7 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .review-checkbox{width:16px!important;height:16px!important;min-width:16px!important;min-height:16px!important;margin:0;accent-color:#b7f36a;cursor:pointer}
 .review-check-control:has(.review-checkbox:checked){border-color:#5b7e4d;color:#d5f5bc;background:#18251a}
 .review-exercise .field input:not([type='checkbox']){min-height:48px}
+.review-actions{display:flex;gap:10px;align-items:center;margin-top:12px}.review-actions .primary{flex:1}.review-discard{color:#ffb6ba;border-color:#765057;white-space:nowrap}
 @media(max-width:760px){.review-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:430px){.review-exercise{padding:14px}.review-exercise-header{align-items:flex-start;flex-direction:column;gap:8px}.review-fields{grid-template-columns:1fr}}
 
