@@ -84,6 +84,26 @@ export const dailyWeights = (items = []) => {
   })
   return [...latestByDay.values()].sort((a, b) => new Date(a.recordedAt) - new Date(b.recordedAt))
 }
+export const sleepRecords = (items = []) =>
+  (items || [])
+    .filter(
+      (item) =>
+        item &&
+        ((typeof item.asleepAt === 'string' && Number.isFinite(Date.parse(item.asleepAt))) ||
+          (typeof item.wakeAt === 'string' && Number.isFinite(Date.parse(item.wakeAt)))),
+    )
+    .map((item) => {
+      const asleepAt = Number.isFinite(Date.parse(item.asleepAt)) ? item.asleepAt : ''
+      const wakeAt = Number.isFinite(Date.parse(item.wakeAt)) ? item.wakeAt : ''
+      return {
+        id: item.id || uid(),
+        ...(asleepAt && (!wakeAt || new Date(wakeAt) > new Date(asleepAt)) && { asleepAt }),
+        ...(wakeAt && (!asleepAt || new Date(wakeAt) > new Date(asleepAt)) && { wakeAt }),
+        note: String(item.note || ''),
+      }
+    })
+    .filter((item) => item.asleepAt || item.wakeAt)
+    .sort((a, b) => new Date(a.asleepAt || a.wakeAt) - new Date(b.asleepAt || b.wakeAt))
 export const mk = (
   name,
   sets = 3,
@@ -97,6 +117,7 @@ export const defaults = () => ({
   plans: [],
   records: [],
   weights: [],
+  sleepRecords: [],
   selected: null,
   sounds: { set: 'triple', rest: 'double', finish: 'victory' },
   exerciseNames: [],

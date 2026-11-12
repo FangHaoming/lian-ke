@@ -1,4 +1,10 @@
-import { defaults, dailyWeights, dayKey, completedRecords } from './workout-model.js'
+import {
+  defaults,
+  dailyWeights,
+  dayKey,
+  sleepRecords as normalizeSleepRecords,
+  completedRecords,
+} from './workout-model.js'
 import { isChallengeExercise, normalizeChallenges } from './challenge-model.js'
 import { appURL } from './config.js'
 
@@ -11,6 +17,7 @@ const defaultSyncSelection = {
   plans: true,
   records: true,
   weights: true,
+  sleep: true,
   sounds: true,
   challenges: true,
 }
@@ -86,6 +93,7 @@ export async function deleteRemoteData(selection = {}) {
   if (selection.records) tables.push('training_records')
   if (selection.sounds) tables.push('user_settings')
   if (selection.weights) tables.push('body_weights')
+  if (selection.sleep) tables.push('sleep_records')
   if (selection.challenges) tables.push('challenge_attempts')
   for (const table of tables) await deleteRows(api, table, user)
 }
@@ -278,7 +286,7 @@ function sameTime(left, right) {
 
 async function readCloudData(api, selection = defaultSyncSelection) {
   const user = `user_id=eq.${encodeURIComponent(api.userId)}`
-  const [names, plans, records, weights, settings, challengeAttempts] = await Promise.all([
+  const [names, plans, records, weights, sleep, settings, challengeAttempts] = await Promise.all([
     readRows(api, 'exercise_names', `${user}&select=name&order=name`),
     readRows(api, 'plans', `${user}&select=id,name,updated_at&order=created_at,id`),
     readRows(
@@ -291,6 +299,13 @@ async function readCloudData(api, selection = defaultSyncSelection) {
       'body_weights',
       `${user}&select=id,recorded_at,recorded_on,kg,note&order=recorded_at,id`,
     ),
+    selection.sleep
+      ? readRows(
+          api,
+          'sleep_records',
+          `${user}&select=id,asleep_at,wake_at,note&order=asleep_at,id`,
+        )
+      : [],
     readRows(api, 'user_settings', `${user}&select=sounds`),
     selection.challenges
       ? readRows(
@@ -382,6 +397,14 @@ async function readCloudData(api, selection = defaultSyncSelection) {
         note: item.note || '',
       })),
     ),
+    sleepRecords: normalizeSleepRecords(
+      sleep.map((item) => ({
+        id: item.id,
+        asleepAt: item.asleep_at,
+        wakeAt: item.wake_at,
+        note: item.note || '',
+      })),
+    ),
     sounds: { ...defaults().sounds, ...(settings[0]?.sounds || {}) },
     challenges: normalizeChallenges({
       version: 1,
@@ -401,23 +424,27 @@ async function readCloudData(api, selection = defaultSyncSelection) {
 
 async function uploadCloudData(api, data, selection) {
   const user = `user_id=eq.${encodeURIComponent(api.userId)}`
-  const [oldPlans, oldRecords, oldWeights, oldNames, oldChallenges] = await Promise.all([
-    readRows(api, 'plans', `${user}&select=id,name`),
-    readRows(
-      api,
-      'training_records',
-      `${user}&select=id,plan_id,plan_name,started_at,finished_at,notes`,
-    ),
-    readRows(api, 'body_weights', `${user}&select=id,recorded_at,recorded_on,kg,note`),
-    readRows(api, 'exercise_names', `${user}&select=id,name`),
-    selection.challenges
-      ? readRows(
-          api,
-          'challenge_attempts',
-          `${user}&select=id,level_id,stage,recorded_at,rows,quality_confirmed,note,snapshot`,
-        )
-      : [],
-  ])
+  const [oldPlans, oldRecords, oldWeights, oldSleepRecords, oldNames, oldChallenges] =
+    await Promise.all([
+      readRows(api, 'plans', `${user}&select=id,name`),
+      readRows(
+        api,
+        'training_records',
+        `${user}&select=id,plan_id,plan_name,started_at,finished_at,notes`,
+      ),
+      readRows(api, 'body_weights', `${user}&select=id,recorded_at,recorded_on,kg,note`),
+      selection.sleep
+        ? readRows(api, 'sleep_records', `${user}&select=id,asleep_at,wake_at,note`)
+        : [],
+      readRows(api, 'exercise_names', `${user}&select=id,name`),
+      selection.challenges
+        ? readRows(
+            api,
+            'challenge_attempts',
+            `${user}&select=id,level_id,stage,recorded_at,rows,quality_confirmed,note,snapshot`,
+          )
+        : [],
+    ])
   const [oldItems, oldSets] = await Promise.all([
     oldPlans.length
       ? readRows(
@@ -441,6 +468,7 @@ async function uploadCloudData(api, data, selection) {
       : [],
   ])
   const weights = dailyWeights(data.weights || [])
+  const localSleepRecords = normalizeSleepRecords(data.sleepRecords || [])
   const planIds = new Map()
   const usedPlanIds = new Set()
   for (const plan of data.plans || []) {
@@ -609,6 +637,25 @@ async function uploadCloudData(api, data, selection) {
   if (selection.weights)
     await insertRows(api, 'body_weights', changedWeights, 'on_conflict=user_id,recorded_on')
 
+  const sleepRows = localSleepRecords.map((record) => ({
+    id: record.id,
+    user_id: api.userId,
+    asleep_at: record.asleepAt || null,
+    wake_at: record.wakeAt || null,
+    note: record.note || null,
+  }))
+  const oldSleepById = new Map(oldSleepRecords.map((record) => [record.id, record]))
+  const changedSleepRecords = sleepRows.filter((record) => {
+    const previous = oldSleepById.get(record.id)
+    return (
+      !previous ||
+      !sameTime(previous.asleep_at, record.asleep_at) ||
+      !sameTime(previous.wake_at, record.wake_at) ||
+      (previous.note || null) !== record.note
+    )
+  })
+  if (selection.sleep) await insertRows(api, 'sleep_records', changedSleepRecords, 'on_conflict=id')
+
   const names = [
     ...new Set((data.exerciseNames || []).filter((name) => name && !isChallengeExercise(name))),
   ]
@@ -651,6 +698,12 @@ async function uploadCloudData(api, data, selection) {
     .map((row) => row.id)
   if (selection.weights && staleWeightIds.length)
     await deleteRows(api, 'body_weights', inQuery('id', staleWeightIds))
+  const localSleepIds = new Set(sleepRows.map((record) => record.id))
+  const staleSleepIds = oldSleepRecords
+    .filter((record) => !localSleepIds.has(record.id))
+    .map((record) => record.id)
+  if (selection.sleep && staleSleepIds.length)
+    await deleteRows(api, 'sleep_records', inQuery('id', staleSleepIds))
   const stalePlanIds = oldPlans.filter((row) => !usedPlanIds.has(row.id)).map((row) => row.id)
   if (selection.plans && stalePlanIds.length)
     await deleteRows(api, 'plans', inQuery('id', stalePlanIds))
@@ -670,6 +723,8 @@ async function uploadCloudData(api, data, selection) {
     records: selection.records ? changedRecords : 0,
     weights: selection.weights ? changedWeights.length : 0,
     deletedWeights: selection.weights ? staleWeightIds.length : 0,
+    sleep: selection.sleep ? changedSleepRecords.length : 0,
+    deletedSleep: selection.sleep ? staleSleepIds.length : 0,
     names: selection.exerciseNames ? names.length : 0,
     sounds: selection.sounds ? Object.keys(sounds).length : 0,
     challenges: selection.challenges ? challengeRows.length : 0,
@@ -694,6 +749,7 @@ export async function syncData(direction, localData, selection = defaultSyncSele
     ...(selection.plans && { plans: remote.plans }),
     ...(selection.records && { records: remote.records }),
     ...(selection.weights && { weights: remote.weights }),
+    ...(selection.sleep && { sleepRecords: remote.sleepRecords }),
     ...(selection.sounds && { sounds: remote.sounds }),
     ...(selection.challenges && { challenges: remote.challenges }),
     selected,
@@ -707,6 +763,7 @@ export async function syncNames(direction, localNames) {
     plans: false,
     records: false,
     weights: false,
+    sleep: false,
     sounds: false,
     challenges: false,
   }

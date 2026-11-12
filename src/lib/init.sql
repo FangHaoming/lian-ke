@@ -6,6 +6,7 @@ create table if not exists public.training_records (id uuid primary key default 
 create table if not exists public.training_sets (id uuid primary key default gen_random_uuid(), record_id uuid not null references public.training_records(id) on delete cascade, exercise_name text not null, set_index integer not null, sort_order integer, mode text, completed boolean not null default true, target_reps integer, target_seconds integer, planned_weight numeric, planned_rest integer, actual_reps integer, actual_weight numeric, actual_seconds integer);
 create table if not exists public.user_settings (user_id uuid primary key references auth.users(id) on delete cascade, sounds jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());
 create table if not exists public.body_weights (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, recorded_at timestamptz not null default now(), recorded_on date not null default ((now() at time zone 'Asia/Shanghai')::date), kg numeric(5,2) not null check (kg > 0 and kg < 1000), note text);
+create table if not exists public.sleep_records (id text primary key, user_id uuid not null references auth.users(id) on delete cascade, asleep_at timestamptz, wake_at timestamptz, note text, check (asleep_at is not null or wake_at is not null), check (wake_at is null or asleep_at is null or wake_at > asleep_at));
 create table if not exists public.challenge_attempts (id text primary key, user_id uuid not null references auth.users(id) on delete cascade, level_id text not null, stage text not null, recorded_at timestamptz not null, rows jsonb not null, quality_confirmed boolean not null default false, note text, snapshot jsonb not null);
 create or replace function public.delete_my_account()
 returns void
@@ -40,6 +41,7 @@ alter table public.plan_items enable row level security;
 alter table public.training_records enable row level security;
 alter table public.training_sets enable row level security;
 alter table public.user_settings enable row level security;
+alter table public.sleep_records enable row level security;
 
 drop policy if exists "users manage own exercise names" on public.exercise_names;
 create policy "users manage own exercise names" on public.exercise_names for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
@@ -55,5 +57,7 @@ drop policy if exists "users manage own settings" on public.user_settings;
 create policy "users manage own settings" on public.user_settings for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
 drop policy if exists "users manage own body weights" on public.body_weights;
 create policy "users manage own body weights" on public.body_weights for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists "users manage own sleep records" on public.sleep_records;
+create policy "users manage own sleep records" on public.sleep_records for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
 drop policy if exists "users manage own challenge attempts" on public.challenge_attempts;
 create policy "users manage own challenge attempts" on public.challenge_attempts for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());

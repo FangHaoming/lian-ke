@@ -53,6 +53,7 @@
     { value: 'plans', label: '训练计划' },
     { value: 'records', label: '训练记录' },
     { value: 'weights', label: '体重' },
+    { value: 'sleep', label: '睡眠' },
     { value: 'sounds', label: '提示音' },
     { value: 'challenges', label: '挑战成绩' },
   ]
@@ -79,6 +80,7 @@
       'training_sets',
       'user_settings',
       'body_weights',
+      'sleep_records',
       'challenge_attempts',
     ]
     const results = await Promise.all(
@@ -97,7 +99,7 @@
     const missing = tables.filter((_, index) => !results[index])
     databaseStatus = missing.length
       ? `缺少：${missing.join('、')}`
-      : '数据库已初始化，八张表均可访问'
+      : '数据库已初始化，九张表均可访问'
   }
   async function auth(action) {
     try {
@@ -276,6 +278,8 @@
       if (syncSelection.records) details.push(`训练记录新增/更新 ${result.records} 条`)
       if (syncSelection.weights)
         details.push(`体重新增/更新 ${result.weights} 条、删除 ${result.deletedWeights} 条`)
+      if (syncSelection.sleep)
+        details.push(`睡眠新增/更新 ${result.sleep} 条、删除 ${result.deletedSleep} 条`)
       if (syncSelection.exerciseNames) details.push(`${result.names} 个动作`)
       if (syncSelection.sounds) details.push('提示音')
       if (syncSelection.challenges) details.push(`挑战成绩 ${result.challenges} 条`)
@@ -284,6 +288,7 @@
     if (syncSelection.plans) details.push(`${result.plans.length} 个计划`)
     if (syncSelection.records) details.push(`${result.records.length} 条记录`)
     if (syncSelection.weights) details.push(`${result.weights.length} 条体重记录`)
+    if (syncSelection.sleep) details.push(`${result.sleepRecords.length} 条睡眠记录`)
     if (syncSelection.exerciseNames) details.push(`${result.exerciseNames.length} 个动作`)
     if (syncSelection.sounds) details.push('提示音')
     if (syncSelection.challenges) details.push(`${result.challenges.attempts.length} 条挑战成绩`)
@@ -489,7 +494,7 @@
         <b>4</b>
         <span>
           <strong>检测数据库</strong>
-          <small>确认六张业务表都可以访问。</small>
+          <small>确认九张业务表都可以访问。</small>
         </span>
       </div>
     </div>
@@ -578,7 +583,7 @@
 <section class="panel">
   <h3>本地数据</h3>
   <p class="muted">
-    计划、记录、体重和挑战成绩保存在当前浏览器，也可通过“数据同步”同步到云端。建议定期备份。
+    计划、记录、体重、睡眠和挑战成绩保存在当前浏览器，也可通过“导出 JSON 备份”保存。建议定期备份。
   </p>
   <div class="row">
     <button class="btn primary" on:click={exportData}>导出 JSON 备份</button>

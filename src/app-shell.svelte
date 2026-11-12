@@ -47,6 +47,10 @@
       title: '体重记录 · 练刻',
       description: '在练刻记录体重变化，持续观察训练与身体状态。',
     },
+    sleep: {
+      title: '睡眠记录 · 练刻',
+      description: '在练刻记录入睡时间、醒来时间和睡眠时长。',
+    },
     stats: { title: '训练统计 · 练刻', description: '在练刻查看训练次数、时长和历史训练记录。' },
     settings: { title: '设置 · 练刻', description: '管理练刻的训练数据、账号和应用设置。' },
   }
@@ -59,6 +63,7 @@
     train: '',
     challenges: 'challenges',
     weight: 'weight',
+    sleep: 'sleep',
     stats: 'stats',
     settings: 'settings',
   }
@@ -69,6 +74,7 @@
     train: () => import('./pages/train-page.svelte'),
     challenges: () => import('./pages/challenges-page.svelte'),
     weight: () => import('./pages/weight-page.svelte'),
+    sleep: () => import('./pages/sleep-page.svelte'),
     stats: () => import('./pages/stats-page.svelte'),
     settings: () => import('./pages/settings-page.svelte'),
   }
@@ -411,7 +417,7 @@
         {/if}
       {/if}
       <nav class="sidebar-nav" aria-label="主导航">
-        {#each [['train', '◉', '训练'], ['challenges', '⚑', '挑战闯关'], ['weight', '◒', '体重'], ['stats', '▥', '数据分析'], ['settings', '⚙', '设置/备份']] as [id, icon, label]}
+        {#each [['train', '◉', '训练'], ['challenges', '⚑', '挑战闯关'], ['weight', '◒', '体重'], ['sleep', '☾', '睡眠'], ['stats', '▥', '数据分析'], ['settings', '⚙', '设置/备份']] as [id, icon, label]}
           <button
             class:active={tab === id}
             class="sidebar-link"
@@ -503,6 +509,7 @@
             on:startChallengeTraining={(event) => startChallengeTraining(event)}
           />
         {:else if tab === 'weight'}<svelte:component this={pageComponents.weight} bind:data />
+        {:else if tab === 'sleep'}<svelte:component this={pageComponents.sleep} bind:data />
         {:else if tab === 'stats'}<svelte:component this={pageComponents.stats} bind:data />
         {:else}<svelte:component this={pageComponents.settings} bind:data />{/if}
       {/if}

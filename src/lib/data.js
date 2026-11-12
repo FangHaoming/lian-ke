@@ -1,4 +1,11 @@
-import { KEY, defaults, names, dailyWeights, completedRecords } from './workout-model.js'
+import {
+  KEY,
+  defaults,
+  names,
+  dailyWeights,
+  sleepRecords,
+  completedRecords,
+} from './workout-model.js'
 import { normalizeChallenges } from './challenge-model.js'
 
 export function loadData() {
@@ -9,6 +16,7 @@ export function loadData() {
   if (!data || !Array.isArray(data.plans) || !Array.isArray(data.records)) data = defaults()
   data.records = completedRecords(data.records)
   data.weights = dailyWeights(data.weights || [])
+  data.sleepRecords = sleepRecords(data.sleepRecords || [])
   data.sounds = { ...defaults().sounds, ...data.sounds }
   data.challenges = normalizeChallenges(data.challenges)
   data.exerciseNames ??= [
