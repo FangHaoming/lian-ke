@@ -1,5 +1,6 @@
 <script>
   import { uid, dailyWeights, dayKey } from '../lib/workout-model.js'
+  import WeightLineChart from '../components/weight-line-chart.svelte'
 
   export let data
   let kg = ''
@@ -10,28 +11,7 @@
   $: latest = weights[weights.length - 1]
   $: previous = weights[weights.length - 2]
   $: change = latest && previous ? Number(latest.kg) - Number(previous.kg) : null
-  $: chartWeights = weights.slice(-30)
-  $: minKg = chartWeights.length
-    ? Math.floor(Math.min(...chartWeights.map((item) => Number(item.kg))) - 1)
-    : 0
-  $: maxKg = chartWeights.length
-    ? Math.ceil(Math.max(...chartWeights.map((item) => Number(item.kg))) + 1)
-    : 100
-  $: range = Math.max(1, maxKg - minKg)
-  $: chartPoints = chartWeights.map((item, index) => {
-    const x = chartWeights.length === 1 ? 50 : 8 + (index / (chartWeights.length - 1)) * 84
-    const y = 88 - ((Number(item.kg) - minKg) / range) * 76
-    return { ...item, x, y }
-  })
-  $: chartTicks = chartPoints.length
-    ? [...new Set([0, Math.floor((chartPoints.length - 1) / 2), chartPoints.length - 1])].map(
-        (index) => chartPoints[index],
-      )
-    : []
-
-  function formatDate(value) {
-    return new Date(value).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
-  }
+  $: chartWeights = weights
 
   function formatRecordedAt(value) {
     const date = new Date(value)
@@ -130,79 +110,13 @@
   <div class="row between">
     <div>
       <h3>体重趋势</h3>
-      <p class="muted small">按天统计 · 最近 {Math.min(weights.length, 30)} 天</p>
+      <p class="muted small">按天统计 · 共 {weights.length} 天，可拖动范围查看</p>
     </div>
     {#if latest}<span class="pill">最新 {Number(latest.kg).toFixed(2)} kg</span>{/if}
   </div>
-  {#if chartPoints.length}
+  {#if chartWeights.length}
     <div class="weight-chart-wrap">
-      <div class="weight-chart-canvas">
-        <svg
-          class="weight-chart"
-          viewBox="0 0 100 100"
-          role="img"
-          aria-label="体重折线图"
-          preserveAspectRatio="none"
-        >
-          <line x1="8" x2="92" y1="88" y2="88" stroke="#334752" stroke-width=".5" />
-          <line
-            x1="8"
-            x2="92"
-            y1="50"
-            y2="50"
-            stroke="#273942"
-            stroke-width=".4"
-            stroke-dasharray="1.5 2"
-          />
-          <line
-            x1="8"
-            x2="92"
-            y1="12"
-            y2="12"
-            stroke="#273942"
-            stroke-width=".4"
-            stroke-dasharray="1.5 2"
-          />
-          {#if chartPoints.length > 1}
-            <polygon
-              points={`${chartPoints[0].x},88 ${chartPoints.map((point) => `${point.x},${point.y}`).join(' ')} ${chartPoints[chartPoints.length - 1].x},88`}
-              fill="url(#weight-area)"
-            />
-            <polyline
-              points={chartPoints.map((point) => `${point.x},${point.y}`).join(' ')}
-              fill="none"
-              stroke="#b7f36a"
-              stroke-width="2"
-              vector-effect="non-scaling-stroke"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          {/if}
-          <defs>
-            <linearGradient id="weight-area" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#b7f36a" stop-opacity=".22" />
-              <stop offset="100%" stop-color="#b7f36a" stop-opacity="0" />
-            </linearGradient>
-          </defs>
-        </svg>
-        {#each chartPoints as point}
-          <span
-            class="weight-chart-point"
-            style={`left:${point.x}%;top:${point.y}%`}
-            title={`${formatDate(point.recordedAt)} · ${Number(point.kg).toFixed(2)} kg`}
-          ></span>
-        {/each}
-      </div>
-      <div class="chart-y-labels">
-        <span>{maxKg.toFixed(2)} kg</span>
-        <span>{((maxKg + minKg) / 2).toFixed(2)} kg</span>
-        <span>{minKg.toFixed(2)} kg</span>
-      </div>
-      <div class="chart-x-labels">
-        {#each chartTicks as tick}<span style={`left:${tick.x}%`}>
-            {formatDate(tick.recordedAt)}
-          </span>{/each}
-      </div>
+      <WeightLineChart points={chartWeights} />
     </div>
   {:else}<div class="empty">还没有体重记录，先添加今天的体重吧。</div>{/if}
 </section>
