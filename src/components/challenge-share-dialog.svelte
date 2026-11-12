@@ -280,10 +280,6 @@
     drawPoster()
   }
 
-  function posterBlob() {
-    return new Promise((resolve) => posterCanvas?.toBlob(resolve, 'image/png'))
-  }
-
   function posterFileName() {
     const now = new Date()
     const pad = (value) => String(value).padStart(2, '0')
@@ -293,8 +289,18 @@
     return `lian-ke-challenge-${timestamp}.png`
   }
 
+  function dataUrlBlob(dataUrl) {
+    const [header, encoded] = dataUrl.split(',', 2)
+    if (!header || !encoded) return null
+    const mime = header.match(/data:(.*?);base64/)?.[1] || 'image/png'
+    const binary = atob(encoded)
+    const bytes = new Uint8Array(binary.length)
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)
+    return new Blob([bytes], { type: mime })
+  }
+
   async function sharePoster() {
-    const blob = await posterBlob()
+    const blob = dataUrlBlob(posterUrl)
     if (!blob) {
       shareStatus = '海报还在生成，请稍后再试'
       return
@@ -339,11 +345,14 @@
   }
 
   function openPosterImage(action) {
-    const link = document.createElement('a')
-    link.href = posterUrl
-    link.target = '_blank'
-    link.rel = 'noopener'
-    link.click()
+    const popup = window.open(posterUrl, '_blank', 'noopener,noreferrer')
+    if (!popup) {
+      const link = document.createElement('a')
+      link.href = posterUrl
+      link.target = '_blank'
+      link.rel = 'noopener'
+      link.click()
+    }
     shareStatus = `已打开海报，请长按图片${action}到相册或通过系统菜单分享`
   }
 </script>
