@@ -1,5 +1,5 @@
 <script>
-  import { onMount, onDestroy } from 'svelte'
+  import { onMount, onDestroy, tick } from 'svelte'
   import {
     mk,
     uid,
@@ -38,6 +38,7 @@
   let unlockButton
   let focusHistoryEntry = false
   let releasingFocusHistory = false
+  let focusScrollStyles = null
   let selectionPlanId = ''
   let selectedItemIds = []
   let wasPausedBeforeEndConfirmation = true
@@ -102,10 +103,17 @@
     cancelUnlock()
     fullscreenRequestId += 1
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+    restorePageScrolling()
   })
   $: if (pageMounted) persistActiveSession(session)
   function enterFocus() {
     if (!focusMode) {
+      focusScrollStyles = {
+        htmlOverflow: document.documentElement.style.overflow,
+        bodyOverflow: document.body.style.overflow,
+        htmlTouchAction: document.documentElement.style.touchAction,
+        bodyTouchAction: document.body.style.touchAction,
+      }
       history.pushState({ ...(history.state || {}), trainingFocus: true }, '', window.location.href)
       focusHistoryEntry = true
     }
@@ -140,15 +148,29 @@
     cancelUnlock()
     fullscreenRequestId += 1
     focusMode = false
+    // Let Svelte remove the lock screen before leaving native fullscreen. On
+    // mobile browsers the old fixed touch surface can otherwise keep owning
+    // the gesture that should scroll the review page.
+    await tick()
     nativeFullscreenActive = false
     const pendingRequest = pendingFullscreenRequest
     if (pendingRequest) await pendingRequest.catch(() => {})
     if (document.fullscreenElement) await document.exitFullscreen().catch(() => {})
+    restorePageScrolling()
     if (focusHistoryEntry) {
       focusHistoryEntry = false
       releasingFocusHistory = true
       history.back()
     }
+  }
+
+  function restorePageScrolling() {
+    if (!focusScrollStyles) return
+    document.documentElement.style.overflow = focusScrollStyles.htmlOverflow
+    document.body.style.overflow = focusScrollStyles.bodyOverflow
+    document.documentElement.style.touchAction = focusScrollStyles.htmlTouchAction
+    document.body.style.touchAction = focusScrollStyles.bodyTouchAction
+    focusScrollStyles = null
   }
   function beginUnlock() {
     if (holding) return
