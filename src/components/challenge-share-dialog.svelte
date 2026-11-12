@@ -281,7 +281,7 @@
   }
 
   function posterBlob() {
-    return new Promise((resolve) => posterCanvas.toBlob(resolve, 'image/png'))
+    return new Promise((resolve) => posterCanvas?.toBlob(resolve, 'image/png'))
   }
 
   function posterFileName() {
@@ -295,9 +295,19 @@
 
   async function sharePoster() {
     const blob = await posterBlob()
-    if (!blob) return
+    if (!blob) {
+      shareStatus = '海报还在生成，请稍后再试'
+      return
+    }
     const file = new File([blob], posterFileName(), { type: 'image/png' })
-    if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+    let canShareFile = false
+    try {
+      canShareFile =
+        Boolean(navigator.share) && (!navigator.canShare || navigator.canShare({ files: [file] }))
+    } catch {
+      canShareFile = false
+    }
+    if (canShareFile) {
       try {
         await navigator.share({
           title: '我的挑战进度',
@@ -310,16 +320,31 @@
       }
       return
     }
-    downloadPoster()
-    shareStatus = '当前设备不支持直接分享，请使用“保存图片”'
+    openPosterImage('分享')
   }
 
   function downloadPoster() {
-    if (!posterUrl) return
+    if (!posterUrl) {
+      shareStatus = '海报还在生成，请稍后再试'
+      return
+    }
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      openPosterImage('保存')
+      return
+    }
     const link = document.createElement('a')
     link.href = posterUrl
     link.download = posterFileName()
     link.click()
+  }
+
+  function openPosterImage(action) {
+    const link = document.createElement('a')
+    link.href = posterUrl
+    link.target = '_blank'
+    link.rel = 'noopener'
+    link.click()
+    shareStatus = `已打开海报，请长按图片${action}到相册或通过系统菜单分享`
   }
 </script>
 

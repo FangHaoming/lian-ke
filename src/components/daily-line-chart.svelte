@@ -15,7 +15,7 @@
   const dispatch = createEventDispatcher()
 
   $: labels = points.map((point) => point.key.slice(5))
-  $: initialStart = points.length > 7 ? 100 - (7 / points.length) * 100 : 0
+  $: initialStart = 0
   $: if (chart && !disposed && Array.isArray(points) && Array.isArray(metrics)) renderChart()
 
   function renderChart() {

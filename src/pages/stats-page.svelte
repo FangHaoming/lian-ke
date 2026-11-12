@@ -131,7 +131,7 @@
   <div class="daily-chart-heading">
     <div>
       <h3>按天训练趋势</h3>
-      <p class="muted small">默认显示最近一周 · 支持横向滚动、双指缩放和折线图</p>
+      <p class="muted small">默认显示全部 · 支持横向滚动、双指缩放和折线图</p>
     </div>
     <div class="daily-chart-controls">
       <div class="chart-metric-switch" aria-label="选择统计指标">
