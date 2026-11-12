@@ -34,7 +34,6 @@
   function select(name) {
     value = name
     open = false
-    dispatch('value', value)
     dispatch('change', { value })
   }
 
@@ -61,15 +60,7 @@
   }
 </script>
 
-<div
-  class:open
-  class="unified-select exercise-name-picker"
-  bind:this={root}
-  on:focusin={() => {
-    open = true
-    showAll = true
-  }}
->
+<div class:open class="unified-select exercise-name-picker" bind:this={root}>
   <input
     {id}
     class="unified-input"
@@ -103,7 +94,6 @@
     on:input={() => {
       open = true
       showAll = false
-      dispatch('value', value)
     }}
     on:keydown={handleKeydown}
   />
