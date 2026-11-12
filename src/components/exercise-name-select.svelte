@@ -34,7 +34,7 @@
   function select(name) {
     value = name
     open = false
-    dispatch('input', value)
+    dispatch('value', value)
     dispatch('change', { value })
   }
 
@@ -103,7 +103,7 @@
     on:input={() => {
       open = true
       showAll = false
-      dispatch('input', value)
+      dispatch('value', value)
     }}
     on:keydown={handleKeydown}
   />
