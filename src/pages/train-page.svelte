@@ -82,10 +82,10 @@
     }
     reviewHydrated = true
     if (session) {
-      ticker = setInterval(tick, 150)
-      tick()
+      ticker = setInterval(updateTimer, 150)
+      updateTimer()
     }
-    document.addEventListener('visibilitychange', tick)
+    document.addEventListener('visibilitychange', updateTimer)
     window.addEventListener('beforeunload', persistSessionBeforeUnload)
     const onFullscreenChange = () => {
       nativeFullscreenActive = document.fullscreenElement === document.documentElement
@@ -93,7 +93,7 @@
     }
     document.addEventListener('fullscreenchange', onFullscreenChange)
     return () => {
-      document.removeEventListener('visibilitychange', tick)
+      document.removeEventListener('visibilitychange', updateTimer)
       window.removeEventListener('beforeunload', persistSessionBeforeUnload)
       document.removeEventListener('fullscreenchange', onFullscreenChange)
     }
@@ -251,7 +251,7 @@
     }
     finishingSet = false
     clearInterval(ticker)
-    ticker = setInterval(tick, 150)
+    ticker = setInterval(updateTimer, 150)
   }
   function isCountUp(item) {
     return item?.mode === 'time' && item.timerMode === 'up'
@@ -276,7 +276,7 @@
     start(items, plan.name, plan.id)
     selectAllPlanItems()
   }
-  function tick() {
+  function updateTimer() {
     if (!session || session.paused) return
     const now = Date.now()
     let delta = Math.max(0, (now - session.last) / 1000)
