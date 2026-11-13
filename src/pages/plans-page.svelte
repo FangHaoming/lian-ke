@@ -84,7 +84,10 @@
     editorHistoryEntry = true
   }
   function leaveEditor() {
-    const shouldGoBack = editorHistoryEntry
+    // A mobile back-swipe can consume the editor history entry before the
+    // local flag is updated. Only go back when the current browser entry is
+    // still the one created for this editor.
+    const shouldGoBack = editorHistoryEntry && history.state?.planEditor === true
     editing = null
     editorHistoryEntry = false
     if (shouldGoBack) {
