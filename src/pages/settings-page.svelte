@@ -19,6 +19,7 @@
     authenticate,
     syncData,
     loadSyncBaseline,
+    saveSyncBaseline,
     pendingSyncCounts,
     loadSyncSelection,
     saveSyncSelection,
@@ -61,6 +62,8 @@
     { value: 'challenges', label: '挑战成绩' },
   ]
   $: syncPreview = buildSyncPreview(data, syncSelection, syncBaseline)
+  $: allSyncSelected =
+    syncOptions.length > 0 && syncOptions.every((option) => syncSelection[option.value])
 
   function buildSyncPreview(currentData, selection, baseline) {
     const counts = pendingSyncCounts(currentData, baseline)
@@ -253,6 +256,7 @@
         data = result
       }
       if (direction === 'download' || direction === 'upload') {
+        saveSyncBaseline(direction === 'download' ? result : data, syncSelection)
         syncBaseline = loadSyncBaseline()
       }
       setStatus(syncStatus(direction, result), 'success')
@@ -284,6 +288,11 @@
       syncOptions.map((option) => [option.value, event.detail.includes(option.value)]),
     )
     saveSyncSelection(syncSelection)
+  }
+  function toggleAllSyncSelection() {
+    updateSyncSelection({
+      detail: allSyncSelected ? [] : syncOptions.map((option) => option.value),
+    })
   }
   function syncStatus(direction, result) {
     const details = []
@@ -432,8 +441,10 @@
       .filter((option) => syncSelection[option.value])
       .map((option) => option.value)}
     legend="同步内容"
+    actionChecked={allSyncSelected}
     disabled={busy}
     on:change={updateSyncSelection}
+    on:action={toggleAllSyncSelection}
   />
   {#if syncPreview.length}
     <div class="cloud-sync-preview" aria-live="polite">

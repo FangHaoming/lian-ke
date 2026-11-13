@@ -4,6 +4,7 @@
   export let options = []
   export let value = []
   export let legend = ''
+  export let actionChecked = false
   export let disabled = false
 
   const dispatch = createEventDispatcher()
@@ -17,7 +18,20 @@
 </script>
 
 <fieldset class="checkbox-group" {disabled}>
-  {#if legend}<legend>{legend}</legend>{/if}
+  {#if legend || actionChecked}
+    <legend>
+      <span>{legend}</span>
+      {#if legend}
+        <input
+          type="checkbox"
+          class="checkbox-group-action"
+          checked={actionChecked}
+          aria-label="全选同步内容"
+          on:change={() => dispatch('action')}
+        />
+      {/if}
+    </legend>
+  {/if}
   <div class="checkbox-group-options">
     {#each options as option}
       <label class="checkbox-group-option">
@@ -40,9 +54,21 @@
   }
 
   legend {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     margin-bottom: 9px;
     color: #a7b8c2;
     font-size: 13px;
+  }
+
+  .checkbox-group-action {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: #b7f36a;
+    cursor: pointer;
   }
 
   .checkbox-group-options {

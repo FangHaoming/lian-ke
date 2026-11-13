@@ -5,6 +5,7 @@ import {
   mergeSleepRecords,
   mergeTrainingRecords,
   pendingSyncCounts,
+  saveSyncBaseline,
 } from '../src/lib/cloud.js'
 import { challengeLevels } from '../src/lib/challenge-catalog.js'
 import { createAttempt } from '../src/lib/challenge-model.js'
@@ -75,6 +76,30 @@ test('sleep timestamps with equivalent formats are not treated as pending change
     ],
   }
   assert.equal(pendingSyncCounts(current, baseline).sleep, 0)
+})
+
+test('completed download baseline clears merged sleep records from pending sync', () => {
+  const previousStorage = globalThis.localStorage
+  const values = new Map()
+  globalThis.localStorage = {
+    getItem: (key) => values.get(key) || null,
+    setItem: (key, value) => values.set(key, value),
+  }
+  try {
+    const merged = {
+      sleepRecords: [
+        {
+          id: 'sleep-1',
+          asleepAt: '2026-11-12T18:25:00.000Z',
+          wakeAt: '2026-11-13T02:25:00.000Z',
+        },
+      ],
+    }
+    saveSyncBaseline(merged, { sleep: true })
+    assert.equal(pendingSyncCounts(merged).sleep, 0)
+  } finally {
+    globalThis.localStorage = previousStorage
+  }
 })
 
 test('incremental sync keeps local and remote training records', () => {

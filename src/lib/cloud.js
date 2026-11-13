@@ -109,7 +109,8 @@ export function saveSyncBaseline(data, selection = defaultSyncSelection) {
   const previous = loadSyncBaseline() || {}
   const next = { ...previous }
   for (const key of Object.keys(defaultSyncSelection)) {
-    if (selection[key]) next[key] = current[key]
+    const snapshotKey = key === 'sleep' ? 'sleepRecords' : key
+    if (selection[key]) next[snapshotKey] = current[snapshotKey]
   }
   localStorage.setItem(SYNC_BASELINE_KEY, JSON.stringify({ version: 1, data: next }))
 }
