@@ -72,6 +72,8 @@
     if (!posterCanvas || !posterData) return
     const canvas = posterCanvas
     const context = canvas.getContext('2d')
+    context.imageSmoothingEnabled = true
+    context.imageSmoothingQuality = 'high'
     const width = 720
     const height = 960
     const now = new Date()
@@ -105,7 +107,7 @@
     context.strokeStyle = '#3b5361'
     context.lineWidth = 1
     context.stroke()
-    if (posterLogoReady) context.drawImage(posterLogo, 60, 95, 34, 34)
+    if (posterLogoReady) context.drawImage(posterLogo, 57, 92, 40, 40)
     context.fillStyle = '#b7f36a'
     context.font = '800 24px system-ui, sans-serif'
     context.fillText('练刻', 116, 113)
@@ -345,14 +347,22 @@
   }
 
   function openPosterImage(action) {
-    const popup = window.open(posterUrl, '_blank', 'noopener,noreferrer')
+    const blob = dataUrlBlob(posterUrl)
+    const imageUrl = blob ? URL.createObjectURL(blob) : posterUrl
+    const popup = window.open('', '_blank')
     if (!popup) {
       const link = document.createElement('a')
-      link.href = posterUrl
+      link.href = imageUrl
       link.target = '_blank'
       link.rel = 'noopener'
+      document.body.appendChild(link)
       link.click()
+      link.remove()
+    } else {
+      popup.opener = null
+      popup.location.href = imageUrl
     }
+    if (blob) setTimeout(() => URL.revokeObjectURL(imageUrl), 60_000)
     shareStatus = `已打开海报，请长按图片${action}到相册或通过系统菜单分享`
   }
 </script>
@@ -417,10 +427,27 @@
         ></canvas>
         {#if posterUrl}<img src={posterUrl} alt="我的挑战进度海报" />{/if}
       </div>
-      <p class="muted small">海报会展示你的通关数、成就和当前挑战，不包含任何个人账号信息。</p>
+      <p class="muted small challenge-share-note">
+        <span class="challenge-share-desktop-note">
+          海报会展示你的通关数、成就和当前挑战，不包含任何个人账号信息。
+        </span>
+        <span class="challenge-share-mobile-note">长按图片保存到相册</span>
+      </p>
       <div class="row challenge-share-actions">
-        <button type="button" class="btn primary" on:click={sharePoster}>分享</button>
-        <button type="button" class="btn ghost" on:click={downloadPoster}>保存图片</button>
+        <button
+          type="button"
+          class="btn primary challenge-share-only-button"
+          on:click={sharePoster}
+        >
+          分享
+        </button>
+        <button
+          type="button"
+          class="btn ghost challenge-save-only-button"
+          on:click={downloadPoster}
+        >
+          保存图片
+        </button>
       </div>
       {#if shareStatus}<p class="challenge-share-status" role="status">{shareStatus}</p>{/if}
     </section>

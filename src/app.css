@@ -370,3 +370,6 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .sleep-chart-panel{margin-top:15px}.sleep-chart-heading{align-items:flex-start}.sleep-chart-heading h3{margin-bottom:5px}.sleep-chart-heading p{margin:0}.sleep-chart-wrap{padding:10px 0 0}
 .challenge-share-button{flex-shrink:0;margin-top:4px;white-space:nowrap}
 @media(max-width:480px){.challenge-share-button{margin-top:0;padding:9px 11px;font-size:11px}}
+@media(max-width:600px){.challenge-share-actions{grid-template-columns:1fr}.challenge-share-only-button{display:none}}
+.challenge-share-mobile-note{display:none}
+@media(max-width:600px){.challenge-share-desktop-note{display:none}.challenge-share-mobile-note{display:inline}.challenge-share-note{text-align:center}.challenge-share-actions{display:none}.challenge-save-only-button{display:none}}
