@@ -9,6 +9,7 @@
     evaluateAttempt,
     formatGoal,
     getRouteProgress,
+    getLatestCompletedChallenge,
     confirmTrainingEvaluation,
     rejectTrainingEvaluation,
     sideLabels,
@@ -95,18 +96,23 @@
   )
   $: masterCount = summaries.filter((item) => item.progress[9].completed).length
   $: eliteCount = summaries.filter((item) => item.progress[9].achieved.elite).length
+  $: latestCompleted = getLatestCompletedChallenge(challengeRoutes, attempts)
+  $: shareRoute = latestCompleted?.route || route
+  $: shareLevel = latestCompleted?.level || level
+  $: shareProgress = summaries.find((item) => item.route.id === shareRoute.id)?.progress || progress
+  $: shareSelected = shareProgress.find((item) => item.level.id === shareLevel.id) || selected
   $: sharePosterData = {
-    routeId,
-    levelId,
-    routeName: route.name,
-    routeCount: progress.filter((item) => item.completed).length,
+    routeId: shareRoute.id,
+    levelId: shareLevel.id,
+    routeName: shareRoute.name,
+    routeCount: shareProgress.filter((item) => item.completed).length,
     routes: summaries.map(({ route: routeItem, progress: routeProgress }) => ({
       name: routeItem.name,
       count: routeProgress.filter((item) => item.completed).length,
     })),
-    currentLevel: level.name,
-    level,
-    selected,
+    currentLevel: shareLevel.name,
+    level: shareLevel,
+    selected: shareSelected,
     stages,
     completedCount,
     masterCount,

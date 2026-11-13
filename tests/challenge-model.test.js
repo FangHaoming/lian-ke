@@ -12,6 +12,7 @@ import {
   normalizeChallenges,
   completionStage,
   snapshotLevel,
+  getLatestCompletedChallenge,
   appendTrainingEvaluation,
   confirmTrainingEvaluation,
   rejectTrainingEvaluation,
@@ -173,6 +174,17 @@ test('actions are independently challengeable and later passes infer earlier pro
   assert.equal(p[2].unlocked, true)
   assert.equal(getRouteProgress(challengeRoutes[1], state.attempts)[0].completed, false)
   assert.equal(getRouteProgress(challengeRoutes[1], state.attempts)[0].unlocked, true)
+})
+
+test('latest completed challenge follows the newest direct pass', () => {
+  const older = attempt(route.levels[0])
+  older.recordedAt = '2026-11-12T10:00:00.000Z'
+  const newer = attempt(route.levels[1])
+  newer.recordedAt = '2026-11-13T10:00:00.000Z'
+  const latest = getLatestCompletedChallenge(challengeRoutes, [older, newer])
+  assert.equal(latest.route.id, route.id)
+  assert.equal(latest.level.id, route.levels[1].id)
+  assert.equal(latest.attempt.id, newer.id)
 })
 
 test('all six final skills complete at beginner; elite is independent', () => {

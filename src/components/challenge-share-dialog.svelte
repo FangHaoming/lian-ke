@@ -8,7 +8,7 @@
   export let posterData
 
   const dispatch = createEventDispatcher()
-  let shareMode = 'overview'
+  let shareMode = 'level'
   let posterCanvas
   let posterUrl = ''
   let shareStatus = ''

@@ -225,6 +225,23 @@ export function getRouteProgress(route, attempts = []) {
   }))
 }
 
+export function getLatestCompletedChallenge(routes, attempts = []) {
+  let latest = null
+  for (const route of Array.isArray(routes) ? routes : []) {
+    for (const level of route.levels || []) {
+      for (const attempt of attempts.filter((item) => item.levelId === level.id)) {
+        if (!evaluateAttempt(level, attempt, completionStage(level)).passed) continue
+        const recordedAt = Date.parse(attempt.recordedAt)
+        if (!Number.isFinite(recordedAt)) continue
+        if (!latest || recordedAt > latest.recordedAt) {
+          latest = { route, level, attempt, recordedAt }
+        }
+      }
+    }
+  }
+  return latest
+}
+
 export function appendAttempt(state, attempt) {
   const normalized = normalizeChallenges(state, { strict: true })
   const valid = normalizeAttempt(attempt)
