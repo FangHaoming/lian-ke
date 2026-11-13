@@ -2,23 +2,70 @@
   import { sleepRecords as normalizeSleepRecords, uid } from '../lib/workout-model.js'
   import { showToast } from '../lib/toast.js'
   import { requestConfirm } from '../lib/confirm-dialog.js'
+  import SleepLineChart from '../components/sleep-line-chart.svelte'
 
   export let data
   let asleepAt = ''
   let wakeAt = ''
   let note = ''
   let editingId = ''
+  let chartMode = 'daily'
 
   $: records = normalizeSleepRecords(data.sleepRecords || [])
   $: completedRecords = records.filter((record) => record.asleepAt && record.wakeAt)
   $: latest = completedRecords[completedRecords.length - 1]
+  $: previous = completedRecords[completedRecords.length - 2]
   $: openRecord = [...records].reverse().find((record) => record.asleepAt && !record.wakeAt)
-  $: averageMinutes = completedRecords.length
-    ? Math.round(
-        completedRecords.reduce((sum, record) => sum + durationMinutes(record), 0) /
-          completedRecords.length,
-      )
-    : null
+  $: sleepChangeMinutes =
+    latest && previous ? durationMinutes(latest) - durationMinutes(previous) : null
+  $: chartPoints = buildChartPoints(completedRecords, chartMode)
+
+  function startOfWeek(date) {
+    const result = new Date(date)
+    const day = result.getDay()
+    result.setDate(result.getDate() + (day === 0 ? -6 : 1 - day))
+    result.setHours(0, 0, 0, 0)
+    return result
+  }
+
+  function formatShortDate(date) {
+    return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`
+  }
+
+  function formatMonth(date) {
+    return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}`
+  }
+
+  function buildChartPoints(items, mode) {
+    const groups = new Map()
+    items.forEach((record) => {
+      const wake = new Date(record.wakeAt)
+      if (Number.isNaN(wake.getTime())) return
+      const periodStart =
+        mode === 'weekly'
+          ? startOfWeek(wake)
+          : mode === 'monthly'
+            ? new Date(wake.getFullYear(), wake.getMonth(), 1)
+            : new Date(wake.getFullYear(), wake.getMonth(), wake.getDate())
+      const key = periodStart.toISOString()
+      const group = groups.get(key) || { periodStart, values: [] }
+      group.values.push(durationMinutes(record))
+      groups.set(key, group)
+    })
+    return [...groups.values()]
+      .sort((a, b) => a.periodStart - b.periodStart)
+      .map(({ periodStart, values }) => ({
+        recordedAt: periodStart.toISOString(),
+        minutes: values.reduce((sum, value) => sum + value, 0) / values.length,
+        label:
+          mode === 'weekly'
+            ? `周 ${formatShortDate(periodStart)}`
+            : mode === 'monthly'
+              ? formatMonth(periodStart)
+              : formatShortDate(periodStart),
+        period: mode === 'weekly' ? '周平均' : mode === 'monthly' ? '月平均' : '',
+      }))
+  }
 
   function toInputValue(value) {
     const date = new Date(value)
@@ -132,7 +179,6 @@
     <h1>睡眠记录</h1>
     <p class="muted">分别记录入睡和醒来时间，自动计算两者之间的睡眠时长。</p>
   </div>
-  <span class="pill">{completedRecords.length} 条完整记录</span>
 </div>
 
 <div class="sleep-summary grid">
@@ -141,8 +187,15 @@
     <strong>{latest ? formatDuration(durationMinutes(latest)) : '—'}</strong>
   </div>
   <div class="metric">
-    <span class="muted">平均睡眠</span>
-    <strong>{averageMinutes === null ? '—' : formatDuration(averageMinutes)}</strong>
+    <span class="muted">变化</span>
+    <strong
+      class:accent={sleepChangeMinutes !== null && sleepChangeMinutes >= 0}
+      class:orange={sleepChangeMinutes !== null && sleepChangeMinutes < 0}
+    >
+      {sleepChangeMinutes === null
+        ? '—'
+        : `${sleepChangeMinutes > 0 ? '+' : sleepChangeMinutes < 0 ? '-' : ''}${formatDuration(Math.abs(sleepChangeMinutes))}`}
+    </strong>
   </div>
   <div class="metric">
     <span class="muted">记录次数</span>
@@ -190,6 +243,37 @@
       <input type="text" maxlength="60" placeholder="自然醒 / 午睡" bind:value={note} />
     </label>
   </div>
+</section>
+
+<section class="panel sleep-chart-panel">
+  <div class="row between sleep-chart-heading">
+    <div>
+      <h3>睡眠趋势</h3>
+      <p class="muted small">
+        {chartMode === 'daily'
+          ? `按天统计 · 共 ${chartPoints.length} 天`
+          : chartMode === 'weekly'
+            ? `按周平均 · 共 ${chartPoints.length} 周`
+            : `按月平均 · 共 ${chartPoints.length} 月`}，可拖动范围查看
+      </p>
+    </div>
+    <div class="chart-metric-switch" aria-label="选择睡眠统计周期">
+      <button class:active={chartMode === 'daily'} on:click={() => (chartMode = 'daily')}>
+        按天
+      </button>
+      <button class:active={chartMode === 'weekly'} on:click={() => (chartMode = 'weekly')}>
+        周平均
+      </button>
+      <button class:active={chartMode === 'monthly'} on:click={() => (chartMode = 'monthly')}>
+        月平均
+      </button>
+    </div>
+  </div>
+  {#if chartPoints.length}
+    <div class="sleep-chart-wrap">
+      <SleepLineChart points={chartPoints} />
+    </div>
+  {:else}<div class="empty">还没有完整睡眠记录，先记录一次入睡和醒来时间吧。</div>{/if}
 </section>
 
 <section class="panel sleep-history-panel">

@@ -6,12 +6,59 @@
   let kg = ''
   let note = ''
   let error = ''
+  let chartMode = 'daily'
 
   $: weights = dailyWeights(data.weights || [])
   $: latest = weights[weights.length - 1]
   $: previous = weights[weights.length - 2]
   $: change = latest && previous ? Number(latest.kg) - Number(previous.kg) : null
-  $: chartWeights = weights
+  $: chartWeights =
+    chartMode === 'weekly'
+      ? averageWeights(weights, 'week')
+      : chartMode === 'monthly'
+        ? averageWeights(weights, 'month')
+        : weights
+
+  function startOfWeek(date) {
+    const result = new Date(date)
+    const day = result.getDay()
+    const offset = day === 0 ? -6 : 1 - day
+    result.setDate(result.getDate() + offset)
+    result.setHours(0, 0, 0, 0)
+    return result
+  }
+
+  function averageWeights(items, mode) {
+    const groups = new Map()
+    items.forEach((item) => {
+      const recordedAt = new Date(item.recordedAt)
+      if (Number.isNaN(recordedAt.getTime())) return
+      const periodStart =
+        mode === 'week'
+          ? startOfWeek(recordedAt)
+          : new Date(recordedAt.getFullYear(), recordedAt.getMonth(), 1)
+      const key = periodStart.toISOString()
+      const group = groups.get(key) || { periodStart, values: [] }
+      group.values.push(Number(item.kg))
+      groups.set(key, group)
+    })
+    return [...groups.values()]
+      .sort((a, b) => a.periodStart - b.periodStart)
+      .map(({ periodStart, values }) => ({
+        recordedAt: periodStart.toISOString(),
+        kg: values.reduce((sum, value) => sum + value, 0) / values.length,
+        label: mode === 'week' ? `周 ${formatShortDate(periodStart)}` : formatMonth(periodStart),
+        period: mode === 'week' ? '周平均' : '月平均',
+      }))
+  }
+
+  function formatShortDate(date) {
+    return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`
+  }
+
+  function formatMonth(date) {
+    return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}`
+  }
 
   function formatRecordedAt(value) {
     const date = new Date(value)
@@ -50,7 +97,6 @@
     <h1>体重记录</h1>
     <p class="muted">记录每天的体重变化，单位统一为 kg。</p>
   </div>
-  <span class="pill">{weights.length} 条记录</span>
 </div>
 
 <div class="weight-summary grid">
@@ -110,9 +156,27 @@
   <div class="row between">
     <div>
       <h3>体重趋势</h3>
-      <p class="muted small">按天统计 · 共 {weights.length} 天，可拖动范围查看</p>
+      <p class="muted small">
+        {chartMode === 'daily'
+          ? `按天统计 · 共 ${weights.length} 天`
+          : chartMode === 'weekly'
+            ? `按周平均 · 共 ${chartWeights.length} 周`
+            : `按月平均 · 共 ${chartWeights.length} 月`}，可拖动范围查看
+      </p>
     </div>
-    {#if latest}<span class="pill">最新 {Number(latest.kg).toFixed(2)} kg</span>{/if}
+    <div class="weight-chart-actions">
+      <div class="chart-metric-switch" aria-label="选择体重统计周期">
+        <button class:active={chartMode === 'daily'} on:click={() => (chartMode = 'daily')}>
+          按天
+        </button>
+        <button class:active={chartMode === 'weekly'} on:click={() => (chartMode = 'weekly')}>
+          周平均
+        </button>
+        <button class:active={chartMode === 'monthly'} on:click={() => (chartMode = 'monthly')}>
+          月平均
+        </button>
+      </div>
+    </div>
   </div>
   {#if chartWeights.length}
     <div class="weight-chart-wrap">

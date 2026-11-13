@@ -29,7 +29,7 @@
     const values = points.map((point) => Number(point.kg) || 0)
     const minKg = values.length ? Math.floor(Math.min(...values) - 1) : 0
     const maxKg = values.length ? Math.ceil(Math.max(...values) + 1) : 100
-    const labels = points.map((point) => formatDate(point.recordedAt))
+    const labels = points.map((point) => point.label || formatDate(point.recordedAt))
 
     chart.setOption(
       {
@@ -46,7 +46,7 @@
             const item = items?.[0]
             const point = points[item?.dataIndex]
             if (!item || !point) return ''
-            return `<b>${item.axisValue}</b><br/><span style="color:#b7f36a">●</span> 体重：<b>${Number(point.kg).toFixed(2)} kg</b>${point.note ? `<br/><span style="color:#aebfc7">${escape(point.note)}</span>` : ''}`
+            return `<b>${item.axisValue}</b>${point.period ? ` <span style="color:#aebfc7">${escape(point.period)}</span>` : ''}<br/><span style="color:#b7f36a">●</span> 体重：<b>${Number(point.kg).toFixed(2)} kg</b>${point.note ? `<br/><span style="color:#aebfc7">${escape(point.note)}</span>` : ''}`
           },
         },
         xAxis: {

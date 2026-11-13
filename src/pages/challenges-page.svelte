@@ -580,7 +580,9 @@
     <h1>每一步，都算进步</h1>
     <p class="muted">从第一式出发，走向你的最终技。一次只挑战眼前这一关。</p>
   </div>
-  <span class="challenge-local">● 本地保存 · 可同步远端</span>
+  <button type="button" class="btn primary challenge-share-button" on:click={openSharePoster}>
+    分享我的进度 ↗
+  </button>
 </section>
 
 <div class="challenge-metrics" aria-label="挑战成就">
@@ -609,14 +611,6 @@
     <strong>{attempts.length}</strong>
     <span>挑战记录</span>
   </div>
-</div>
-
-<div class="challenge-share-strip">
-  <div>
-    <strong>把进步分享给朋友</strong>
-    <span>生成一张专属于你的挑战进度海报</span>
-  </div>
-  <button type="button" class="btn primary" on:click={openSharePoster}>分享我的进度 ↗</button>
 </div>
 
 <div class="challenge-routes" aria-label="选择挑战路线">

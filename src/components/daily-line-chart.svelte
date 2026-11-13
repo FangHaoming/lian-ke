@@ -2,11 +2,7 @@
   import { createEventDispatcher, onDestroy, onMount } from 'svelte'
   import * as echarts from 'echarts/core'
   import { LineChart } from 'echarts/charts'
-  import {
-    DataZoomComponent,
-    GridComponent,
-    TooltipComponent,
-  } from 'echarts/components'
+  import { DataZoomComponent, GridComponent, TooltipComponent } from 'echarts/components'
   import { CanvasRenderer } from 'echarts/renderers'
 
   echarts.use([LineChart, DataZoomComponent, GridComponent, TooltipComponent, CanvasRenderer])
@@ -116,8 +112,6 @@
           type: 'value',
           min: 0,
           max: maxValue,
-          name: metrics.length === 1 && metrics[0] === 'minutes' ? '分钟' : '组',
-          nameTextStyle: { color: '#8b9ba5', padding: [0, 0, 0, 8] },
           splitNumber: 2,
           axisLine: { show: true, lineStyle: { color: '#344650' } },
           axisTick: { show: false },
