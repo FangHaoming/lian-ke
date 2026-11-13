@@ -63,7 +63,6 @@
   let celebrationFrame
   let celebrationParticles = []
   const celebrationColors = ['#b7f36a', '#f8d66d', '#ff8b7b', '#8ed8ff', '#d2a8ff']
-  const FLOATING_BUTTON_KEY = 'lianke_challenge_floating_button'
 
   $: attempts = data.challenges.attempts
   $: summaries = challengeRoutes.map((route) => ({
@@ -181,11 +180,6 @@
   }
 
   onMount(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(FLOATING_BUTTON_KEY) || 'null')
-      if (Number.isFinite(saved?.x) && Number.isFinite(saved?.y))
-        floatingPosition = clampFloatingPosition(saved.x, saved.y)
-    } catch {}
     const moveFloatingButton = (event) => {
       if (!floatingDrag) return
       const next = clampFloatingPosition(
@@ -199,8 +193,6 @@
     const finishFloatingDrag = () => {
       if (!floatingDrag) return
       const moved = floatingDrag.moved
-      if (floatingPosition)
-        localStorage.setItem(FLOATING_BUTTON_KEY, JSON.stringify(floatingPosition))
       floatingDrag = null
       if (moved) {
         suppressFloatingClick = true
@@ -212,7 +204,6 @@
       const next = clampFloatingPosition(floatingPosition.x, floatingPosition.y)
       if (next.x === floatingPosition.x && next.y === floatingPosition.y) return
       floatingPosition = next
-      localStorage.setItem(FLOATING_BUTTON_KEY, JSON.stringify(next))
     }
     window.addEventListener('pointermove', moveFloatingButton)
     window.addEventListener('pointerup', finishFloatingDrag)
