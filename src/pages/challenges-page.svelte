@@ -50,6 +50,8 @@
   let pendingLevel = null
   let shareOpen = false
   let quickStartOpen = false
+  let quickStartLevelId = ''
+  let quickStartLevelMenuOpen = false
   let floatingPosition = null
   let floatingDrag = null
   let suppressFloatingClick = false
@@ -74,6 +76,9 @@
   $: quickStartLevel = selected?.unlocked
     ? level
     : progress.find((item) => item.unlocked)?.level || level
+  $: quickStartTarget =
+    progress.find((item) => item.unlocked && item.level.id === quickStartLevelId)?.level ||
+    quickStartLevel
   $: stages = Object.keys(level.standards)
   $: allHistory = attempts.filter((item) => item.levelId === level.id).slice()
   $: history = allHistory
@@ -444,23 +449,29 @@
   }
 
   function openQuickStartPicker() {
+    quickStartLevelId = quickStartLevel.id
     quickStartOpen = true
   }
 
   function closeQuickStartPicker() {
+    quickStartLevelMenuOpen = false
     quickStartOpen = false
   }
 
+  function chooseQuickStartLevel(nextLevelId) {
+    quickStartLevelId = nextLevelId
+    quickStartLevelMenuOpen = false
+  }
+
   function startSelectedQuickChallenge(nextStage) {
+    quickStartLevelMenuOpen = false
     quickStartOpen = false
-    if (selected?.unlocked) {
-      startQuickChallenge(level, nextStage, routeId, levelId)
+    if (quickStartTarget?.id) {
+      const targetStage = quickStartTarget.standards[nextStage]
+        ? nextStage
+        : defaultStageFor(quickStartTarget)
+      startQuickChallenge(quickStartTarget, targetStage, routeId, quickStartTarget.id)
       return
-    }
-    const latest = [...progress].reverse().find((item) => item.unlocked)?.level
-    if (latest) {
-      const fallbackStage = latest.standards[nextStage] ? nextStage : defaultStageFor(latest)
-      startQuickChallenge(latest, fallbackStage, routeId, latest.id)
     }
   }
   async function confirmTrainingAttempt(attempt) {
@@ -866,21 +877,59 @@
           ×
         </button>
       </div>
-      <p class="muted small">
-        当前动作：{quickStartLevel.name}
-      </p>
+      <div class="challenge-start-current">
+        <span class="challenge-start-current-icon" aria-hidden="true">
+          <ExerciseIcon kind={route.id} size={32} />
+        </span>
+        <span class="challenge-start-current-copy">
+          <button
+            type="button"
+            class="challenge-start-level-trigger"
+            aria-haspopup="listbox"
+            aria-expanded={quickStartLevelMenuOpen}
+            on:click={() => (quickStartLevelMenuOpen = !quickStartLevelMenuOpen)}
+          >
+            <strong>{quickStartTarget.name}</strong>
+            <span aria-hidden="true">⌄</span>
+          </button>
+          {#if quickStartLevelMenuOpen}
+            <div class="challenge-start-level-menu" role="listbox" aria-label="选择挑战关卡">
+              {#each progress as state}
+                {#if state.unlocked}
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={quickStartTarget.id === state.level.id}
+                    class:active={quickStartTarget.id === state.level.id}
+                    on:click={() => chooseQuickStartLevel(state.level.id)}
+                  >
+                    <span class="challenge-start-level-number">
+                      {String(state.level.step).padStart(2, '0')}
+                    </span>
+                    <span>{state.level.name}</span>
+                    {#if quickStartTarget.id === state.level.id}<span aria-hidden="true">
+                        ✓
+                      </span>{/if}
+                  </button>
+                {/if}
+              {/each}
+            </div>
+          {/if}
+          <span>{route.name} · 第 {String(quickStartTarget.step).padStart(2, '0')} 关</span>
+        </span>
+      </div>
       <a
         class="btn ghost challenge-start-source-button"
-        href={sourceViewer(quickStartLevel.sourcePage, routeId, quickStartLevel.id)}
+        href={sourceViewer(quickStartTarget.sourcePage, routeId, quickStartTarget.id)}
       >
-        查看动作原文 · 第 {quickStartLevel.sourcePage} 页 ↗
+        查看动作原文 · 第 {quickStartTarget.sourcePage} 页 ↗
       </a>
       <div class="challenge-start-options">
         {#each stages as key}
           <button type="button" on:click={() => startSelectedQuickChallenge(key)}>
             <strong>{stageLabels[key]}</strong>
             <span>
-              {formatGoal(quickStartLevel, key)}
+              {formatGoal(quickStartTarget, key)}
             </span>
           </button>
         {/each}
