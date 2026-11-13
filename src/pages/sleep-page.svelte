@@ -105,15 +105,6 @@
     resetEditState()
   }
 
-  function cancelEdit() {
-    const record = records.find((item) => item.id === editingId)
-    if (record?.asleepAt && !record.wakeAt) {
-      data.sleepRecords = records.filter((item) => item.id !== editingId)
-      data = data
-    }
-    resetEditState()
-  }
-
   function resetEditState() {
     editingId = ''
     asleepAt = ''
@@ -198,9 +189,6 @@
       备注（可选）
       <input type="text" maxlength="60" placeholder="自然醒 / 午睡" bind:value={note} />
     </label>
-    {#if editingId}<button class="btn ghost sleep-cancel-button" on:click={cancelEdit}>
-        取消编辑
-      </button>{/if}
   </div>
 </section>
 

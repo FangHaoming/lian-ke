@@ -18,6 +18,8 @@
     saveCloudConfig,
     authenticate,
     syncData,
+    loadSyncBaseline,
+    pendingSyncCounts,
     loadSyncSelection,
     saveSyncSelection,
   } from '../lib/cloud.js'
@@ -33,6 +35,7 @@
   let deletePasswordError = ''
   let databaseStatus = '尚未检测'
   let syncSelection = loadSyncSelection()
+  let syncBaseline = loadSyncBaseline()
   $: if (status) {
     showToast(status, { type: statusType })
   }
@@ -57,6 +60,14 @@
     { value: 'sounds', label: '提示音' },
     { value: 'challenges', label: '挑战成绩' },
   ]
+  $: syncPreview = buildSyncPreview(data, syncSelection, syncBaseline)
+
+  function buildSyncPreview(currentData, selection, baseline) {
+    const counts = pendingSyncCounts(currentData, baseline)
+    return syncOptions
+      .filter((option) => selection[option.value])
+      .map((option) => ({ ...option, count: counts[option.value] }))
+  }
   onMount(() => {
     const onAuthChange = () => (session = cloudSession())
     const onOpenDeleteAccount = () => requestDeleteAccount()
@@ -241,6 +252,9 @@
       if (direction === 'download') {
         data = result
       }
+      if (direction === 'download' || direction === 'upload') {
+        syncBaseline = loadSyncBaseline()
+      }
       setStatus(syncStatus(direction, result), 'success')
     } catch (error) {
       setStatus(`同步失败：${error.message}`, 'error')
@@ -258,8 +272,8 @@
       title: '确认同步',
       message:
         direction === 'upload'
-          ? `将以本地数据为准，同步并覆盖当前账号的云端数据。\n同步内容：${selectedOptions.map((option) => option.label).join('、')}`
-          : `将用当前账号的云端数据替换本地同步数据。\n同步内容：${selectedOptions.map((option) => option.label).join('、')}`,
+          ? `将把本地新增或变更的数据合并到当前账号的云端。\n同步内容：${selectedOptions.map((option) => option.label).join('、')}`
+          : `将把当前账号云端新增或变更的数据合并到本地。\n同步内容：${selectedOptions.map((option) => option.label).join('、')}`,
       confirmText: '确认同步',
     }).then(({ confirmed }) => {
       if (confirmed) sync(direction)
@@ -276,23 +290,21 @@
     if (direction === 'upload') {
       if (syncSelection.plans) details.push(`${result.plans} 个计划`)
       if (syncSelection.records) details.push(`训练记录新增/更新 ${result.records} 条`)
-      if (syncSelection.weights)
-        details.push(`体重新增/更新 ${result.weights} 条、删除 ${result.deletedWeights} 条`)
-      if (syncSelection.sleep)
-        details.push(`睡眠新增/更新 ${result.sleep} 条、删除 ${result.deletedSleep} 条`)
+      if (syncSelection.weights) details.push(`体重新增/更新 ${result.weights} 条`)
+      if (syncSelection.sleep) details.push(`睡眠新增/更新 ${result.sleep} 条`)
       if (syncSelection.exerciseNames) details.push(`${result.names} 个动作`)
       if (syncSelection.sounds) details.push('提示音')
-      if (syncSelection.challenges) details.push(`挑战成绩 ${result.challenges} 条`)
+      if (syncSelection.challenges) details.push(`挑战成绩新增/更新 ${result.challenges} 条`)
       return `本地同步到远端成功：${details.join('；')}已同步`
     }
     if (syncSelection.plans) details.push(`${result.plans.length} 个计划`)
     if (syncSelection.records) details.push(`${result.records.length} 条记录`)
-    if (syncSelection.weights) details.push(`${result.weights.length} 条体重记录`)
+    if (syncSelection.weights) details.push(`${result.weights.length} 条体重记录（合并后）`)
     if (syncSelection.sleep) details.push(`${result.sleepRecords.length} 条睡眠记录`)
     if (syncSelection.exerciseNames) details.push(`${result.exerciseNames.length} 个动作`)
     if (syncSelection.sounds) details.push('提示音')
     if (syncSelection.challenges) details.push(`${result.challenges.attempts.length} 条挑战成绩`)
-    return `远端同步到本地成功：${details.join('、')}已同步`
+    return `远端增量合并到本地成功：${details.join('、')}`
   }
   function exportData() {
     const url = URL.createObjectURL(
@@ -423,6 +435,24 @@
     disabled={busy}
     on:change={updateSyncSelection}
   />
+  {#if syncPreview.length}
+    <div class="cloud-sync-preview" aria-live="polite">
+      <div class="cloud-sync-preview-heading">
+        <strong>本地待同步数据</strong>
+        <small>
+          {syncBaseline ? '与上次远端同步后的数据对比' : '尚无远端基线，暂按本地数据统计'}
+        </small>
+      </div>
+      <div class="cloud-sync-preview-list">
+        {#each syncPreview as item}
+          <span>
+            <b>{item.count}</b>
+            条{item.label}
+          </span>
+        {/each}
+      </div>
+    </div>
+  {/if}
   <div class="cloud-sync-actions">
     <button
       type="button"
@@ -433,7 +463,7 @@
       <span class="cloud-sync-icon" aria-hidden="true">↑</span>
       <span>
         <strong>本地同步到远端</strong>
-        <small>以本地数据为准，覆盖当前账号的云端数据</small>
+        <small>仅合并本地新增或变更的数据</small>
       </span>
     </button>
     <button
@@ -445,7 +475,7 @@
       <span class="cloud-sync-icon" aria-hidden="true">↓</span>
       <span>
         <strong>远端同步到本地</strong>
-        <small>用当前账号的云端数据替换本地同步数据</small>
+        <small>仅合并云端新增或变更的数据</small>
       </span>
     </button>
   </div>

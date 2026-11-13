@@ -11,6 +11,7 @@ import { appURL } from './config.js'
 const CONFIG_KEY = 'lianke_supabase_config'
 const SESSION_KEY = 'lianke_supabase_session'
 const SYNC_SELECTION_KEY = 'lianke_sync_selection'
+const SYNC_BASELINE_KEY = 'lianke_sync_baseline'
 const AUTH_REDIRECT_URL = import.meta.env?.VITE_AUTH_REDIRECT_URL || appURL('auth/callback')
 const defaultSyncSelection = {
   exerciseNames: true,
@@ -35,6 +36,133 @@ export function saveSyncSelection(selection) {
     SYNC_SELECTION_KEY,
     JSON.stringify({ ...defaultSyncSelection, ...selection }),
   )
+}
+
+function syncSnapshot(data) {
+  return {
+    exerciseNames: [
+      ...new Set((data.exerciseNames || []).filter((name) => name && !isChallengeExercise(name))),
+    ].sort(),
+    plans: data.plans || [],
+    records: completedRecords(data.records || []),
+    weights: dailyWeights(data.weights || []),
+    sleepRecords: canonicalSleepRecords(data.sleepRecords),
+    sounds: data.sounds || {},
+    challenges: normalizeChallenges(data.challenges),
+  }
+}
+
+function canonicalTime(value) {
+  const time = Date.parse(value || '')
+  return Number.isFinite(time) ? new Date(time).toISOString() : ''
+}
+
+function canonicalSleepRecords(items) {
+  return normalizeSleepRecords(items || [])
+    .filter((record) => record.asleepAt && record.wakeAt)
+    .map((record) => ({
+      id: record.id,
+      asleepAt: canonicalTime(record.asleepAt),
+      wakeAt: canonicalTime(record.wakeAt),
+      note: record.note || '',
+    }))
+}
+
+function stableValue(value) {
+  if (Array.isArray(value)) return value.map(stableValue)
+  if (value && typeof value === 'object')
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, stableValue(value[key])]),
+    )
+  return value
+}
+
+function stableJson(value) {
+  return JSON.stringify(stableValue(value))
+}
+
+function changedItemCount(currentItems, baselineItems, keyOf) {
+  const current = new Map(currentItems.map((item) => [keyOf(item), item]))
+  const baseline = new Map(baselineItems.map((item) => [keyOf(item), item]))
+  const keys = new Set([...current.keys(), ...baseline.keys()])
+  return [...keys].filter((key) => stableJson(current.get(key)) !== stableJson(baseline.get(key)))
+    .length
+}
+
+export function loadSyncBaseline() {
+  try {
+    const value = JSON.parse(localStorage.getItem(SYNC_BASELINE_KEY) || 'null')
+    if (value?.version !== 1 || !value.data) return null
+    return {
+      ...value.data,
+      sleepRecords: canonicalSleepRecords(value.data.sleepRecords),
+    }
+  } catch {
+    return null
+  }
+}
+
+export function saveSyncBaseline(data, selection = defaultSyncSelection) {
+  const current = syncSnapshot(data)
+  const previous = loadSyncBaseline() || {}
+  const next = { ...previous }
+  for (const key of Object.keys(defaultSyncSelection)) {
+    if (selection[key]) next[key] = current[key]
+  }
+  localStorage.setItem(SYNC_BASELINE_KEY, JSON.stringify({ version: 1, data: next }))
+}
+
+export function pendingSyncCounts(data, baseline = loadSyncBaseline()) {
+  const current = syncSnapshot(data)
+  if (!baseline)
+    return {
+      exerciseNames: current.exerciseNames.length,
+      plans: current.plans.length,
+      records: current.records.length,
+      weights: current.weights.length,
+      sleep: current.sleepRecords.length,
+      sounds: current.sounds ? 1 : 0,
+      challenges: current.challenges.attempts.length,
+    }
+  baseline = { ...baseline, sleepRecords: canonicalSleepRecords(baseline.sleepRecords) }
+  return {
+    exerciseNames:
+      baseline.exerciseNames === undefined
+        ? current.exerciseNames.length
+        : changedItemCount(current.exerciseNames, baseline.exerciseNames, (name) => name),
+    plans:
+      baseline.plans === undefined
+        ? current.plans.length
+        : changedItemCount(current.plans, baseline.plans, (plan) => plan.id || plan.name),
+    records:
+      baseline.records === undefined
+        ? current.records.length
+        : changedItemCount(current.records, baseline.records, (record) => record.id),
+    weights:
+      baseline.weights === undefined
+        ? current.weights.length
+        : changedItemCount(current.weights, baseline.weights, (weight) =>
+            dayKey(weight.recordedAt),
+          ),
+    sleep:
+      baseline.sleepRecords === undefined
+        ? current.sleepRecords.length
+        : changedItemCount(current.sleepRecords, baseline.sleepRecords, (record) => record.id),
+    sounds:
+      baseline.sounds === undefined || stableJson(current.sounds) !== stableJson(baseline.sounds)
+        ? 1
+        : 0,
+    challenges:
+      baseline.challenges === undefined
+        ? current.challenges.attempts.length
+        : changedItemCount(
+            current.challenges.attempts,
+            baseline.challenges.attempts || [],
+            (attempt) => attempt.id,
+          ),
+  }
 }
 
 export function cloudConfig() {
@@ -284,6 +412,68 @@ function sameTime(left, right) {
   return left === right || (left && right && Date.parse(left) === Date.parse(right))
 }
 
+function latestTime(...values) {
+  return Math.max(
+    0,
+    ...values.map((value) => {
+      const time = Date.parse(value || '')
+      return Number.isFinite(time) ? time : 0
+    }),
+  )
+}
+
+function mergeByKey(localItems, remoteItems, keyOf, timeOf) {
+  const merged = new Map()
+  for (const item of [...localItems, ...remoteItems]) {
+    const key = keyOf(item)
+    if (!key) continue
+    const previous = merged.get(key)
+    if (!previous || timeOf(item) >= timeOf(previous)) merged.set(key, item)
+  }
+  return [...merged.values()]
+}
+
+function trainingRecordKey(record) {
+  const timeKey = `${record.startedAt || ''}|${record.finishedAt || ''}`
+  return timeKey !== '|' ? `time:${timeKey}` : `id:${record.id || ''}`
+}
+
+export function mergeTrainingRecords(localRecords = [], remoteRecords = []) {
+  return completedRecords(
+    mergeByKey(localRecords, remoteRecords, trainingRecordKey, (record) =>
+      latestTime(record.finishedAt, record.startedAt),
+    ),
+  ).sort(
+    (left, right) =>
+      latestTime(left.finishedAt, left.startedAt) - latestTime(right.finishedAt, right.startedAt),
+  )
+}
+
+export function mergeSleepRecords(localRecords = [], remoteRecords = []) {
+  return normalizeSleepRecords(
+    mergeByKey(
+      localRecords,
+      remoteRecords,
+      (record) => record.id,
+      (record) => latestTime(record.wakeAt, record.asleepAt),
+    ),
+  )
+}
+
+export function mergeChallenges(localChallenges, remoteChallenges) {
+  const local = normalizeChallenges(localChallenges)
+  const remote = normalizeChallenges(remoteChallenges)
+  return normalizeChallenges({
+    version: 1,
+    attempts: mergeByKey(
+      local.attempts,
+      remote.attempts,
+      (attempt) => attempt.id,
+      (attempt) => latestTime(attempt.recordedAt),
+    ),
+  })
+}
+
 async function readCloudData(api, selection = defaultSyncSelection) {
   const user = `user_id=eq.${encodeURIComponent(api.userId)}`
   const [names, plans, records, weights, sleep, settings, challengeAttempts] = await Promise.all([
@@ -404,7 +594,7 @@ async function readCloudData(api, selection = defaultSyncSelection) {
         wakeAt: item.wake_at,
         note: item.note || '',
       })),
-    ),
+    ).filter((record) => record.asleepAt && record.wakeAt),
     sounds: { ...defaults().sounds, ...(settings[0]?.sounds || {}) },
     challenges: normalizeChallenges({
       version: 1,
@@ -468,7 +658,9 @@ async function uploadCloudData(api, data, selection) {
       : [],
   ])
   const weights = dailyWeights(data.weights || [])
-  const localSleepRecords = normalizeSleepRecords(data.sleepRecords || [])
+  const localSleepRecords = normalizeSleepRecords(data.sleepRecords || []).filter(
+    (record) => record.asleepAt && record.wakeAt,
+  )
   const planIds = new Map()
   const usedPlanIds = new Set()
   for (const plan of data.plans || []) {
@@ -682,28 +874,19 @@ async function uploadCloudData(api, data, selection) {
     note: attempt.note || null,
     snapshot: attempt.snapshot,
   }))
+  const oldChallengeById = new Map(oldChallenges.map((attempt) => [attempt.id, attempt]))
+  const changedChallengeRows = challengeRows.filter((row) => {
+    const previous = oldChallengeById.get(row.id)
+    return (
+      !previous ||
+      JSON.stringify({ ...previous, user_id: undefined }) !==
+        JSON.stringify({ ...row, user_id: undefined })
+    )
+  })
   if (selection.challenges) {
-    await insertRows(api, 'challenge_attempts', challengeRows, 'on_conflict=id')
-    const localChallengeIds = new Set(challengeRows.map((row) => row.id))
-    const staleChallengeIds = oldChallenges
-      .filter((row) => !localChallengeIds.has(row.id))
-      .map((row) => row.id)
-    if (staleChallengeIds.length)
-      await deleteRows(api, 'challenge_attempts', inQuery('id', staleChallengeIds))
+    await insertRows(api, 'challenge_attempts', changedChallengeRows, 'on_conflict=id')
   }
 
-  const localDays = new Set(weightRows.map((item) => item.recorded_on))
-  const staleWeightIds = oldWeights
-    .filter((row) => !localDays.has(row.recorded_on))
-    .map((row) => row.id)
-  if (selection.weights && staleWeightIds.length)
-    await deleteRows(api, 'body_weights', inQuery('id', staleWeightIds))
-  const localSleepIds = new Set(sleepRows.map((record) => record.id))
-  const staleSleepIds = oldSleepRecords
-    .filter((record) => !localSleepIds.has(record.id))
-    .map((record) => record.id)
-  if (selection.sleep && staleSleepIds.length)
-    await deleteRows(api, 'sleep_records', inQuery('id', staleSleepIds))
   const stalePlanIds = oldPlans.filter((row) => !usedPlanIds.has(row.id)).map((row) => row.id)
   if (selection.plans && stalePlanIds.length)
     await deleteRows(api, 'plans', inQuery('id', stalePlanIds))
@@ -722,12 +905,12 @@ async function uploadCloudData(api, data, selection) {
     plans: selection.plans ? data.plans?.length || 0 : 0,
     records: selection.records ? changedRecords : 0,
     weights: selection.weights ? changedWeights.length : 0,
-    deletedWeights: selection.weights ? staleWeightIds.length : 0,
+    deletedWeights: 0,
     sleep: selection.sleep ? changedSleepRecords.length : 0,
-    deletedSleep: selection.sleep ? staleSleepIds.length : 0,
+    deletedSleep: 0,
     names: selection.exerciseNames ? names.length : 0,
     sounds: selection.sounds ? Object.keys(sounds).length : 0,
-    challenges: selection.challenges ? challengeRows.length : 0,
+    challenges: selection.challenges ? changedChallengeRows.length : 0,
   }
 }
 
@@ -735,7 +918,9 @@ export async function syncData(direction, localData, selection = defaultSyncSele
   selection = { ...defaultSyncSelection, ...selection }
   const api = await client()
   if (direction === 'upload') {
-    return uploadCloudData(api, localData, selection)
+    const result = await uploadCloudData(api, localData, selection)
+    saveSyncBaseline(localData, selection)
+    return result
   }
   const remote = await readCloudData(api, selection)
   const selected = selection.plans
@@ -743,17 +928,25 @@ export async function syncData(direction, localData, selection = defaultSyncSele
       ? localData.selected
       : remote.plans[0]?.id || null
     : localData.selected
-  return {
+  const nextData = {
     ...localData,
     ...(selection.exerciseNames && { exerciseNames: remote.exerciseNames }),
     ...(selection.plans && { plans: remote.plans }),
-    ...(selection.records && { records: remote.records }),
-    ...(selection.weights && { weights: remote.weights }),
-    ...(selection.sleep && { sleepRecords: remote.sleepRecords }),
+    ...(selection.records && { records: mergeTrainingRecords(localData.records, remote.records) }),
+    ...(selection.weights && {
+      weights: dailyWeights([...(localData.weights || []), ...remote.weights]),
+    }),
+    ...(selection.sleep && {
+      sleepRecords: mergeSleepRecords(localData.sleepRecords, remote.sleepRecords),
+    }),
     ...(selection.sounds && { sounds: remote.sounds }),
-    ...(selection.challenges && { challenges: remote.challenges }),
+    ...(selection.challenges && {
+      challenges: mergeChallenges(localData.challenges, remote.challenges),
+    }),
     selected,
   }
+  saveSyncBaseline(nextData, selection)
+  return nextData
 }
 
 export async function syncNames(direction, localNames) {
