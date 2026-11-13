@@ -849,12 +849,12 @@
     style={floatingPosition
       ? `left:${floatingPosition.x}px;top:${floatingPosition.y}px;right:auto;bottom:auto;`
       : ''}
-    aria-label="拖动或点击快速开始挑战"
+    aria-label="拖动或点击开始挑战"
     on:pointerdown={beginFloatingDrag}
     on:click={startFloatingChallenge}
   >
     <span aria-hidden="true">⚑</span>
-    快速开始挑战
+    开始挑战
   </button>
 {/if}
 
