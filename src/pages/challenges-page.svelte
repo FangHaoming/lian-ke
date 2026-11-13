@@ -631,13 +631,17 @@
       on:click={() => chooseRoute(item)}
     >
       <div class="challenge-route-top">
-        <span class="challenge-route-icon"><ExerciseIcon kind={item.id} size={24} /></span>
+        <div class="challenge-route-heading">
+          <span class="challenge-route-icon">
+            <ExerciseIcon kind={item.id} step={next?.level.step || 1} size={60} />
+          </span>
+          <strong>{item.name}</strong>
+        </div>
         <span class="challenge-route-count">
           {count}
           <small>/ 10</small>
         </span>
       </div>
-      <strong>{item.name}</strong>
       <span class="challenge-route-subtitle">{item.subtitle}</span>
       <div class="challenge-mini-progress" aria-hidden="true">
         <span style={`width:${count * 10}%`}></span>
@@ -679,6 +683,9 @@
                 {String(state.level.step).padStart(2, '0')}
               {/if}
             </span>
+            <span class="challenge-step-icon" aria-hidden="true">
+              <ExerciseIcon kind={route.id} step={state.level.step} size={42} />
+            </span>
             <span class="challenge-step-text">
               <strong>{state.level.name}</strong>
               <small>
@@ -702,7 +709,12 @@
           {level.unilateral ? '左右侧分别达标' : level.mode === 'time' ? '连续保持' : '双侧动作'}
         </span>
       </div>
-      <h2 class="challenge-level-title" tabindex="-1" bind:this={detailHeading}>{level.name}</h2>
+      <div class="challenge-level-heading">
+        <span class="challenge-level-icon" aria-hidden="true">
+          <ExerciseIcon kind={route.id} step={level.step} size={52} />
+        </span>
+        <h2 class="challenge-level-title" tabindex="-1" bind:this={detailHeading}>{level.name}</h2>
+      </div>
       <p class="challenge-english">{level.englishName}</p>
       <div class="challenge-objective">
         <span>{level.step === 10 ? '最终技达成标准' : '本关通关标准'}</span>
@@ -879,7 +891,7 @@
       </div>
       <div class="challenge-start-current">
         <span class="challenge-start-current-icon" aria-hidden="true">
-          <ExerciseIcon kind={route.id} size={32} />
+          <ExerciseIcon kind={route.id} step={quickStartTarget.step} size={50} />
         </span>
         <span class="challenge-start-current-copy">
           <button
