@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte'
   import { defaults, normalizeActiveSession } from './lib/workout-model.js'
-  import { loadData, saveData } from './lib/data.js'
+  import { loadDataAsync, saveData } from './lib/data.js'
   import { consumeAuthCallback, cloudSession, signOut } from './lib/cloud.js'
   import AuthCallbackPage from './pages/auth-callback-page.svelte'
   import SourceViewerPage from './pages/source-viewer-page.svelte'
@@ -32,6 +32,7 @@
   let accountSession = cloudSession()
   let pendingTab = null
   let sessionPersistTimer
+  let dataSaveTimer
   const ACTIVE_SESSION_KEY = 'lianke_active_training_session'
 
   const seo = {
@@ -282,10 +283,10 @@
         wakeLockPending = false
       })
   }
-  onMount(() => {
+  onMount(async () => {
     sidebarOpen = window.innerWidth > 760
     restoreGithubPagesRoute()
-    data = loadData()
+    data = await loadDataAsync()
     restoreActiveSession()
     authCallback = isAuthCallbackLocation()
     sourceViewer = isSourceViewerLocation()
@@ -357,7 +358,10 @@
       if (wakeLock) void wakeLock.release().catch(() => {})
     }
   })
-  $: if (ready) saveData(data)
+  $: if (ready) {
+    clearTimeout(dataSaveTimer)
+    dataSaveTimer = setTimeout(() => void saveData(data), 150)
+  }
   $: if (ready) persistActiveSession(session)
   $: if (ready) syncWakeLock(Boolean(session && !session.paused))
   $: if (ready && !authCallback && !sourceViewer) void loadPageComponent(tab)

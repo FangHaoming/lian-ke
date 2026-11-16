@@ -22,6 +22,8 @@ const defaultSyncSelection = {
   sounds: true,
   challenges: true,
 }
+const SYNC_PAGE_SIZE = 100
+const RELATED_ID_BATCH_SIZE = 100
 
 export function loadSyncSelection() {
   try {
@@ -359,16 +361,27 @@ async function request(api, url, options = {}) {
 
 async function readRows(api, table, query = '') {
   const rows = []
-  for (let offset = 0; ; offset += 500) {
+  for (let offset = 0; ; offset += SYNC_PAGE_SIZE) {
     const response = await request(
       api,
-      `${api.endpoint}/${table}?${query}${query ? '&' : ''}limit=500&offset=${offset}`,
+      `${api.endpoint}/${table}?${query}${query ? '&' : ''}limit=${SYNC_PAGE_SIZE}&offset=${offset}`,
     )
     if (!response.ok) throw Error(`${table} 读取失败 HTTP ${response.status}`)
     const page = await response.json()
     rows.push(...page)
-    if (page.length < 500) return rows
+    if (page.length < SYNC_PAGE_SIZE) return rows
   }
+}
+
+async function readRowsByIds(api, table, field, ids, query = '') {
+  const rows = []
+  for (let index = 0; index < ids.length; index += RELATED_ID_BATCH_SIZE) {
+    const batch = ids.slice(index, index + RELATED_ID_BATCH_SIZE)
+    rows.push(
+      ...(await readRows(api, table, `${inQuery(field, batch)}${query ? `&${query}` : ''}`)),
+    )
+  }
+  return rows
 }
 
 async function insertRows(api, table, rows, query = '') {
@@ -508,23 +521,21 @@ async function readCloudData(api, selection = defaultSyncSelection) {
   ])
   const [items, sets] = await Promise.all([
     plans.length
-      ? readRows(
+      ? readRowsByIds(
           api,
           'plan_items',
-          `${inQuery(
-            'plan_id',
-            plans.map((plan) => plan.id),
-          )}&select=id,plan_id,exercise_name,mode,sets,reps,duration,weight,rest,sort_order&order=sort_order,id`,
+          'plan_id',
+          plans.map((plan) => plan.id),
+          'select=id,plan_id,exercise_name,mode,sets,reps,duration,weight,rest,sort_order&order=sort_order,id',
         )
       : [],
     records.length
-      ? readRows(
+      ? readRowsByIds(
           api,
           'training_sets',
-          `${inQuery(
-            'record_id',
-            records.map((record) => record.id),
-          )}&select=record_id,exercise_name,set_index,sort_order,mode,completed,target_reps,target_seconds,planned_weight,planned_rest,actual_reps,actual_weight,actual_seconds&order=sort_order.nullslast,set_index,id`,
+          'record_id',
+          records.map((record) => record.id),
+          'select=record_id,exercise_name,set_index,sort_order,mode,completed,target_reps,target_seconds,planned_weight,planned_rest,actual_reps,actual_weight,actual_seconds&order=sort_order.nullslast,set_index,id',
         )
       : [],
   ])
@@ -638,23 +649,21 @@ async function uploadCloudData(api, data, selection) {
     ])
   const [oldItems, oldSets] = await Promise.all([
     oldPlans.length
-      ? readRows(
+      ? readRowsByIds(
           api,
           'plan_items',
-          `${inQuery(
-            'plan_id',
-            oldPlans.map((row) => row.id),
-          )}&select=plan_id,exercise_name,mode,sets,reps,duration,weight,rest,sort_order`,
+          'plan_id',
+          oldPlans.map((row) => row.id),
+          'select=plan_id,exercise_name,mode,sets,reps,duration,weight,rest,sort_order',
         )
       : [],
     oldRecords.length
-      ? readRows(
+      ? readRowsByIds(
           api,
           'training_sets',
-          `${inQuery(
-            'record_id',
-            oldRecords.map((row) => row.id),
-          )}&select=record_id,exercise_name,set_index,sort_order,mode,completed,target_reps,target_seconds,planned_weight,planned_rest,actual_reps,actual_weight,actual_seconds&order=sort_order.nullslast,set_index,id`,
+          'record_id',
+          oldRecords.map((row) => row.id),
+          'select=record_id,exercise_name,set_index,sort_order,mode,completed,target_reps,target_seconds,planned_weight,planned_rest,actual_reps,actual_weight,actual_seconds&order=sort_order.nullslast,set_index,id',
         )
       : [],
   ])

@@ -2,6 +2,7 @@
   import { onMount } from 'svelte'
   import { defaults, completedRecords } from '../lib/workout-model.js'
   import { normalizeChallenges } from '../lib/challenge-model.js'
+  import { requestPersistentStorage } from '../lib/data.js'
   import initSql from '../lib/init.sql?raw'
   import { playSound } from '../lib/sound.js'
   import Select from '../components/select.svelte'
@@ -120,7 +121,12 @@
       await authenticate(action, email.trim(), password)
       session = cloudSession()
       notifyAuthChange()
-      setStatus(action === 'signup' ? '注册成功，请检查邮箱' : '登录成功', 'success')
+      if (action === 'signup') {
+        setStatus('注册成功，请检查邮箱', 'success')
+        return
+      }
+      await requestPersistentStorage()
+      setStatus('登录成功', 'success')
     } catch (error) {
       setStatus(error.message, 'error')
     }
@@ -259,6 +265,7 @@
         saveSyncBaseline(direction === 'download' ? result : data, syncSelection)
         syncBaseline = loadSyncBaseline()
       }
+      await requestPersistentStorage()
       setStatus(syncStatus(direction, result), 'success')
     } catch (error) {
       setStatus(`同步失败：${error.message}`, 'error')
