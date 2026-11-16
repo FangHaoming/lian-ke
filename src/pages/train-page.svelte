@@ -202,6 +202,22 @@
   function beginUnlock() {
     unlockGesture.start()
   }
+  function handleUnlockPointerDown(event) {
+    event.preventDefault()
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    beginUnlock()
+  }
+  function handleUnlockPointerUp(event) {
+    event.preventDefault()
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    unlockGesture.release()
+  }
+  function handleUnlockPointerCancel(event) {
+    if (event.pointerId != null && event.currentTarget.hasPointerCapture?.(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    cancelUnlock()
+  }
   function cancelUnlock() {
     unlockGesture.cancel()
   }
@@ -642,16 +658,12 @@
             bind:this={unlockButton}
             class="unlock-hold"
             class:is-holding={holding}
-            on:pointerdown|preventDefault={beginUnlock}
-            on:pointerup={(event) => {
-              if (event.pointerType !== 'touch') unlockGesture.release()
-            }}
-            on:pointercancel={cancelUnlock}
-            on:pointerleave={cancelUnlock}
+            on:pointerdown={handleUnlockPointerDown}
+            on:pointerup={handleUnlockPointerUp}
+            on:pointercancel={handleUnlockPointerCancel}
             on:touchstart|preventDefault
             on:touchmove|preventDefault
-            on:touchend|preventDefault={() => unlockGesture.release()}
-            on:touchcancel|preventDefault={cancelUnlock}
+            on:touchcancel|preventDefault={handleUnlockPointerCancel}
             on:keydown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault()
