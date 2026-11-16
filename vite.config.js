@@ -14,6 +14,7 @@ export default defineConfig({
       input: {
         main: resolve(projectRoot, 'index.html'),
         challenges: resolve(projectRoot, 'challenges/index.html'),
+        share: resolve(projectRoot, 'share/index.html'),
       },
     },
   },
