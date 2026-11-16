@@ -19,6 +19,7 @@
   import { appendTrainingEvaluation, isChallengeExercise } from '../lib/challenge-model.js'
   import { challengeLevels } from '../lib/challenge-catalog.js'
   import { appPath } from '../lib/config.js'
+  import { createHoldToRelease } from '../lib/hold-to-release.js'
   import PlansPage from './plans-page.svelte'
   export let data
   export let quickItems
@@ -34,7 +35,14 @@
   let fullscreenRequestId = 0
   let pendingFullscreenRequest = null
   let holding = false
-  let unlockTimer
+  let unlockReady = false
+  const unlockGesture = createHoldToRelease({
+    onChange: (active, ready) => {
+      holding = active
+      unlockReady = ready
+    },
+    onComplete: () => void exitFocus(),
+  })
   let unlockButton
   let focusHistoryEntry = false
   let releasingFocusHistory = false
@@ -108,6 +116,7 @@
   })
   $: if (pageMounted) persistActiveSession(session)
   function enterFocus() {
+    if (focusExitPromise) return
     if (!focusMode) {
       focusScrollStyles = {
         htmlOverflow: document.documentElement.style.overflow,
@@ -191,16 +200,10 @@
     focusScrollStyles = null
   }
   function beginUnlock() {
-    if (holding) return
-    holding = true
-    unlockTimer = setTimeout(() => {
-      holding = false
-      exitFocus()
-    }, 1200)
+    unlockGesture.start()
   }
   function cancelUnlock() {
-    clearTimeout(unlockTimer)
-    holding = false
+    unlockGesture.cancel()
   }
   function persistReviewDraft() {
     try {
@@ -580,153 +583,157 @@
     </div>
   </section>
 {:else if session && current}
-  <div class:training-focus={focusMode} class="training-session">
-    {#if focusMode}
-      <div
-        class="training-lock-screen"
-        role="dialog"
-        aria-modal="true"
-        aria-label="训练防误触锁屏"
-        on:contextmenu|preventDefault
-        on:selectstart|preventDefault
-      >
-        <div class="row between training-lock-top">
-          <span class="pill">防误触已开启</span>
-          <span class="muted small">第 {session.index + 1} / {session.queue.length} 组</span>
-        </div>
-        <div class="training-lock-center">
-          <div class="muted">
-            {session.phase === 'prep'
-              ? '准备开始'
-              : session.phase === 'rest'
-                ? '组间休息'
-                : '正在训练'}
-          </div>
-          <h1>{current.name} · 第 {current.setIndex} 组</h1>
-          <div class="training-target">{targetDescription(current)}</div>
-          <div
-            class="clock"
-            class:orange={session.phase !== 'work'}
-            class:accent={session.phase === 'work'}
-          >
-            {fmt(
-              session.phase === 'work' && (current.mode === 'reps' || isCountUp(current))
-                ? session.elapsed
-                : Math.ceil(session.remaining),
-            )}
-          </div>
-          <div class="muted">
-            {session.paused
-              ? '已暂停'
-              : session.phase === 'work' && (current.mode === 'reps' || isCountUp(current))
-                ? '正计时'
-                : '倒计时'}
-          </div>
-          <div class="progress">
-            <div style={`width:${(session.results.length / session.queue.length) * 100}%`}></div>
-          </div>
-          <div class="muted small">已完成 {session.results.length} / {session.queue.length} 组</div>
-        </div>
-        <button
-          bind:this={unlockButton}
-          class="unlock-hold"
-          class:is-holding={holding}
-          on:pointerdown|preventDefault={beginUnlock}
-          on:pointerup={cancelUnlock}
-          on:pointercancel={cancelUnlock}
-          on:pointerleave={cancelUnlock}
-          on:keydown={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault()
-              beginUnlock()
-            }
-          }}
-          on:keyup={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') cancelUnlock()
-          }}
-          on:blur={cancelUnlock}
-          on:contextmenu={(event) => event.preventDefault()}
+  {#key focusMode}
+    <div class:training-focus={focusMode} class="training-session">
+      {#if focusMode}
+        <div
+          class="training-lock-screen"
+          role="dialog"
+          aria-modal="true"
+          aria-label="训练防误触锁屏"
+          on:contextmenu|preventDefault
           on:selectstart|preventDefault
-          on:dragstart|preventDefault
         >
-          长按退出防误触
-        </button>
-      </div>
-    {:else}
-      <section class="panel">
-        <div class="row between">
-          <span class="pill">
-            {session.phase === 'prep'
-              ? '准备开始'
-              : session.phase === 'rest'
-                ? '组间休息'
-                : '正在训练'}
-          </span>
-          <span class="muted small">第 {session.index + 1} / {session.queue.length} 组</span>
-        </div>
-        <div class="timer">
-          <div class="muted">{current.name} · 第 {current.setIndex} 组</div>
-          <div class="training-target">{targetDescription(current)}</div>
-          <div
-            class="clock"
-            class:orange={session.phase !== 'work'}
-            class:accent={session.phase === 'work'}
-          >
-            {fmt(
-              session.phase === 'work' && (current.mode === 'reps' || isCountUp(current))
-                ? session.elapsed
-                : Math.ceil(session.remaining),
-            )}
+          <div class="row between training-lock-top">
+            <span class="pill">防误触已开启</span>
+            <span class="muted small">第 {session.index + 1} / {session.queue.length} 组</span>
           </div>
-          <div class="muted">
-            {session.paused
-              ? '已暂停'
-              : session.phase === 'work' && (current.mode === 'reps' || isCountUp(current))
-                ? '正计时 · 手动结束本组'
-                : '倒计时'}
+          <div class="training-lock-center">
+            <div class="muted">
+              {session.phase === 'prep'
+                ? '准备开始'
+                : session.phase === 'rest'
+                  ? '组间休息'
+                  : '正在训练'}
+            </div>
+            <h1>{current.name} · 第 {current.setIndex} 组</h1>
+            <div class="training-target">{targetDescription(current)}</div>
+            <div
+              class="clock"
+              class:orange={session.phase !== 'work'}
+              class:accent={session.phase === 'work'}
+            >
+              {fmt(
+                session.phase === 'work' && (current.mode === 'reps' || isCountUp(current))
+                  ? session.elapsed
+                  : Math.ceil(session.remaining),
+              )}
+            </div>
+            <div class="muted">
+              {session.paused
+                ? '已暂停'
+                : session.phase === 'work' && (current.mode === 'reps' || isCountUp(current))
+                  ? '正计时'
+                  : '倒计时'}
+            </div>
+            <div class="progress">
+              <div style={`width:${(session.results.length / session.queue.length) * 100}%`}></div>
+            </div>
+            <div class="muted small">
+              已完成 {session.results.length} / {session.queue.length} 组
+            </div>
           </div>
-          {#if !session.paused && !screenAwake}<div class="muted small" style="margin-top:8px">
-              请保持屏幕亮起；息屏后浏览器可能延迟提示音。
-            </div>{/if}
-          <div class="progress">
-            <div style={`width:${(session.results.length / session.queue.length) * 100}%`}></div>
-          </div>
-        </div>
-        <div class="row" style="justify-content:center">
-          <button class="btn ghost" on:click={enterFocus}>开启防误触</button>
           <button
-            class="btn ghost"
-            on:click={() => {
-              session.paused = !session.paused
-              session.last = Date.now()
-              if (!session.paused) prepareSound()
-              session = session
+            bind:this={unlockButton}
+            class="unlock-hold"
+            class:is-holding={holding}
+            on:pointerdown|preventDefault={beginUnlock}
+            on:pointerup={() => unlockGesture.release()}
+            on:pointercancel={cancelUnlock}
+            on:pointerleave={cancelUnlock}
+            on:keydown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                if (!event.repeat) beginUnlock()
+              }
             }}
+            on:keyup={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') unlockGesture.release()
+            }}
+            on:blur={cancelUnlock}
+            on:contextmenu={(event) => event.preventDefault()}
+            on:selectstart|preventDefault
+            on:dragstart|preventDefault
           >
-            {session.paused ? '继续' : '暂停'}
+            {unlockReady ? '松手退出防误触' : '长按退出防误触'}
           </button>
-          <button class="btn primary" on:click={next}>
-            {session.phase === 'prep'
-              ? '跳过准备 →'
-              : session.phase === 'rest'
-                ? '跳过休息 →'
-                : '结束本组 →'}
-          </button>
-          <button class="btn red" on:click={requestEndTraining}>结束训练</button>
         </div>
-      </section>
-      <section class="panel">
-        <h3>训练进度 · 已完成 {session.results.length}/{session.queue.length} 组</h3>
-        {#each session.queue as item, i}<div class="setline">
-            <span>
-              {i < session.results.length ? '✓' : i === session.index ? '▶' : '○'}
-              {item.name} · 第 {item.setIndex} 组
+      {:else}
+        <section class="panel">
+          <div class="row between">
+            <span class="pill">
+              {session.phase === 'prep'
+                ? '准备开始'
+                : session.phase === 'rest'
+                  ? '组间休息'
+                  : '正在训练'}
             </span>
-            <span class="muted small">{item.weight} kg</span>
-          </div>{/each}
-      </section>
-    {/if}
-  </div>
+            <span class="muted small">第 {session.index + 1} / {session.queue.length} 组</span>
+          </div>
+          <div class="timer">
+            <div class="muted">{current.name} · 第 {current.setIndex} 组</div>
+            <div class="training-target">{targetDescription(current)}</div>
+            <div
+              class="clock"
+              class:orange={session.phase !== 'work'}
+              class:accent={session.phase === 'work'}
+            >
+              {fmt(
+                session.phase === 'work' && (current.mode === 'reps' || isCountUp(current))
+                  ? session.elapsed
+                  : Math.ceil(session.remaining),
+              )}
+            </div>
+            <div class="muted">
+              {session.paused
+                ? '已暂停'
+                : session.phase === 'work' && (current.mode === 'reps' || isCountUp(current))
+                  ? '正计时 · 手动结束本组'
+                  : '倒计时'}
+            </div>
+            {#if !session.paused && !screenAwake}<div class="muted small" style="margin-top:8px">
+                请保持屏幕亮起；息屏后浏览器可能延迟提示音。
+              </div>{/if}
+            <div class="progress">
+              <div style={`width:${(session.results.length / session.queue.length) * 100}%`}></div>
+            </div>
+          </div>
+          <div class="row" style="justify-content:center">
+            <button class="btn ghost" on:click={enterFocus}>开启防误触</button>
+            <button
+              class="btn ghost"
+              on:click={() => {
+                session.paused = !session.paused
+                session.last = Date.now()
+                if (!session.paused) prepareSound()
+                session = session
+              }}
+            >
+              {session.paused ? '继续' : '暂停'}
+            </button>
+            <button class="btn primary" on:click={next}>
+              {session.phase === 'prep'
+                ? '跳过准备 →'
+                : session.phase === 'rest'
+                  ? '跳过休息 →'
+                  : '结束本组 →'}
+            </button>
+            <button class="btn red" on:click={requestEndTraining}>结束训练</button>
+          </div>
+        </section>
+        <section class="panel">
+          <h3>训练进度 · 已完成 {session.results.length}/{session.queue.length} 组</h3>
+          {#each session.queue as item, i}<div class="setline">
+              <span>
+                {i < session.results.length ? '✓' : i === session.index ? '▶' : '○'}
+                {item.name} · 第 {item.setIndex} 组
+              </span>
+              <span class="muted small">{item.weight} kg</span>
+            </div>{/each}
+        </section>
+      {/if}
+    </div>
+  {/key}
 {:else if managingPlans}
   <PlansPage
     bind:data
