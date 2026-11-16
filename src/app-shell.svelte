@@ -27,6 +27,7 @@
   let challengeShare = false
   let sourceViewer = false
   let sourcePage = 1
+  let sourceAction = ''
   let pageComponents = {}
   let pageLoading = {}
   let pageLoadErrors = {}
@@ -56,13 +57,24 @@
     },
     stats: { title: '训练统计 · 练刻', description: '在练刻查看训练次数、时长和历史训练记录。' },
     settings: { title: '设置 · 练刻', description: '管理练刻的训练数据、账号和应用设置。' },
+    source: {
+      title: '囚徒健身 · 练刻',
+      description: '查看《囚徒健身》六艺训练动作名称与原书页面。',
+    },
   }
 
-  $: currentSeo = challengeShare
-    ? { title: '挑战分享 · 练刻', description: '查看练刻挑战进度分享，继续完成自重训练挑战。' }
-    : seo[tab] || seo.train
+  $: currentSeo = sourceViewer
+    ? {
+        ...seo.source,
+        title: sourceAction ? `囚徒健身 · ${sourceAction} · 练刻` : seo.source.title,
+      }
+    : challengeShare
+      ? { title: '挑战分享 · 练刻', description: '查看练刻挑战进度分享，继续完成自重训练挑战。' }
+      : seo[tab] || seo.train
   $: isPublicSeoPage = challengeShare || tab === 'train' || tab === 'challenges'
-  $: seoURL = appURL(challengeShare ? 'share' : tab === 'train' ? '' : routes[tab])
+  $: seoURL = appURL(
+    challengeShare ? 'share' : sourceViewer ? 'source' : tab === 'train' ? '' : routes[tab],
+  )
   $: headerVariant = challengeShare ? 'brand' : 'app'
 
   const routes = {
@@ -140,6 +152,10 @@
       10,
     )
     return Number.isFinite(value) && value > 0 ? value : 1
+  }
+
+  function sourceActionFromLocation() {
+    return new URLSearchParams(window.location.search).get('action')?.trim() || ''
   }
 
   function restoreGithubPagesRoute() {
@@ -304,6 +320,7 @@
     challengeShare = isChallengeShareLocation()
     sourceViewer = isSourceViewerLocation()
     sourcePage = sourcePageFromLocation()
+    sourceAction = sourceActionFromLocation()
     if (!authCallback && !sourceViewer && !challengeShare) {
       consumeAuthCallback()
       tab = tabFromLocation()

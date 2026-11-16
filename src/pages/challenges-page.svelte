@@ -124,7 +124,14 @@
   }
   $: sourceViewer = (page, nextRouteId = routeId, nextLevelId = levelId) => {
     const returnTo = `${appPath('challenges')}?route=${nextRouteId}&level=${nextLevelId}#challenge-path`
-    const params = new URLSearchParams({ page: String(page), return: returnTo })
+    const action = challengeRoutes
+      .flatMap((route) => route.levels)
+      .find((level) => level.id === nextLevelId)?.name
+    const params = new URLSearchParams({
+      page: String(page),
+      action: action || '',
+      return: returnTo,
+    })
     return `${appPath('source')}?${params}`
   }
   $: dirty = false
