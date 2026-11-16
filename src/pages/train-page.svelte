@@ -643,9 +643,15 @@
             class="unlock-hold"
             class:is-holding={holding}
             on:pointerdown|preventDefault={beginUnlock}
-            on:pointerup={() => unlockGesture.release()}
+            on:pointerup={(event) => {
+              if (event.pointerType !== 'touch') unlockGesture.release()
+            }}
             on:pointercancel={cancelUnlock}
             on:pointerleave={cancelUnlock}
+            on:touchstart|preventDefault
+            on:touchmove|preventDefault
+            on:touchend|preventDefault={() => unlockGesture.release()}
+            on:touchcancel|preventDefault={cancelUnlock}
             on:keydown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault()
