@@ -4,6 +4,7 @@
   import { loadDataAsync, saveData } from './lib/data.js'
   import { consumeAuthCallback, cloudSession, signOut } from './lib/cloud.js'
   import AuthCallbackPage from './pages/auth-callback-page.svelte'
+  import ChallengeSharePage from './pages/challenge-share-page.svelte'
   import SourceViewerPage from './pages/source-viewer-page.svelte'
   import GlobalDialog from './components/global-dialog.svelte'
   import GlobalToast from './components/global-toast.svelte'
@@ -23,6 +24,7 @@
   let screenAwake = false
   let challengeDirty = false
   let authCallback = false
+  let challengeShare = false
   let sourceViewer = false
   let sourcePage = 1
   let pageComponents = {}
@@ -56,9 +58,12 @@
     settings: { title: '设置 · 练刻', description: '管理练刻的训练数据、账号和应用设置。' },
   }
 
-  $: currentSeo = seo[tab] || seo.train
-  $: isPublicSeoPage = tab === 'train' || tab === 'challenges'
-  $: seoURL = appURL(tab === 'train' ? '' : routes[tab])
+  $: currentSeo = challengeShare
+    ? { title: '挑战分享 · 练刻', description: '查看练刻挑战进度分享，继续完成自重训练挑战。' }
+    : seo[tab] || seo.train
+  $: isPublicSeoPage = challengeShare || tab === 'train' || tab === 'challenges'
+  $: seoURL = appURL(challengeShare ? 'share' : tab === 'train' ? '' : routes[tab])
+  $: headerVariant = challengeShare ? 'brand' : 'app'
 
   const routes = {
     train: '',
@@ -120,6 +125,13 @@
       .replace(new RegExp(`^${basePath}`), '')
       .replace(/^\/+|\/+$/g, '')
     return pathname === 'source'
+  }
+
+  function isChallengeShareLocation() {
+    const pathname = window.location.pathname
+      .replace(new RegExp(`^${basePath}`), '')
+      .replace(/^\/+|\/+$/g, '')
+    return pathname === 'share'
   }
 
   function sourcePageFromLocation() {
@@ -289,9 +301,10 @@
     data = await loadDataAsync()
     restoreActiveSession()
     authCallback = isAuthCallbackLocation()
+    challengeShare = isChallengeShareLocation()
     sourceViewer = isSourceViewerLocation()
     sourcePage = sourcePageFromLocation()
-    if (!authCallback && !sourceViewer) {
+    if (!authCallback && !sourceViewer && !challengeShare) {
       consumeAuthCallback()
       tab = tabFromLocation()
       const routeUrl = routePath(tab)
@@ -315,6 +328,12 @@
         return
       }
       if (authCallback) authCallback = false
+      const nextIsChallengeShare = isChallengeShareLocation()
+      if (nextIsChallengeShare) {
+        challengeShare = true
+        return
+      }
+      if (challengeShare) challengeShare = false
       const next = tabFromLocation()
       if (next === tab) return
       if (tab === 'challenges' && challengeDirty) {
@@ -364,7 +383,7 @@
   }
   $: if (ready) persistActiveSession(session)
   $: if (ready) syncWakeLock(Boolean(session && !session.paused))
-  $: if (ready && !authCallback && !sourceViewer) void loadPageComponent(tab)
+  $: if (ready && !authCallback && !sourceViewer && !challengeShare) void loadPageComponent(tab)
 </script>
 
 <svelte:head>
@@ -377,7 +396,7 @@
   <meta property="og:url" content={seoURL} />
 </svelte:head>
 
-<div class:source-mode={sourceViewer} class="app">
+<div class:source-mode={sourceViewer} class:share-mode={challengeShare} class="app">
   {#if sourceViewer}
     <SourceViewerPage page={sourcePage} />
   {:else if authCallback}
@@ -385,7 +404,11 @@
       {#if ready}<AuthCallbackPage />{/if}
     </div>
   {:else}
-    <aside class:collapsed={!sidebarOpen} class="sidebar">
+    <aside
+      class:collapsed={!sidebarOpen}
+      class:share-sidebar-hidden={challengeShare}
+      class="sidebar"
+    >
       <button
         type="button"
         class="sidebar-brand"
@@ -466,33 +489,50 @@
         </button>
       </div>
     </aside>
-    {#if sidebarOpen}<button
+    {#if sidebarOpen && !challengeShare}<button
         class="sidebar-backdrop"
         aria-label="收起导航"
         on:click={() => (sidebarOpen = false)}
       ></button>{/if}
     <main class="app-content">
-      <header class="top">
-        <div>
-          <div class="brand-lockup">
-            <button
-              class="mobile-sidebar-toggle"
-              aria-label="打开导航"
-              on:click={() => (sidebarOpen = true)}
-            >
-              ☰
-            </button>
-            <div class="logo">
-              练
-              <span>刻</span>
+      <header class:public-header={headerVariant === 'brand'} class="top">
+        {#if headerVariant === 'brand'}
+          <a class="public-header-brand" href={appPath('')} aria-label="返回练刻首页">
+            <span class="public-header-icon-shell">
+              <img src={appURL('fit-log-icon.png')} alt="" />
+            </span>
+            <span class="public-header-copy">
+              <strong>
+                练
+                <span>刻</span>
+              </strong>
               <small>FIT LOG</small>
+            </span>
+          </a>
+        {:else}
+          <div>
+            <div class="brand-lockup">
+              <button
+                class="mobile-sidebar-toggle"
+                aria-label="打开导航"
+                on:click={() => (sidebarOpen = true)}
+              >
+                ☰
+              </button>
+              <div class="logo">
+                练
+                <span>刻</span>
+                <small>FIT LOG</small>
+              </div>
             </div>
+            <div class="muted small brand-subtitle">你的训练节奏、计划与进步</div>
           </div>
-          <div class="muted small brand-subtitle">你的训练节奏、计划与进步</div>
-        </div>
-        <span class="pill">{today}</span>
+          <span class="pill">{today}</span>
+        {/if}
       </header>
-      {#if ready}
+      {#if challengeShare}
+        <ChallengeSharePage />
+      {:else if ready}
         {#if pageLoadErrors[tab]}
           <p class="page-error">{pageLoadErrors[tab]}</p>
         {:else if !pageComponents[tab]}

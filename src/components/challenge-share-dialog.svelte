@@ -2,7 +2,9 @@
   import { createEventDispatcher, onMount, tick } from 'svelte'
   import { stageLabels } from '../lib/challenge-catalog.js'
   import { completionStage, formatGoal } from '../lib/challenge-model.js'
-  import { appPath, baseURL } from '../lib/config.js'
+  import { appPath, appURL } from '../lib/config.js'
+  import { encodeShareToken } from '../lib/share-token.js'
+  import { showToast } from '../lib/toast.js'
 
   export let open = false
   export let posterData
@@ -11,7 +13,6 @@
   let shareMode = 'level'
   let posterCanvas
   let posterUrl = ''
-  let shareStatus = ''
   let posterLogo
   let posterLogoReady = false
   let posterAction
@@ -62,9 +63,7 @@
     if (!posterData) return
     posterQrReady = false
     posterQr = null
-    const challengeUrl = new URL('challenges', baseURL)
-    if (shareMode !== 'overview') challengeUrl.searchParams.set('route', posterData.routeId)
-    if (shareMode === 'level') challengeUrl.searchParams.set('level', posterData.levelId)
+    const challengeUrl = new URL(await shareUrl())
     try {
       const response = await fetch(
         `https://api.qrserver.com/v1/create-qr-code/?size=220x220&format=png&data=${encodeURIComponent(challengeUrl.href)}`,
@@ -236,6 +235,14 @@
         context.fillStyle = '#788d95'
         context.font = '500 15px system-ui, sans-serif'
         context.fillText('/ 10 关', x + 54, y + 62)
+        context.fillStyle = '#2d4039'
+        context.beginPath()
+        context.roundRect(x + 16, y + 68, 148, 6, 3)
+        context.fill()
+        context.fillStyle = '#b7f36a'
+        context.beginPath()
+        context.roundRect(x + 16, y + 68, 148 * (routeItem.count / 10), 6, 3)
+        context.fill()
       })
     }
 
@@ -305,10 +312,62 @@
 
   async function selectShareMode(mode) {
     shareMode = mode
-    shareStatus = ''
     loadQrCode()
     await tick()
     drawPoster()
+  }
+
+  async function shareUrl() {
+    const url = new URL(appURL('share'))
+    const payload = {
+      mode: shareMode,
+      route: shareMode === 'overview' ? '' : posterData.routeId,
+      level:
+        shareMode === 'overview'
+          ? ''
+          : shareMode === 'route'
+            ? posterData.latestPassedLevel?.id || posterData.levelId
+            : posterData.levelId,
+      count: shareMode === 'route' ? posterData.routeCount : 0,
+      attempts:
+        shareMode === 'route'
+          ? posterData.attempts.filter((attempt) =>
+              String(attempt.levelId).startsWith(`${posterData.routeId}-`),
+            ).length
+          : 0,
+      completed: shareMode === 'overview' ? posterData.completedCount : 0,
+      routes: shareMode === 'overview' ? posterData.routes.map((route) => route.count) : [],
+      achieved:
+        shareMode === 'level'
+          ? Object.keys(posterData.selected?.achieved || {}).filter(
+              (stage) => posterData.selected.achieved[stage],
+            )
+          : [],
+    }
+    url.searchParams.set('s', await encodeShareToken(payload))
+    return url.href
+  }
+
+  async function copyShareLink() {
+    const url = await shareUrl()
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url)
+      } else {
+        const input = document.createElement('textarea')
+        input.value = url
+        input.setAttribute('readonly', '')
+        input.style.position = 'fixed'
+        input.style.opacity = '0'
+        document.body.appendChild(input)
+        input.select()
+        document.execCommand('copy')
+        input.remove()
+      }
+      showToast('分享链接已复制，可直接发送给朋友', { type: 'success' })
+    } catch {
+      showToast('复制失败，请手动复制分享链接', { type: 'error' })
+    }
   }
 
   function posterFileName() {
@@ -330,39 +389,9 @@
     return new Blob([bytes], { type: mime })
   }
 
-  async function sharePoster() {
-    const blob = dataUrlBlob(posterUrl)
-    if (!blob) {
-      shareStatus = '海报还在生成，请稍后再试'
-      return
-    }
-    const file = new File([blob], posterFileName(), { type: 'image/png' })
-    let canShareFile = false
-    try {
-      canShareFile =
-        Boolean(navigator.share) && (!navigator.canShare || navigator.canShare({ files: [file] }))
-    } catch {
-      canShareFile = false
-    }
-    if (canShareFile) {
-      try {
-        await navigator.share({
-          title: '我的挑战进度',
-          text: '我在练刻记录了自己的挑战进度',
-          files: [file],
-        })
-        shareStatus = '已打开系统分享面板'
-      } catch (error) {
-        if (error?.name !== 'AbortError') shareStatus = '分享未完成，可以改为保存图片'
-      }
-      return
-    }
-    openPosterImage('分享')
-  }
-
   function downloadPoster() {
     if (!posterUrl) {
-      shareStatus = '海报还在生成，请稍后再试'
+      showToast('海报还在生成，请稍后再试', { type: 'info' })
       return
     }
     if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
@@ -392,7 +421,7 @@
       popup.location.href = imageUrl
     }
     if (blob) setTimeout(() => URL.revokeObjectURL(imageUrl), 60_000)
-    shareStatus = `已打开海报，请长按图片${action}到相册或通过系统菜单分享`
+    showToast(`已打开海报，请长按图片${action}到相册或通过系统菜单分享`, { type: 'info' })
   }
 </script>
 
@@ -466,9 +495,9 @@
         <button
           type="button"
           class="btn primary challenge-share-only-button"
-          on:click={sharePoster}
+          on:click={copyShareLink}
         >
-          分享
+          复制链接
         </button>
         <button
           type="button"
@@ -478,7 +507,6 @@
           保存图片
         </button>
       </div>
-      {#if shareStatus}<p class="challenge-share-status" role="status">{shareStatus}</p>{/if}
     </section>
   </div>
 {/if}
@@ -493,5 +521,26 @@
     padding-inline: 4px;
     white-space: nowrap;
     font-size: 11px;
+  }
+
+  .challenge-share-actions {
+    justify-content: center;
+  }
+
+  @media (max-width: 600px) {
+    .challenge-share-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      width: 100%;
+    }
+
+    .challenge-share-actions .btn {
+      display: block;
+      width: 100%;
+    }
+
+    .challenge-share-actions .challenge-save-only-button {
+      display: none;
+    }
   }
 </style>
