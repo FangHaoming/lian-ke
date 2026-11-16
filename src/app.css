@@ -381,5 +381,6 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 /* Larger action previews in route cards and the ten-step path. */
 .challenge-route-icon{width:64px;height:64px;border-radius:15px}
 .challenge-route-heading{display:flex;align-items:center;gap:12px;min-width:0}.challenge-route-heading>strong{font-size:18px;white-space:nowrap}
+.challenge-route-top{align-items:flex-start}.challenge-route-heading{flex-direction:column;align-items:flex-start;gap:8px}.challenge-route-heading>strong{width:100%;white-space:normal;line-height:1.25}
 .challenge-step-icon{flex-basis:46px;height:46px}
 .challenge-start-current-icon{flex-basis:50px;width:50px;height:50px;border:0;border-radius:0;background:transparent}
