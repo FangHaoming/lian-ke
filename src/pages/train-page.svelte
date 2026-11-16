@@ -270,6 +270,11 @@
     finishingSet = false
     clearInterval(ticker)
     ticker = setInterval(updateTimer, 150)
+    void scrollToPageTop()
+  }
+  async function scrollToPageTop() {
+    await tick()
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
   }
   function isCountUp(item) {
     return item?.mode === 'time' && item.timerMode === 'up'
