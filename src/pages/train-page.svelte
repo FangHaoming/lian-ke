@@ -39,6 +39,7 @@
   let focusHistoryEntry = false
   let releasingFocusHistory = false
   let focusScrollStyles = null
+  let focusExitPromise = null
   let selectionPlanId = ''
   let selectedItemIds = []
   let wasPausedBeforeEndConfirmation = true
@@ -145,23 +146,40 @@
     }
   }
   async function exitFocus() {
-    cancelUnlock()
-    fullscreenRequestId += 1
-    focusMode = false
-    // Let Svelte remove the lock screen before leaving native fullscreen. On
-    // mobile browsers the old fixed touch surface can otherwise keep owning
-    // the gesture that should scroll the review page.
-    await tick()
-    nativeFullscreenActive = false
-    const pendingRequest = pendingFullscreenRequest
-    if (pendingRequest) await pendingRequest.catch(() => {})
-    if (document.fullscreenElement) await document.exitFullscreen().catch(() => {})
-    restorePageScrolling()
-    if (focusHistoryEntry) {
-      focusHistoryEntry = false
-      releasingFocusHistory = true
-      history.back()
-    }
+    // Several browser events can request an exit for the same gesture (the
+    // unlock timer, fullscreenchange, and finishing the last set). Keep one
+    // teardown in flight so they cannot race over the history/fullscreen
+    // state and leave the page with a stale touch surface.
+    if (focusExitPromise) return focusExitPromise
+
+    focusExitPromise = (async () => {
+      cancelUnlock()
+      fullscreenRequestId += 1
+      focusMode = false
+
+      // Restore the document-level scrolling state immediately. The lock view
+      // is removed on the next tick, but the browser can otherwise keep using
+      // the old fixed touch target while fullscreen is being released.
+      restorePageScrolling()
+
+      // Let Svelte remove the lock screen before leaving native fullscreen. On
+      // mobile browsers the old fixed touch surface can otherwise keep owning
+      // the gesture that should scroll the review page.
+      await tick()
+      nativeFullscreenActive = false
+      const pendingRequest = pendingFullscreenRequest
+      if (pendingRequest) await pendingRequest.catch(() => {})
+      if (document.fullscreenElement) await document.exitFullscreen().catch(() => {})
+      if (focusHistoryEntry) {
+        focusHistoryEntry = false
+        releasingFocusHistory = true
+        history.back()
+      }
+    })().finally(() => {
+      focusExitPromise = null
+    })
+
+    return focusExitPromise
   }
 
   function restorePageScrolling() {
@@ -183,9 +201,6 @@
   function cancelUnlock() {
     clearTimeout(unlockTimer)
     holding = false
-  }
-  function handleLockTouchStart(event) {
-    if (unlockButton?.contains(event.target)) beginUnlock()
   }
   function persistReviewDraft() {
     try {
@@ -574,10 +589,6 @@
         aria-label="训练防误触锁屏"
         on:contextmenu|preventDefault
         on:selectstart|preventDefault
-        on:touchstart|preventDefault={handleLockTouchStart}
-        on:touchmove|preventDefault
-        on:touchend={cancelUnlock}
-        on:touchcancel={cancelUnlock}
       >
         <div class="row between training-lock-top">
           <span class="pill">防误触已开启</span>
