@@ -71,7 +71,7 @@
     : challengeShare
       ? { title: '挑战分享 · 练刻', description: '查看练刻挑战进度分享，继续完成自重训练挑战。' }
       : seo[tab] || seo.train
-  $: isPublicSeoPage = challengeShare || tab === 'train' || tab === 'challenges'
+  $: isPublicSeoPage = challengeShare || sourceViewer || tab === 'train' || tab === 'challenges'
   $: seoURL = appURL(
     challengeShare ? 'share' : sourceViewer ? 'source' : tab === 'train' ? '' : routes[tab],
   )

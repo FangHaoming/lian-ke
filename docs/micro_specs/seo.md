@@ -7,12 +7,12 @@
 ## Scope
 
 - 为静态入口补齐 title、description、canonical、Open Graph、Twitter Card 和 JSON-LD。
-- 在 Svelte 应用运行后按公开路由更新页面 head；登录回调、源码查看和设置页不参与索引。
+- 在 Svelte 应用运行后按公开路由更新页面 head；登录回调和设置页不参与索引。
 - 增加 GitHub Pages base path 下可用的 `robots.txt` 与 `sitemap.xml`。
 
 ## Done Contract
 
-完成标准：公开入口和挑战页具备一致的绝对 URL、可读标题和描述；站点地图只列公开页面；静态检查确认路径与 JSON/XML 内容有效；不运行前端 build。
+完成标准：公开入口、挑战页、分享页和电子书页具备一致的绝对 URL、可读标题和描述；站点地图只列公开页面；静态检查确认路径与 JSON/XML 内容有效；不运行前端 build。
 
 ## Validation
 
@@ -35,3 +35,4 @@
 ## Follow-up
 
 - 2026-11-13：隐藏 `index.html` 与 `challenges/index.html` 中的 SEO fallback 首屏内容；未运行前端 build。
+- 2026-11-16：将分享页与电子书页加入 `public/sitemap.xml`，并将电子书页标记为可索引；同步放开应用运行后的电子书页 robots 标记。
