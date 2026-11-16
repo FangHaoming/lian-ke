@@ -1,15 +1,18 @@
 <script>
+  import { onMount } from 'svelte'
   import { sleepRecords as normalizeSleepRecords, uid } from '../lib/workout-model.js'
   import { showToast } from '../lib/toast.js'
   import { requestConfirm } from '../lib/confirm-dialog.js'
   import SleepLineChart from '../components/sleep-line-chart.svelte'
 
   export let data
-  let asleepAt = ''
-  let wakeAt = ''
   let note = ''
-  let editingId = ''
   let chartMode = 'daily'
+  let weather = { icon: '☁️', label: '正在获取天气', temperature: null }
+
+  onMount(() => {
+    loadCurrentWeather()
+  })
 
   $: records = normalizeSleepRecords(data.sleepRecords || [])
   $: completedRecords = records.filter((record) => record.asleepAt && record.wakeAt)
@@ -67,12 +70,6 @@
       }))
   }
 
-  function toInputValue(value) {
-    const date = new Date(value)
-    const offset = date.getTimezoneOffset()
-    return new Date(date.getTime() - offset * 60 * 1000).toISOString().slice(0, 16)
-  }
-
   function formatDateTime(value) {
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) return '尚未记录'
@@ -96,9 +93,59 @@
     return `${hours} 小时 ${String(rest).padStart(2, '0')} 分钟`
   }
 
-  function selectNow(field) {
-    if (field === 'asleep') asleepAt = toInputValue(new Date())
-    else wakeAt = toInputValue(new Date())
+  function weatherInfo(code, isDay) {
+    if (code === 0) return { icon: isDay ? '☀️' : '🌙', label: isDay ? '晴天' : '晴朗夜间' }
+    if ([1, 2, 3].includes(code)) return { icon: isDay ? '⛅' : '☁️', label: '多云' }
+    if ([45, 48].includes(code)) return { icon: '🌫️', label: '雾' }
+    if ([51, 53, 55, 56, 57].includes(code)) return { icon: '🌦️', label: '毛毛雨' }
+    if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { icon: '🌧️', label: '下雨' }
+    if ([71, 73, 75, 77, 85, 86].includes(code)) return { icon: '🌨️', label: '下雪' }
+    if ([95, 96, 99].includes(code)) return { icon: '⛈️', label: '雷雨' }
+    return { icon: '☁️', label: '天气未知' }
+  }
+
+  async function loadCurrentWeather() {
+    if (!navigator.geolocation) {
+      weather = { icon: '☁️', label: '暂时无法获取天气', temperature: null }
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const params = new URLSearchParams({
+            latitude: String(coords.latitude),
+            longitude: String(coords.longitude),
+            current: 'weather_code,is_day,temperature_2m',
+            timezone: 'auto',
+          })
+          const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
+          if (!response.ok) throw new Error('weather request failed')
+          const result = await response.json()
+          const current = result.current || {}
+          const info = weatherInfo(Number(current.weather_code), Number(current.is_day) === 1)
+          const temperature = Number(current.temperature_2m)
+          weather = {
+            icon: info.icon,
+            label: info.label,
+            temperature: Number.isFinite(temperature) ? temperature : null,
+          }
+        } catch {
+          weather = { icon: '☁️', label: '暂时无法获取天气', temperature: null }
+        }
+      },
+      () => {
+        weather = { icon: '☁️', label: '开启定位后显示天气', temperature: null }
+      },
+      { enableHighAccuracy: false, maximumAge: 10 * 60 * 1000, timeout: 8000 },
+    )
+  }
+
+  function weatherSnapshot() {
+    return {
+      weather: `${weather.icon} ${weather.label}`,
+      temperature: weather.temperature,
+    }
   }
 
   function notifyError(message) {
@@ -106,34 +153,45 @@
   }
 
   function recordAsleep() {
-    const asleep = new Date(asleepAt)
-    if (!asleepAt || Number.isNaN(asleep.getTime())) {
-      notifyError('请选择入睡时间')
-      return
-    }
-    const targetId = editingId || openRecord?.id
+    const asleep = new Date()
+    const currentWeather = weatherSnapshot()
+    const targetId = openRecord?.id
     const next = targetId
       ? records.map((record) =>
           record.id === targetId
-            ? { ...record, asleepAt: asleep.toISOString(), note: note.trim() }
+            ? {
+                ...record,
+                asleepAt: asleep.toISOString(),
+                asleepWeather: currentWeather.weather,
+                ...(currentWeather.temperature !== null && {
+                  asleepTemperature: currentWeather.temperature,
+                }),
+                note: note.trim(),
+              }
             : record,
         )
-      : [...records, { id: uid(), asleepAt: asleep.toISOString(), note: note.trim() }]
+      : [
+          {
+            id: uid(),
+            asleepAt: asleep.toISOString(),
+            asleepWeather: currentWeather.weather,
+            ...(currentWeather.temperature !== null && {
+              asleepTemperature: currentWeather.temperature,
+            }),
+            note: note.trim(),
+          },
+        ]
     data.sleepRecords = normalizeSleepRecords(next)
     data = data
-    editingId = targetId || data.sleepRecords.at(-1)?.id || ''
   }
 
   function recordWake() {
-    const wake = new Date(wakeAt)
-    if (!wakeAt || Number.isNaN(wake.getTime())) {
-      notifyError('请选择醒来时间')
-      return
-    }
-    const targetId = editingId || openRecord?.id
+    const wake = new Date()
+    const currentWeather = weatherSnapshot()
+    const targetId = openRecord?.id
     const target = records.find((record) => record.id === targetId)
     if (!target?.asleepAt) {
-      notifyError('请先单独记录入睡时间')
+      notifyError('请先记录入睡时间')
       return
     }
     const asleep = new Date(target.asleepAt)
@@ -144,19 +202,34 @@
     data.sleepRecords = normalizeSleepRecords(
       records.map((record) =>
         record.id === targetId
-          ? { ...record, wakeAt: wake.toISOString(), note: note.trim() }
+          ? {
+              ...record,
+              wakeAt: wake.toISOString(),
+              wakeWeather: currentWeather.weather,
+              ...(currentWeather.temperature !== null && {
+                wakeTemperature: currentWeather.temperature,
+              }),
+              note: note.trim(),
+            }
           : record,
       ),
     )
     data = data
-    resetEditState()
+    note = ''
   }
 
-  function resetEditState() {
-    editingId = ''
-    asleepAt = ''
-    wakeAt = ''
-    note = ''
+  async function recordCurrentTime() {
+    const isWaking = Boolean(openRecord)
+    const action = isWaking ? '醒来' : '入睡'
+    const { confirmed } = await requestConfirm({
+      title: `确认记录${action}？`,
+      message: `确认后将记录此刻的${action}时间。`,
+      confirmText: '确认',
+      cancelText: '取消',
+    })
+    if (!confirmed) return
+    if (isWaking) recordWake()
+    else recordAsleep()
   }
 
   function deleteIncompleteRecord(record) {
@@ -169,7 +242,7 @@
       if (!confirmed) return
       data.sleepRecords = records.filter((item) => item.id !== record.id)
       data = data
-      if (editingId === record.id) resetEditState()
+      note = ''
     })
   }
 </script>
@@ -180,6 +253,30 @@
     <p class="muted">分别记录入睡和醒来时间，自动计算两者之间的睡眠时长。</p>
   </div>
 </div>
+
+<section class="sleep-entry-panel">
+  <div class="sleep-event-grid">
+    <div class="sleep-event-card">
+      <div class="row sleep-event-actions">
+        <button
+          class="btn primary sleep-record-button"
+          aria-label={openRecord ? '记录醒来' : '记录入睡'}
+          title={`${weather.label}${weather.temperature !== null ? ` · ${weather.temperature}°C` : ''}`}
+          on:click={recordCurrentTime}
+        >
+          <span class="sleep-weather-icon" aria-hidden="true">{weather.icon}</span>
+          <span>{openRecord ? '记录醒来' : '记录入睡'}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="sleep-note-row">
+    <label class="field sleep-note-field">
+      备注（可选）
+      <input type="text" maxlength="60" placeholder="自然醒 / 午睡" bind:value={note} />
+    </label>
+  </div>
+</section>
 
 <div class="sleep-summary grid">
   <div class="metric">
@@ -202,48 +299,6 @@
     <strong>{completedRecords.length}</strong>
   </div>
 </div>
-
-<section class="panel sleep-entry-panel">
-  <div class="row between sleep-entry-heading">
-    <div>
-      <h3>{editingId ? '编辑睡眠记录' : '分别记录时间'}</h3>
-      <p class="muted small">入睡和醒来可以跨越午夜，支持使用当前时间快速记录。</p>
-    </div>
-    {#if openRecord && !editingId}<span class="pill sleep-open-pill">正在睡眠</span>{/if}
-  </div>
-  <div class="sleep-event-grid">
-    <div class="sleep-event-card">
-      <label class="field">
-        入睡时间
-        <input type="datetime-local" bind:value={asleepAt} />
-      </label>
-      <div class="row sleep-event-actions">
-        <button class="btn ghost" on:click={() => selectNow('asleep')}>选中此刻</button>
-        <button class="btn primary" on:click={recordAsleep}>
-          {editingId ? '保存入睡时间' : '记录入睡'}
-        </button>
-      </div>
-    </div>
-    <div class="sleep-event-card">
-      <label class="field">
-        醒来时间
-        <input type="datetime-local" bind:value={wakeAt} />
-      </label>
-      <div class="row sleep-event-actions">
-        <button class="btn ghost" on:click={() => selectNow('wake')}>选中此刻</button>
-        <button class="btn primary" on:click={recordWake}>
-          {editingId ? '保存醒来时间' : '记录醒来'}
-        </button>
-      </div>
-    </div>
-  </div>
-  <div class="sleep-note-row">
-    <label class="field sleep-note-field">
-      备注（可选）
-      <input type="text" maxlength="60" placeholder="自然醒 / 午睡" bind:value={note} />
-    </label>
-  </div>
-</section>
 
 <section class="panel sleep-chart-panel">
   <div class="row between sleep-chart-heading">
@@ -309,6 +364,14 @@
           </button>
         {/if}
         {#if record.note}<span class="muted small">{record.note}</span>{/if}
+        {#if record.asleepWeather}<span class="muted small">
+            入睡 {record.asleepWeather}{#if record.asleepTemperature !== undefined}
+              · {record.asleepTemperature}°C{/if}
+          </span>{/if}
+        {#if record.wakeWeather}<span class="muted small">
+            醒来 {record.wakeWeather}{#if record.wakeTemperature !== undefined}
+              · {record.wakeTemperature}°C{/if}
+          </span>{/if}
       </div>
     </div>
   {:else}<div class="empty">暂无睡眠记录，先记录入睡时间吧。</div>{/each}

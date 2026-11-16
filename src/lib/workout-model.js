@@ -95,11 +95,17 @@ export const sleepRecords = (items = []) =>
     .map((item) => {
       const asleepAt = Number.isFinite(Date.parse(item.asleepAt)) ? item.asleepAt : ''
       const wakeAt = Number.isFinite(Date.parse(item.wakeAt)) ? item.wakeAt : ''
+      const asleepTemperature = Number(item.asleepTemperature)
+      const wakeTemperature = Number(item.wakeTemperature)
       return {
         id: item.id || uid(),
         ...(asleepAt && (!wakeAt || new Date(wakeAt) > new Date(asleepAt)) && { asleepAt }),
         ...(wakeAt && (!asleepAt || new Date(wakeAt) > new Date(asleepAt)) && { wakeAt }),
         note: String(item.note || ''),
+        ...(item.asleepWeather && { asleepWeather: String(item.asleepWeather) }),
+        ...(Number.isFinite(asleepTemperature) && { asleepTemperature }),
+        ...(item.wakeWeather && { wakeWeather: String(item.wakeWeather) }),
+        ...(Number.isFinite(wakeTemperature) && { wakeTemperature }),
       }
     })
     .filter((item) => item.asleepAt || item.wakeAt)

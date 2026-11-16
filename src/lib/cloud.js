@@ -66,6 +66,14 @@ function canonicalSleepRecords(items) {
       id: record.id,
       asleepAt: canonicalTime(record.asleepAt),
       wakeAt: canonicalTime(record.wakeAt),
+      asleepWeather: record.asleepWeather || '',
+      asleepTemperature: Number.isFinite(Number(record.asleepTemperature))
+        ? Number(record.asleepTemperature)
+        : null,
+      wakeWeather: record.wakeWeather || '',
+      wakeTemperature: Number.isFinite(Number(record.wakeTemperature))
+        ? Number(record.wakeTemperature)
+        : null,
       note: record.note || '',
     }))
 }
@@ -507,7 +515,7 @@ async function readCloudData(api, selection = defaultSyncSelection) {
       ? readRows(
           api,
           'sleep_records',
-          `${user}&select=id,asleep_at,wake_at,note&order=asleep_at,id`,
+          `${user}&select=id,asleep_at,wake_at,asleep_weather,asleep_temperature,wake_weather,wake_temperature,note&order=asleep_at,id`,
         )
       : [],
     readRows(api, 'user_settings', `${user}&select=sounds`),
@@ -604,6 +612,10 @@ async function readCloudData(api, selection = defaultSyncSelection) {
         id: item.id,
         asleepAt: item.asleep_at,
         wakeAt: item.wake_at,
+        asleepWeather: item.asleep_weather || '',
+        asleepTemperature: item.asleep_temperature,
+        wakeWeather: item.wake_weather || '',
+        wakeTemperature: item.wake_temperature,
         note: item.note || '',
       })),
     ).filter((record) => record.asleepAt && record.wakeAt),
@@ -636,7 +648,11 @@ async function uploadCloudData(api, data, selection) {
       ),
       readRows(api, 'body_weights', `${user}&select=id,recorded_at,recorded_on,kg,note`),
       selection.sleep
-        ? readRows(api, 'sleep_records', `${user}&select=id,asleep_at,wake_at,note`)
+        ? readRows(
+            api,
+            'sleep_records',
+            `${user}&select=id,asleep_at,wake_at,asleep_weather,asleep_temperature,wake_weather,wake_temperature,note`,
+          )
         : [],
       readRows(api, 'exercise_names', `${user}&select=id,name`),
       selection.challenges
@@ -844,6 +860,14 @@ async function uploadCloudData(api, data, selection) {
     user_id: api.userId,
     asleep_at: record.asleepAt || null,
     wake_at: record.wakeAt || null,
+    asleep_weather: record.asleepWeather || null,
+    asleep_temperature: Number.isFinite(Number(record.asleepTemperature))
+      ? Number(record.asleepTemperature)
+      : null,
+    wake_weather: record.wakeWeather || null,
+    wake_temperature: Number.isFinite(Number(record.wakeTemperature))
+      ? Number(record.wakeTemperature)
+      : null,
     note: record.note || null,
   }))
   const oldSleepById = new Map(oldSleepRecords.map((record) => [record.id, record]))
@@ -853,6 +877,10 @@ async function uploadCloudData(api, data, selection) {
       !previous ||
       !sameTime(previous.asleep_at, record.asleep_at) ||
       !sameTime(previous.wake_at, record.wake_at) ||
+      (previous.asleep_weather || null) !== record.asleep_weather ||
+      Number(previous.asleep_temperature) !== Number(record.asleep_temperature) ||
+      (previous.wake_weather || null) !== record.wake_weather ||
+      Number(previous.wake_temperature) !== Number(record.wake_temperature) ||
       (previous.note || null) !== record.note
     )
   })
