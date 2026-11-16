@@ -14,6 +14,9 @@
   let shareStatus = ''
   let posterLogo
   let posterLogoReady = false
+  let posterAction
+  let posterActionReady = false
+  let posterActionKey = ''
   let posterQr
   let posterQrReady = false
 
@@ -30,8 +33,30 @@
       if (open) drawPoster()
     }
     posterLogo.src = appPath('fit-log-icon.png')
+    syncPosterAction()
     loadQrCode()
   })
+
+  $: if (posterData && shareMode) syncPosterAction()
+
+  function syncPosterAction() {
+    const actionLevel =
+      shareMode === 'route' ? posterData?.latestPassedLevel || posterData?.level : posterData?.level
+    if (typeof Image === 'undefined' || !posterData?.routeId || !actionLevel?.step) return
+    const actionKey = `${posterData.routeId}-${actionLevel.step}`
+    if (actionKey === posterActionKey) return
+    posterActionKey = actionKey
+    posterActionReady = false
+    posterAction = new Image()
+    posterAction.onload = () => {
+      if (posterActionKey !== actionKey) return
+      posterActionReady = true
+      if (open) drawPoster()
+    }
+    posterAction.src = appPath(
+      `action-icons/${posterData.routeId}-${String(actionLevel.step).padStart(2, '0')}.png`,
+    )
+  }
 
   async function loadQrCode() {
     if (!posterData) return
@@ -66,6 +91,11 @@
       context.font = `${weight} ${fontSize}px system-ui, sans-serif`
     }
     context.fillText(text, x, y)
+  }
+
+  function drawPosterAction(context) {
+    if (!posterActionReady) return
+    context.drawImage(posterAction, 576, 36, 136, 136)
   }
 
   function drawPoster() {
@@ -115,6 +145,7 @@
     context.fillText('LIAN KE  /  CHALLENGE LOG', 116, 140)
 
     if (shareMode === 'level') {
+      drawPosterAction(context)
       drawFittedText(
         context,
         `${posterData.routeName} · 第 ${String(posterData.level.step).padStart(2, '0')} 关`,
@@ -144,11 +175,9 @@
       )
       drawFittedText(context, posterData.level.tip, 58, 535, 604, 18, '#9fb0b4', 400)
     } else if (shareMode === 'route') {
+      drawPosterAction(context)
       drawFittedText(context, '单个动作路线', 56, 215, 604, 26, '#b7f36a', 700)
       drawFittedText(context, posterData.routeName, 56, 285, 604, 52, '#eaf2f4', 800)
-      context.fillStyle = '#9fb0b4'
-      context.font = '400 22px system-ui, sans-serif'
-      context.fillText('十式进阶 · 我的完整挑战路线', 58, 328)
       context.fillStyle = '#b7f36a'
       context.font = '800 104px system-ui, sans-serif'
       context.fillText(String(posterData.routeCount).padStart(2, '0'), 56, 438)

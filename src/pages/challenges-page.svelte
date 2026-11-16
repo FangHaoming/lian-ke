@@ -9,7 +9,6 @@
     evaluateAttempt,
     formatGoal,
     getRouteProgress,
-    getLatestCompletedChallenge,
     confirmTrainingEvaluation,
     rejectTrainingEvaluation,
     sideLabels,
@@ -49,6 +48,7 @@
   let feedback = null
   let detailHeading
   let pendingLevel = null
+  let shareLevelOverrideId = ''
   let shareOpen = false
   let quickStartOpen = false
   let quickStartLevelId = ''
@@ -95,10 +95,13 @@
   )
   $: masterCount = summaries.filter((item) => item.progress[9].completed).length
   $: eliteCount = summaries.filter((item) => item.progress[9].achieved.elite).length
-  $: latestCompleted = getLatestCompletedChallenge(challengeRoutes, attempts)
-  $: shareRoute = latestCompleted?.route || route
-  $: shareLevel = latestCompleted?.level || level
-  $: shareProgress = summaries.find((item) => item.route.id === shareRoute.id)?.progress || progress
+  $: shareRoute = route
+  $: shareProgress = progress
+  $: latestPassedShareLevel = shareProgress.filter((item) => item.completed).at(-1)?.level
+  $: shareLevel =
+    shareProgress.find((item) => item.level.id === shareLevelOverrideId)?.level ||
+    latestPassedShareLevel ||
+    level
   $: shareSelected = shareProgress.find((item) => item.level.id === shareLevel.id) || selected
   $: sharePosterData = {
     routeId: shareRoute.id,
@@ -111,6 +114,7 @@
     })),
     currentLevel: shareLevel.name,
     level: shareLevel,
+    latestPassedLevel: latestPassedShareLevel,
     selected: shareSelected,
     stages,
     completedCount,
@@ -152,9 +156,10 @@
     note = ''
     feedback = null
   }
-  async function applyLevel(nextRoute, nextLevel) {
+  async function applyLevel(nextRoute, nextLevel, manualLevelSelection = false) {
     routeId = nextRoute.id
     levelId = nextLevel.id
+    shareLevelOverrideId = manualLevelSelection ? nextLevel.id : ''
     updateSelectionUrl(routeId, levelId)
     resetDraft(nextLevel)
     await tick()
@@ -176,6 +181,7 @@
     const nextLevel = nextRoute.levels.find((item) => item.id === next.levelId)
     routeId = next.routeId
     levelId = next.levelId
+    shareLevelOverrideId = ''
     resetDraft(nextLevel)
   }
 
@@ -328,10 +334,13 @@
     }
   }
 
-  async function chooseLevel(nextRoute, nextLevel) {
-    if (nextLevel.id === levelId && nextRoute.id === routeId) return
+  async function chooseLevel(nextRoute, nextLevel, manualLevelSelection = false) {
+    if (nextLevel.id === levelId && nextRoute.id === routeId) {
+      if (manualLevelSelection) shareLevelOverrideId = nextLevel.id
+      return
+    }
     if (dirty) {
-      pendingLevel = { nextRoute, nextLevel }
+      pendingLevel = { nextRoute, nextLevel, manualLevelSelection }
       requestConfirm({
         title: '放弃本次挑战填写？',
         message: '这次挑战成绩尚未保存，确定丢弃已填写内容吗？',
@@ -343,7 +352,7 @@
       })
       return
     }
-    await applyLevel(nextRoute, nextLevel)
+    await applyLevel(nextRoute, nextLevel, manualLevelSelection)
   }
 
   function openLevelSource(nextRoute, nextLevel) {
@@ -352,7 +361,8 @@
   async function confirmLeaveDraft() {
     const pending = pendingLevel
     pendingLevel = null
-    if (pending) await applyLevel(pending.nextRoute, pending.nextLevel)
+    if (pending)
+      await applyLevel(pending.nextRoute, pending.nextLevel, pending.manualLevelSelection)
   }
   function requestRemoveLastGroup() {
     const last = rows[rows.length - 1]
@@ -664,7 +674,7 @@
             aria-current={levelId === state.level.id ? 'step' : undefined}
             aria-describedby="challenge-source-hint"
             title={`双击查看《囚徒健身》第 ${state.level.sourcePage} 页`}
-            on:click={() => chooseLevel(route, state.level)}
+            on:click={() => chooseLevel(route, state.level, true)}
             on:dblclick={() => openLevelSource(route, state.level)}
           >
             <span class="challenge-step-number" aria-hidden="true">
