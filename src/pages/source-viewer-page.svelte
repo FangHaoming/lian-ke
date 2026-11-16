@@ -1,10 +1,12 @@
 <script>
-  import { onMount, tick } from 'svelte'
+  import { onDestroy, onMount, tick } from 'svelte'
   import PdfPage from '../components/pdf-page.svelte'
   import FloatingBackButton from '../components/floating-back-button.svelte'
+  import { actionGuideFor } from '../lib/action-guide-catalog.js'
   import { appPath, appURL } from '../lib/config.js'
 
   export let page = 1
+  export let action = ''
   const TOTAL_PAGES = 1529
   let loading = true
   let totalPages = 0
@@ -13,6 +15,12 @@
   let lazyReady = false
   let returnHref = appPath()
   let leaving = false
+  let guideInRange = false
+  let guideExpanded = true
+  let pageObserver
+  let observedPages = []
+
+  $: actionGuide = actionGuideFor(action)
 
   const pageImageURL = (pageNumber) =>
     appURL(`convict-conditioning-pages/page-${String(pageNumber).padStart(4, '0')}.webp`)
@@ -30,6 +38,33 @@
 
   function interceptBrowserBack() {
     returnToPreviousPage()
+  }
+
+  function observeGuidePages() {
+    pageObserver?.disconnect()
+    observedPages = []
+    if (!actionGuide || typeof IntersectionObserver === 'undefined') {
+      guideInRange = false
+      return
+    }
+    observedPages = pages
+      .filter(
+        (pageNumber) => pageNumber >= actionGuide.startPage && pageNumber <= actionGuide.endPage,
+      )
+      .map((pageNumber) => document.getElementById(`source-page-${pageNumber}`))
+      .filter(Boolean)
+    pageObserver = new IntersectionObserver(
+      () => {
+        const topBoundary = window.innerHeight * 0.12
+        const bottomBoundary = window.innerHeight * 0.88
+        guideInRange = observedPages.some((element) => {
+          const rect = element.getBoundingClientRect()
+          return rect.bottom > topBoundary && rect.top < bottomBoundary
+        })
+      },
+      { rootMargin: '-12% 0px -12% 0px', threshold: 0.01 },
+    )
+    observedPages.forEach((element) => pageObserver.observe(element))
   }
 
   onMount(async () => {
@@ -64,6 +99,12 @@
     scrollToTarget()
     lazyReady = true
     loading = false
+    await tick()
+    observeGuidePages()
+  })
+
+  onDestroy(() => {
+    pageObserver?.disconnect()
   })
 </script>
 
@@ -96,6 +137,29 @@
         />
       {/each}
     </div>
+  {/if}
+  {#if actionGuide && guideInRange}
+    <aside class:collapsed={!guideExpanded} class="action-guide-float" aria-live="polite">
+      <button
+        class="action-guide-toggle"
+        type="button"
+        aria-label={guideExpanded ? '收起动作示范' : '展开动作示范'}
+        aria-expanded={guideExpanded}
+        on:click={() => (guideExpanded = !guideExpanded)}
+      >
+        <span aria-hidden="true">{guideExpanded ? '→' : '←'}</span>
+      </button>
+      <div class="action-guide-content" aria-hidden={!guideExpanded}>
+        <div class="action-guide-float-heading">
+          <div>
+            <strong>{actionGuide.title}</strong>
+            <span>原书第 {actionGuide.startPage}–{actionGuide.endPage} 页</span>
+          </div>
+        </div>
+        <img src={appURL(actionGuide.gif)} alt={`${actionGuide.action} GIF 动作示范`} />
+        <p>{actionGuide.description}</p>
+      </div>
+    </aside>
   {/if}
 </main>
 
@@ -163,6 +227,112 @@
     width: min(100%, 920px);
     margin: 0 auto;
   }
+  .action-guide-float {
+    position: fixed;
+    right: max(24px, calc((100vw - 1180px) / 2));
+    top: 88px;
+    z-index: 5;
+    width: min(280px, calc(100vw - 36px));
+    padding: 12px;
+    border: 1px solid #536b59;
+    border-radius: 16px;
+    background: #111a20ee;
+    box-shadow: 0 16px 44px #0009;
+    backdrop-filter: blur(12px);
+    transition:
+      transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 180ms ease;
+    will-change: transform;
+  }
+  .action-guide-float.collapsed {
+    transform: translateX(calc(100% - 52px));
+    padding: 0;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    pointer-events: none;
+  }
+  .action-guide-content {
+    opacity: 1;
+    transform: translateX(0);
+    transition:
+      opacity 180ms ease,
+      transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .action-guide-float.collapsed .action-guide-content {
+    opacity: 0;
+    transform: translateX(12px);
+    pointer-events: none;
+  }
+  .action-guide-float-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+    padding-right: 44px;
+  }
+  .action-guide-float-heading div {
+    display: grid;
+    gap: 3px;
+  }
+  .action-guide-float-heading strong {
+    color: #eff8f8;
+    font-size: 14px;
+  }
+  .action-guide-float-heading span,
+  .action-guide-float p {
+    color: #a7b9c4;
+    font-size: 11px;
+  }
+  .action-guide-toggle {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 42px;
+    height: 42px;
+    border: 1px solid #3b4e58;
+    border-radius: 50%;
+    background: transparent;
+    color: #d8e5e7;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      left 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      right 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      background 160ms ease,
+      transform 160ms ease;
+    z-index: 1;
+  }
+  .action-guide-toggle span {
+    display: block;
+    transform: translateY(-1px);
+    transition: transform 180ms ease;
+  }
+  .action-guide-float.collapsed .action-guide-toggle {
+    right: auto;
+    top: 0;
+    left: 0;
+    pointer-events: auto;
+  }
+  .action-guide-toggle:hover {
+    background: #263b47;
+  }
+  .action-guide-toggle:active {
+    transform: scale(0.92);
+  }
+  .action-guide-float img {
+    display: block;
+    width: 100%;
+    border-radius: 10px;
+    background: #0b1220;
+  }
+  .action-guide-float p {
+    margin: 8px 2px 0;
+    line-height: 1.5;
+  }
   p {
     max-width: 920px;
     margin: 40px auto;
@@ -175,6 +345,11 @@
     .source-brand p,
     .source-brand-name small {
       display: none;
+    }
+    .action-guide-float {
+      right: 12px;
+      top: 72px;
+      width: min(230px, calc(100vw - 24px));
     }
   }
 </style>

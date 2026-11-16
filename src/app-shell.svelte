@@ -415,7 +415,7 @@
 
 <div class:source-mode={sourceViewer} class:share-mode={challengeShare} class="app">
   {#if sourceViewer}
-    <SourceViewerPage page={sourcePage} />
+    <SourceViewerPage page={sourcePage} action={sourceAction} />
   {:else if authCallback}
     <div class="app-content">
       {#if ready}<AuthCallbackPage />{/if}
