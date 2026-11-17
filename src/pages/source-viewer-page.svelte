@@ -2,7 +2,7 @@
   import { onDestroy, onMount, tick } from 'svelte'
   import PdfPage from '../components/pdf-page.svelte'
   import FloatingBackButton from '../components/floating-back-button.svelte'
-  import { actionGuideFor } from '../lib/action-guide-catalog.js'
+  import { actionGuides } from '../lib/action-guide-catalog.js'
   import { appPath, appURL } from '../lib/config.js'
 
   export let page = 1
@@ -15,12 +15,10 @@
   let lazyReady = false
   let returnHref = appPath()
   let leaving = false
-  let guideInRange = false
+  let activeGuide = null
   let guideExpanded = true
   let pageObserver
-  let observedPages = []
-
-  $: actionGuide = actionGuideFor(action)
+  let observedGuidePages = []
 
   const pageImageURL = (pageNumber) =>
     appURL(`convict-conditioning-pages/page-${String(pageNumber).padStart(4, '0')}.webp`)
@@ -42,29 +40,44 @@
 
   function observeGuidePages() {
     pageObserver?.disconnect()
-    observedPages = []
-    if (!actionGuide || typeof IntersectionObserver === 'undefined') {
-      guideInRange = false
+    observedGuidePages = []
+    activeGuide = null
+    if (!actionGuides.length || typeof IntersectionObserver === 'undefined') {
       return
     }
-    observedPages = pages
-      .filter(
-        (pageNumber) => pageNumber >= actionGuide.startPage && pageNumber <= actionGuide.endPage,
-      )
-      .map((pageNumber) => document.getElementById(`source-page-${pageNumber}`))
-      .filter(Boolean)
-    pageObserver = new IntersectionObserver(
-      () => {
-        const topBoundary = window.innerHeight * 0.12
-        const bottomBoundary = window.innerHeight * 0.88
-        guideInRange = observedPages.some((element) => {
-          const rect = element.getBoundingClientRect()
-          return rect.bottom > topBoundary && rect.top < bottomBoundary
-        })
-      },
-      { rootMargin: '-12% 0px -12% 0px', threshold: 0.01 },
+    observedGuidePages = actionGuides.flatMap((guide) =>
+      pages
+        .filter((pageNumber) => pageNumber >= guide.startPage && pageNumber <= guide.endPage)
+        .map((pageNumber) => ({
+          guide,
+          element: document.getElementById(`source-page-${pageNumber}`),
+        }))
+        .filter(({ element }) => element),
     )
-    observedPages.forEach((element) => pageObserver.observe(element))
+    pageObserver = new IntersectionObserver(updateActiveGuide, {
+      rootMargin: '-12% 0px -12% 0px',
+      threshold: 0.01,
+    })
+    observedGuidePages.forEach(({ element }) => pageObserver.observe(element))
+    updateActiveGuide()
+  }
+
+  function updateActiveGuide() {
+    const viewportCenter = window.innerHeight / 2
+    const topBoundary = window.innerHeight * 0.12
+    const bottomBoundary = window.innerHeight * 0.88
+    const visible = observedGuidePages
+      .map(({ guide, element }) => {
+        const rect = element.getBoundingClientRect()
+        return {
+          guide,
+          distanceToCenter: Math.abs(rect.top + rect.height / 2 - viewportCenter),
+          inRange: rect.bottom > topBoundary && rect.top < bottomBoundary,
+        }
+      })
+      .filter((item) => item.inRange)
+      .sort((left, right) => left.distanceToCenter - right.distanceToCenter)
+    activeGuide = visible[0]?.guide || null
   }
 
   onMount(async () => {
@@ -84,6 +97,8 @@
       window.location.href,
     )
     window.addEventListener('popstate', interceptBrowserBack)
+    window.addEventListener('scroll', updateActiveGuide, { passive: true })
+    window.addEventListener('resize', updateActiveGuide)
     totalPages = TOTAL_PAGES
     const targetPage = Math.min(Math.max(1, page), totalPages)
     const firstPriorityPage = Math.max(1, targetPage - 2)
@@ -105,6 +120,8 @@
 
   onDestroy(() => {
     pageObserver?.disconnect()
+    window.removeEventListener('scroll', updateActiveGuide)
+    window.removeEventListener('resize', updateActiveGuide)
   })
 </script>
 
@@ -138,7 +155,7 @@
       {/each}
     </div>
   {/if}
-  {#if actionGuide && guideInRange}
+  {#if activeGuide}
     <aside class:collapsed={!guideExpanded} class="action-guide-float" aria-live="polite">
       <button
         class="action-guide-toggle"
@@ -152,12 +169,12 @@
       <div class="action-guide-content" aria-hidden={!guideExpanded}>
         <div class="action-guide-float-heading">
           <div>
-            <strong>{actionGuide.title}</strong>
-            <span>原书第 {actionGuide.startPage}–{actionGuide.endPage} 页</span>
+            <strong>{activeGuide.title}</strong>
+            <span>原书第 {activeGuide.startPage}–{activeGuide.endPage} 页</span>
           </div>
         </div>
-        <img src={appURL(actionGuide.gif)} alt={`${actionGuide.action} GIF 动作示范`} />
-        <p>{actionGuide.description}</p>
+        <img src={appURL(activeGuide.gif)} alt={`${activeGuide.action} GIF 动作示范`} />
+        <p>{activeGuide.description}</p>
       </div>
     </aside>
   {/if}
