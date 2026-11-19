@@ -413,7 +413,7 @@
       if (returnToChallenges) returnToChallenge(returnSelection)
       return
     }
-    saveTrainingRecord(review, results)
+    saveTrainingRecord(review, results, returnToChallenges ? 'quick-challenge' : 'training-record')
     data.exerciseNames = [...new Set([...availableNames, ...results.map((item) => item.name)])]
     data = data
     review = null
@@ -443,7 +443,7 @@
   function returnToChallenge(selection) {
     window.dispatchEvent(new CustomEvent('lianke-return-to-challenges', { detail: selection }))
   }
-  function saveTrainingRecord(source, results) {
+  function saveTrainingRecord(source, results, sourceType = 'training-record') {
     const record = {
       id: uid(),
       planId: source.planId,
@@ -452,6 +452,7 @@
       finishedAt: source.finishedAt || new Date().toISOString(),
       notes: source.notes || '',
       results: structuredClone(results),
+      ...(sourceType === 'quick-challenge' ? { source: { type: sourceType } } : {}),
     }
     data.records = [...data.records, record]
     data.challenges = appendTrainingEvaluation(data.challenges, record)

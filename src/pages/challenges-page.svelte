@@ -9,6 +9,7 @@
     evaluateAttempt,
     formatGoal,
     getRouteProgress,
+    getTrainingStage,
     confirmTrainingEvaluation,
     rejectTrainingEvaluation,
     sideLabels,
@@ -81,7 +82,13 @@
     progress.find((item) => item.unlocked && item.level.id === quickStartLevelId)?.level ||
     quickStartLevel
   $: stages = Object.keys(level.standards)
-  $: allHistory = attempts.filter((item) => item.levelId === level.id).slice()
+  $: allHistory = attempts
+    .filter(
+      (item) =>
+        item.levelId === level.id &&
+        (!isAutoEvaluation(item) || item.qualityConfirmed || trainingDataStage(item)),
+    )
+    .slice()
   $: history = allHistory
     .sort((a, b) => {
       const aPassed = recordPassed(a)
@@ -497,12 +504,20 @@
     })
     if (!confirmed) return
     try {
+      const matchedStage = trainingDataStage(attempt)
       data = { ...data, challenges: confirmTrainingEvaluation(data.challenges, attempt.id) }
-      feedback = { passed: true, title: '已确认训练数据，挑战正式达成', messages: [] }
+      feedback = {
+        passed: true,
+        title:
+          matchedStage === 'progression'
+            ? '已确认训练数据，挑战正式达成'
+            : `已确认训练数据，计入${stageLabels[matchedStage]}标准`,
+        messages: [],
+      }
       triggerCelebration()
       const currentIndex = route.levels.findIndex((item) => item.id === level.id)
       const nextLevel = route.levels[currentIndex + 1]
-      if (attempt.stage === 'progression' && nextLevel) {
+      if (matchedStage === 'progression' && nextLevel) {
         await new Promise((resolve) => setTimeout(resolve, 900))
         await chooseLevel(route, nextLevel)
       }
@@ -538,16 +553,29 @@
       .join('；')
   }
   function trainingDataPassed(attempt) {
-    return evaluateAttempt(level, { ...attempt, qualityConfirmed: true }, attempt.stage).passed
+    const stage = trainingDataStage(attempt)
+    return Boolean(
+      stage && evaluateAttempt(level, { ...attempt, qualityConfirmed: true }, stage).passed,
+    )
+  }
+  function trainingDataStage(attempt) {
+    if (attempt.qualityConfirmed) return attempt.stage
+    const achievedStages = Object.keys(level.standards).filter(
+      (stage) => selected.achieved?.[stage] === true,
+    )
+    return getTrainingStage(level, attempt.rows, attempt.stage, achievedStages)
+  }
+  function isAutoEvaluation(attempt) {
+    return ['training-record', 'quick-challenge'].includes(attempt.source?.type)
   }
   function recordPassed(attempt) {
     return (
       evaluateAttempt(level, attempt, attempt.stage).passed ||
-      (attempt.source?.type === 'training-record' && trainingDataPassed(attempt))
+      (isAutoEvaluation(attempt) && trainingDataPassed(attempt))
     )
   }
   function trainingDataMessage(attempt, result) {
-    if (attempt.source?.type !== 'training-record') return result.messages.join(' ')
+    if (!isAutoEvaluation(attempt)) return result.messages.join(' ')
     const goal = level.standards[attempt.stage]
     const unit = level.mode === 'time' ? '秒' : '次'
     const missingSets = Math.max(0, goal.sets - attempt.rows.length)
@@ -800,27 +828,34 @@
       {:else}
         {#each history as attempt (attempt.id)}
           {@const result = evaluateAttempt(level, attempt, attempt.stage)}
-          {@const autoPassed =
-            attempt.source?.type === 'training-record' ? trainingDataPassed(attempt) : false}
+          {@const matchedAutoStage = isAutoEvaluation(attempt) ? trainingDataStage(attempt) : null}
+          {@const matchedStage = matchedAutoStage || attempt.stage}
+          {@const displayResult = matchedAutoStage
+            ? evaluateAttempt(level, attempt, matchedAutoStage)
+            : result}
+          {@const autoPassed = isAutoEvaluation(attempt) ? trainingDataPassed(attempt) : false}
           <article class="challenge-record">
-            <div class="row between">
+            <div class="row between challenge-record-heading">
               <strong>
-                {stageLabels[attempt.stage]} · {autoPassed && !attempt.qualityConfirmed
+                {stageLabels[matchedStage]} · {autoPassed && !attempt.qualityConfirmed
                   ? '待确认'
-                  : result.passed
+                  : displayResult.passed
                     ? '目标达成'
-                    : result.valid
+                    : displayResult.valid
                       ? '未达目标'
                       : '历史版本'}
               </strong>
+              {#if attempt.source?.type === 'training-record' && !attempt.qualityConfirmed}
+                <span class="challenge-training-pending-badge">训练记录</span>
+              {/if}
             </div>
             <p class="muted small">
               {date(attempt.recordedAt)}
             </p>
             <p>{attemptDescription(attempt)}</p>
-            {#if attempt.source?.type === 'training-record'}
+            {#if isAutoEvaluation(attempt)}
               <p class="notice small">
-                训练记录：{autoPassed
+                {attempt.source?.type === 'quick-challenge' ? '快速挑战' : '训练记录'}：{autoPassed
                   ? attempt.qualityConfirmed
                     ? '已确认'
                     : '已达标'
@@ -845,13 +880,13 @@
                 </div>
               {/if}
             {/if}
-            {#if !attempt.qualityConfirmed && attempt.source?.type !== 'training-record'}
+            {#if !attempt.qualityConfirmed && !isAutoEvaluation(attempt)}
               <p class="muted small">未确认动作质量</p>
             {/if}
-            {#if attempt.note && attempt.source?.type !== 'training-record'}
+            {#if attempt.note && !isAutoEvaluation(attempt)}
               <p class="challenge-record-note">{attempt.note}</p>
             {/if}
-            {#if !result.passed && !(attempt.source?.type === 'training-record' && autoPassed)}<p
+            {#if !displayResult.passed && !(isAutoEvaluation(attempt) && autoPassed)}<p
                 class="muted small"
               >
                 {trainingDataMessage(attempt, result)}

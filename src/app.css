@@ -349,6 +349,7 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .challenge-record+.challenge-record{margin-top:12px}
 .challenge-record:last-child{border:1px solid #2c3a44;padding-bottom:17px}
 .challenge-record-actions{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px}
+.challenge-record-heading{align-items:center}.challenge-training-pending-badge{display:inline-flex;align-items:center;padding:3px 8px;border:1px solid #668b47;border-radius:999px;background:#b7f36a18;color:#c9f39c;font-size:10px;line-height:1.3;white-space:nowrap}
 .challenge-history{scroll-margin-top:20px}
 .challenge-path-hint{display:flex;align-items:center;gap:5px;margin:-4px 8px 9px;color:#8298a5;font-size:10px;line-height:1.5}.challenge-path-hint span{color:#b7f36a;font-size:12px}.challenge-step{cursor:pointer}.challenge-step:hover .challenge-step-text small{color:#b7c8d0}
 .challenge-path{scroll-margin-top:14px}

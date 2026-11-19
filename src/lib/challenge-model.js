@@ -1,4 +1,4 @@
-import { challengeLevels } from './challenge-catalog.js'
+import { challengeLevels, challengeRoutes } from './challenge-catalog.js'
 
 const byId = new Map(challengeLevels.map((level) => [level.id, level]))
 const byName = new Map(challengeLevels.map((level) => [level.name, level]))
@@ -278,6 +278,25 @@ function trainingRows(level, results) {
   return rows.slice(0, 3)
 }
 
+export function getTrainingStage(
+  level,
+  rows,
+  preferredStage = completionStage(level),
+  excludedStages = [],
+) {
+  const fallbackStage = validStage(level, preferredStage) ? preferredStage : completionStage(level)
+  let probe
+  try {
+    probe = createAttempt(level, fallbackStage, rows, true)
+  } catch {
+    return fallbackStage
+  }
+  const stageOrder = ['beginner', 'intermediate', 'progression'].filter(
+    (stage) => validStage(level, stage) && !excludedStages.includes(stage),
+  )
+  return stageOrder.reverse().find((stage) => evaluateAttempt(level, probe, stage).passed) || null
+}
+
 // Converts one completed training record into a challenge candidate. Candidates
 // are deliberately allowed to exist before their route is unlocked so a later
 // challenge-page confirmation can reuse the historical training evidence.
@@ -288,18 +307,31 @@ export function appendTrainingEvaluation(state, record) {
   for (const result of record.results) {
     const level = byName.get(String(result.name || '').trim())
     if (!level) continue
-    const stage = validStage(level, result.challengeStage)
+    const preferredStage = validStage(level, result.challengeStage)
       ? result.challengeStage
       : completionStage(level)
-    const key = `${level.id}:${stage}`
-    if (!grouped.has(key)) grouped.set(key, { level, stage, results: [] })
+    const key = `${level.id}:${preferredStage}`
+    if (!grouped.has(key)) grouped.set(key, { level, preferredStage, results: [] })
     grouped.get(key).results.push(result)
   }
   const additions = []
-  for (const { level, stage, results } of grouped.values()) {
+  const sourceType =
+    record.source?.type === 'quick-challenge' ? 'quick-challenge' : 'training-record'
+  for (const { level, preferredStage, results } of grouped.values()) {
     const rows = trainingRows(level, results)
+    const route = challengeRoutes.find((item) => item.levels.some((entry) => entry.id === level.id))
+    const levelProgress =
+      route &&
+      getRouteProgress(route, normalized.attempts).find((item) => item.level.id === level.id)
+    const achievedStages = Object.keys(level.standards).filter(
+      (stage) => levelProgress?.achieved?.[stage] === true,
+    )
+    const stage = rows
+      ? getTrainingStage(level, rows, preferredStage, achievedStages)
+      : preferredStage
     if (
       !rows ||
+      !stage ||
       normalized.attempts.some(
         (item) =>
           item.source?.recordId === record.id && item.levelId === level.id && item.stage === stage,
@@ -311,8 +343,10 @@ export function appendTrainingEvaluation(state, record) {
       stage,
       rows,
       false,
-      '来自训练记录的自动判定；请在挑战页确认动作质量后计入通关。',
-      { type: 'training-record', recordId: record.id },
+      sourceType === 'quick-challenge'
+        ? '来自快速挑战的自动判定；请确认动作质量后计入通关。'
+        : '来自训练记录的自动判定；请在挑战页确认动作质量后计入通关。',
+      { type: sourceType, recordId: record.id },
     )
     additions.push(attempt)
   }
@@ -322,9 +356,15 @@ export function appendTrainingEvaluation(state, record) {
 export function confirmTrainingEvaluation(state, attemptId) {
   const normalized = normalizeChallenges(state, { strict: true })
   const candidate = normalized.attempts.find((item) => item.id === attemptId)
-  if (!candidate || candidate.source?.type !== 'training-record')
+  if (!candidate || !['training-record', 'quick-challenge'].includes(candidate.source?.type))
     throw Error('找不到可确认的训练判定')
-  const confirmed = { ...candidate, id: `${candidate.id}-confirmed`, qualityConfirmed: true }
+  const candidateLevel = byId.get(candidate.levelId)
+  const confirmed = {
+    ...candidate,
+    id: `${candidate.id}-confirmed`,
+    stage: getTrainingStage(candidateLevel, candidate.rows, candidate.stage),
+    qualityConfirmed: true,
+  }
   const withoutCandidate = removeAttempt(normalized, attemptId)
   return appendAttempt(withoutCandidate, confirmed)
 }
@@ -332,7 +372,7 @@ export function confirmTrainingEvaluation(state, attemptId) {
 export function rejectTrainingEvaluation(state, attemptId) {
   const normalized = normalizeChallenges(state, { strict: true })
   const candidate = normalized.attempts.find((item) => item.id === attemptId)
-  if (!candidate || candidate.source?.type !== 'training-record')
+  if (!candidate || !['training-record', 'quick-challenge'].includes(candidate.source?.type))
     throw Error('找不到可拒绝的训练判定')
   return removeAttempt(normalized, attemptId)
 }
