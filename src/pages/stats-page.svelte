@@ -103,6 +103,13 @@
     }
     return String(result.actualReps ?? 0) + ' 次'
   }
+
+  function formatAnalysisDate(value) {
+    const date = new Date(`${value}T12:00:00`)
+    if (Number.isNaN(date.getTime())) return value
+    const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+    return `${value.replaceAll('-', '/')} ${weekdays[date.getDay()]}`
+  }
 </script>
 
 <div>
@@ -234,7 +241,7 @@
     >
       <div class="chart-detail-header row between">
         <div>
-          <h3 id="chart-detail-title">{selectedChartDay.key}</h3>
+          <h3 id="chart-detail-title">{formatAnalysisDate(selectedChartDay.key)}</h3>
           <p class="muted small">当天训练记录</p>
         </div>
         <button class="btn ghost tiny" type="button" on:click={() => (selectedChartDay = null)}>

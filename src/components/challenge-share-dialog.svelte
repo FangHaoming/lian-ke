@@ -1,5 +1,5 @@
 <script>
-  import { createEventDispatcher, onMount, tick } from 'svelte'
+  import { createEventDispatcher, onDestroy, onMount, tick } from 'svelte'
   import { stageLabels } from '../lib/challenge-catalog.js'
   import { completionStage, formatGoal } from '../lib/challenge-model.js'
   import { appPath, appURL } from '../lib/config.js'
@@ -8,6 +8,7 @@
 
   export let open = false
   export let posterData
+  export let shareOptions = []
 
   const dispatch = createEventDispatcher()
   let shareMode = 'level'
@@ -20,6 +21,74 @@
   let posterActionKey = ''
   let posterQr
   let posterQrReady = false
+  let selectedRouteId = ''
+  let selectedLevelId = ''
+  let openMenu = ''
+  let lastOpen = false
+  let scrollLockStyles
+
+  $: if (open !== lastOpen) {
+    lastOpen = open
+    if (open) {
+      selectedRouteId = posterData?.routeId || shareOptions[0]?.id || ''
+      selectedLevelId = posterData?.levelId || ''
+      lockPageScroll()
+    } else {
+      unlockPageScroll()
+    }
+  }
+
+  $: selectedRoute = shareOptions.find((item) => item.id === selectedRouteId)
+  $: availableLevels = selectedRoute?.progress || []
+
+  onDestroy(unlockPageScroll)
+
+  function lockPageScroll() {
+    if (typeof document === 'undefined' || scrollLockStyles) return
+    scrollLockStyles = {
+      htmlOverflow: document.documentElement.style.overflow,
+      bodyOverflow: document.body.style.overflow,
+      bodyTouchAction: document.body.style.touchAction,
+    }
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+    document.body.style.touchAction = 'none'
+  }
+
+  function unlockPageScroll() {
+    if (typeof document === 'undefined' || !scrollLockStyles) return
+    document.documentElement.style.overflow = scrollLockStyles.htmlOverflow
+    document.body.style.overflow = scrollLockStyles.bodyOverflow
+    document.body.style.touchAction = scrollLockStyles.bodyTouchAction
+    scrollLockStyles = null
+  }
+
+  function handleWindowClick(event) {
+    if (openMenu && !event.target?.closest?.('.challenge-share-mode-wrap')) {
+      openMenu = ''
+    }
+  }
+
+  function chooseRoute(routeId) {
+    selectedRouteId = routeId
+    const nextRoute = shareOptions.find((item) => item.id === routeId)
+    const nextLevel =
+      nextRoute?.progress.find((item) => item.completed)?.level || nextRoute?.progress[0]?.level
+    selectedLevelId = nextLevel?.id || ''
+    dispatch('select', { routeId: selectedRouteId, levelId: selectedLevelId })
+    openMenu = shareMode === 'level' ? 'level' : ''
+  }
+
+  function chooseLevel(levelId) {
+    selectedLevelId = levelId
+    dispatch('select', { routeId: selectedRouteId, levelId: selectedLevelId })
+    openMenu = ''
+  }
+
+  async function toggleModeMenu(mode) {
+    if (shareMode !== mode) await selectShareMode(mode)
+    openMenu = openMenu === mode ? '' : mode
+  }
 
   $: if (open && posterData) {
     tick().then(() => {
@@ -312,6 +381,7 @@
 
   async function selectShareMode(mode) {
     shareMode = mode
+    if (mode === 'overview') openMenu = ''
     loadQrCode()
     await tick()
     drawPoster()
@@ -425,6 +495,8 @@
   }
 </script>
 
+<svelte:window on:click={handleWindowClick} />
+
 {#if open}
   <div class="challenge-share-backdrop" role="presentation" on:click|self={() => dispatch('close')}>
     <section
@@ -448,24 +520,76 @@
         </button>
       </div>
       <div class="challenge-share-modes" role="tablist" aria-label="选择分享范围">
-        <button
-          type="button"
-          class:active={shareMode === 'level'}
-          role="tab"
-          aria-selected={shareMode === 'level'}
-          on:click={() => selectShareMode('level')}
-        >
-          单个动作
-        </button>
-        <button
-          type="button"
-          class:active={shareMode === 'route'}
-          role="tab"
-          aria-selected={shareMode === 'route'}
-          on:click={() => selectShareMode('route')}
-        >
-          单个动作路线
-        </button>
+        <div class="challenge-share-mode-wrap">
+          <button
+            type="button"
+            class:active={shareMode === 'level'}
+            role="tab"
+            aria-selected={shareMode === 'level'}
+            aria-haspopup="menu"
+            aria-expanded={openMenu === 'level'}
+            on:click={() => toggleModeMenu('level')}
+          >
+            单个动作
+          </button>
+          {#if openMenu === 'level'}
+            <div class="challenge-share-menu challenge-share-level-menu" role="menu">
+              <span class="challenge-share-menu-label">选择动作</span>
+              {#each shareOptions as option}
+                <button
+                  type="button"
+                  role="menuitem"
+                  class:chosen={selectedRouteId === option.id}
+                  on:click={() => chooseRoute(option.id)}
+                >
+                  {option.name}
+                  {#if selectedRouteId === option.id}<span>✓</span>{/if}
+                </button>
+              {/each}
+              <span class="challenge-share-menu-label">选择关卡</span>
+              {#each availableLevels as state}
+                <button
+                  type="button"
+                  role="menuitem"
+                  class:chosen={selectedLevelId === state.level.id}
+                  on:click={() => chooseLevel(state.level.id)}
+                >
+                  第 {String(state.level.step).padStart(2, '0')} 关 · {state.level.name}
+                  {#if selectedLevelId === state.level.id}<span>✓</span>{/if}
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+        <div class="challenge-share-mode-wrap">
+          <button
+            type="button"
+            class:active={shareMode === 'route'}
+            role="tab"
+            aria-selected={shareMode === 'route'}
+            aria-haspopup="menu"
+            aria-expanded={openMenu === 'route'}
+            on:click={() => toggleModeMenu('route')}
+          >
+            单个动作路线
+          </button>
+          {#if openMenu === 'route'}
+            <div class="challenge-share-menu" role="menu">
+              <span class="challenge-share-menu-label">选择动作路线</span>
+              {#each shareOptions as option}
+                <button
+                  type="button"
+                  role="menuitem"
+                  class:chosen={selectedRouteId === option.id}
+                  on:click={() => chooseRoute(option.id)}
+                >
+                  {option.name}
+                  {#if selectedRouteId === option.id}<span>✓</span>{/if}
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
         <button
           type="button"
           class:active={shareMode === 'overview'}
@@ -512,8 +636,89 @@
 {/if}
 
 <style>
+  :global(.challenge-share-backdrop) {
+    overflow: hidden;
+    overscroll-behavior: contain;
+    touch-action: none;
+  }
+
+  :global(.challenge-share-dialog) {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
   .challenge-share-modes {
+    position: relative;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .challenge-share-mode-wrap {
+    position: relative;
+    min-width: 0;
+  }
+
+  .challenge-share-mode-wrap > button {
+    width: 100%;
+  }
+
+  .challenge-share-menu {
+    position: absolute;
+    z-index: 5;
+    top: calc(100% + 8px);
+    left: 0;
+    width: max-content;
+    min-width: 190px;
+    max-width: 290px;
+    max-height: min(360px, 55vh);
+    overflow: auto;
+    padding: 7px;
+    border: 1px solid #58745b;
+    border-radius: 12px;
+    background: linear-gradient(145deg, #1b2b32, #162320);
+    box-shadow: 0 16px 34px #000b;
+  }
+
+  .challenge-share-level-menu {
+    left: 0;
+    width: min(290px, calc(200% + 6px));
+  }
+
+  .challenge-share-menu-label {
+    display: block;
+    padding: 7px 9px 4px;
+    color: #9eb5ad;
+    font-size: 11px;
+  }
+
+  .challenge-share-menu button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding: 9px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: #dbe8e8;
+    text-align: left;
+    font-size: 12px;
+  }
+
+  .challenge-share-menu button:hover,
+  .challenge-share-menu button.chosen {
+    border-color: #698d50;
+    background: #b7f36a18;
+    color: #eff9e8;
+  }
+
+  .challenge-share-menu button.chosen {
+    font-weight: 750;
+  }
+
+  .challenge-share-menu button span {
+    color: #b7f36a;
   }
 
   .challenge-share-modes button {

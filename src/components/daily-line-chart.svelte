@@ -19,7 +19,14 @@
   let disposed = false
   const dispatch = createEventDispatcher()
 
-  $: labels = points.map((point) => point.key.slice(5))
+  function formatDateLabel(value) {
+    const date = new Date(`${value}T12:00:00`)
+    if (Number.isNaN(date.getTime())) return value
+    const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+    return `${value.slice(5).replace('-', '/')} ${weekdays[date.getDay()]}`
+  }
+
+  $: labels = points.map((point) => point.key.slice(5).replace('-', '/'))
   $: initialStart = 0
   $: if (chart && !disposed && Array.isArray(points) && Array.isArray(metrics)) renderChart()
 
@@ -80,9 +87,10 @@
                   .join('') +
                 '</div>'
               : '<div style="margin-top:8px;color:#aebfc7">当天没有匹配的训练记录</div>'
+            const dateLabel = formatDateLabel(points[items[0].dataIndex]?.key || items[0].axisValue)
             return (
               '<div><b>' +
-              items[0].axisValue +
+              dateLabel +
               '</b></div>' +
               items
                 .map(

@@ -48,6 +48,7 @@
   let feedback = null
   let detailHeading
   let pendingLevel = null
+  let shareRouteOverrideId = ''
   let shareLevelOverrideId = ''
   let shareOpen = false
   let quickStartOpen = false
@@ -95,8 +96,8 @@
   )
   $: masterCount = summaries.filter((item) => item.progress[9].completed).length
   $: eliteCount = summaries.filter((item) => item.progress[9].achieved.elite).length
-  $: shareRoute = route
-  $: shareProgress = progress
+  $: shareRoute = challengeRoutes.find((item) => item.id === shareRouteOverrideId) || route
+  $: shareProgress = summaries.find((item) => item.route.id === shareRoute.id)?.progress || progress
   $: latestPassedShareLevel = shareProgress.filter((item) => item.completed).at(-1)?.level
   $: shareLevel =
     shareProgress.find((item) => item.level.id === shareLevelOverrideId)?.level ||
@@ -568,11 +569,20 @@
   }
 
   async function openSharePoster() {
+    shareRouteOverrideId = routeId
+    shareLevelOverrideId = shareLevel.id
     shareOpen = true
   }
 
   function closeSharePoster() {
     shareOpen = false
+    shareRouteOverrideId = ''
+    shareLevelOverrideId = ''
+  }
+
+  function selectShareTarget(event) {
+    shareRouteOverrideId = event.detail.routeId || routeId
+    shareLevelOverrideId = event.detail.levelId || ''
   }
 </script>
 
@@ -958,4 +968,14 @@
   </div>
 {/if}
 
-<ChallengeShareDialog open={shareOpen} posterData={sharePosterData} on:close={closeSharePoster} />
+<ChallengeShareDialog
+  open={shareOpen}
+  posterData={sharePosterData}
+  shareOptions={summaries.map(({ route: routeItem, progress: routeProgress }) => ({
+    id: routeItem.id,
+    name: routeItem.name,
+    progress: routeProgress,
+  }))}
+  on:close={closeSharePoster}
+  on:select={selectShareTarget}
+/>
