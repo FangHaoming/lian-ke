@@ -368,6 +368,7 @@ input[type='number']{-moz-appearance:textfield;appearance:textfield}input[type='
 .challenge-start-level-menu{width:100%;max-width:none}
 .challenge-start-level-trigger{border:1px solid transparent;border-radius:10px;padding:6px 10px;background:#b7f36a0b}.challenge-start-level-trigger:hover{border-color:#668d4e;background:#b7f36a18}
 .challenge-start-level-trigger>span{position:relative;align-self:stretch;display:block;width:22px;margin:0;font-size:0;line-height:1;transform:none}.challenge-start-level-trigger>span:after{content:'';position:absolute;left:50%;top:50%;width:10px;height:10px;border-right:2px solid #d9f6be;border-bottom:2px solid #d9f6be;transform:translate(-50%,-65%) rotate(45deg)}
+.sleep-record-button{height:auto;aspect-ratio:1 / 1;min-height:0;flex-shrink:0}
 .sleep-chart-panel{margin-top:15px}.sleep-chart-heading{align-items:flex-start}.sleep-chart-heading h3{margin-bottom:5px}.sleep-chart-heading p{margin:0}.sleep-chart-wrap{padding:10px 0 0}
 .challenge-share-button{flex-shrink:0;margin-top:4px;white-space:nowrap}
 @media(max-width:480px){.challenge-share-button{margin-top:0;padding:9px 11px;font-size:11px}}

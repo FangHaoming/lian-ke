@@ -171,6 +171,7 @@
             : record,
         )
       : [
+          ...records,
           {
             id: uid(),
             asleepAt: asleep.toISOString(),
