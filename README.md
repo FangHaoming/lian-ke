@@ -39,6 +39,10 @@ pnpm dev
 
 生产构建会生成 Service Worker，预缓存应用外壳与所有版本化的 JS/CSS 资源。动作示范、原书页面等大体积图片按访问缓存并跨版本保留；在线访问时先显示缓存，再在后台检查并更新发生变化的资源。断网后，已打开过的内容与本地训练记录仍可继续使用。Service Worker 仅在生产环境注册，本地开发不受缓存影响。
 
+## 安装到桌面
+
+支持安装 PWA 的 Chrome、Edge 等浏览器会在应用内显示“立即安装”；入口也会一直保留在“设置与备份”页面。iPhone 和 iPad 用户可使用 Safari 的“分享 → 添加到主屏幕”。安装后，练刻会以独立窗口运行，并提供训练、挑战闯关和体重记录快捷入口。
+
 ## GitHub Pages
 
 仓库的 `main` 分支推送会触发 `.github/workflows/deploy.yml`。在 GitHub 仓库的 **Settings → Secrets and variables → Actions** 添加：

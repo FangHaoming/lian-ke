@@ -8,6 +8,7 @@
   import SourceViewerPage from './pages/source-viewer-page.svelte'
   import GlobalDialog from './components/global-dialog.svelte'
   import GlobalToast from './components/global-toast.svelte'
+  import PwaInstall from './components/pwa-install.svelte'
   import { requestConfirm } from './lib/confirm-dialog.js'
   import { appPath, appURL, basePath } from './lib/config.js'
 
@@ -577,5 +578,6 @@
     </main>
   {/if}
   <GlobalDialog />
+  {#if ready && !authCallback && !sourceViewer && !challengeShare}<PwaInstall />{/if}
   <GlobalToast />
 </div>

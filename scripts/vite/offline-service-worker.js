@@ -34,6 +34,8 @@ export function offlineServiceWorker() {
         ...entryHTMLURLs,
         ...buildFiles.map((fileName) => `./${fileName}`),
         './fit-log-icon.png',
+        './icon-192.png',
+        './icon-512.png',
         './manifest.webmanifest',
       ]
 

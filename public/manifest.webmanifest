@@ -3,17 +3,46 @@
   "short_name": "练刻",
   "description": "安排训练计划、记录训练数据和完成挑战闯关。",
   "start_url": "/lian-ke/",
+  "id": "/lian-ke/",
   "scope": "/lian-ke/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#0b1015",
   "theme_color": "#0b1015",
   "lang": "zh-CN",
+  "categories": ["fitness", "health", "lifestyle"],
   "icons": [
     {
-      "src": "fit-log-icon.png",
-      "sizes": "1254x1254",
+      "src": "icon-192.png",
+      "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "开始训练",
+      "short_name": "训练",
+      "url": "/lian-ke/",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "挑战闯关",
+      "short_name": "挑战",
+      "url": "/lian-ke/challenges/",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "记录体重",
+      "short_name": "体重",
+      "url": "/lian-ke/weight",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

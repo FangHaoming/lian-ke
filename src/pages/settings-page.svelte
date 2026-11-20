@@ -9,6 +9,7 @@
   import ToggleSwitch from '../components/toggle-switch.svelte'
   import CheckboxGroup from '../components/checkbox-group.svelte'
   import ConfirmDialogInput from '../components/confirm-dialog-input.svelte'
+  import PwaInstall from '../components/pwa-install.svelte'
   import { requestConfirm } from '../lib/confirm-dialog.js'
   import { soundOptions } from '../lib/select-options.js'
   import { showToast } from '../lib/toast.js'
@@ -367,6 +368,8 @@
   <h1>设置与备份</h1>
   <p class="muted">先用本地功能开始训练；需要多设备同步时，再配置云端账号。</p>
 </header>
+
+<PwaInstall mode="settings" />
 
 <section class="panel cloud-account-card">
   <div class="cloud-account-heading">
