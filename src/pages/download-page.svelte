@@ -1,5 +1,6 @@
 <script>
   import { appPath, appURL } from '../lib/config.js'
+  import packageJson from '../../package.json'
 
   const releaseURL = 'https://github.com/FangHaoming/lian-ke/releases/latest'
 </script>
@@ -22,6 +23,7 @@
 
   <section class="download-hero">
     <p class="download-eyebrow">ANDROID APP</p>
+    <p class="download-version">当前版本 v{packageJson.version}</p>
     <h1>把训练带到锁屏上</h1>
     <p class="download-lead">
       下载练刻 Android App，训练时锁定屏幕也能持续查看动作、组数和倒计时。
@@ -113,6 +115,17 @@
     font-size: 12px;
     font-weight: 800;
     letter-spacing: 0.16em;
+  }
+  .download-version {
+    display: inline-flex;
+    margin: 0 0 18px;
+    padding: 5px 10px;
+    border: 1px solid #3d5a43;
+    border-radius: 999px;
+    color: #c9f39c;
+    background: #b7f36a12;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
   }
   h1 {
     max-width: 620px;
