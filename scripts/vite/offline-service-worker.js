@@ -1,6 +1,14 @@
 import { createHash } from 'node:crypto'
 
 export function offlineServiceWorker() {
+  const entryHTMLURLs = [
+    './',
+    './index.html',
+    './challenges/index.html',
+    './share/index.html',
+    './source/index.html',
+  ]
+
   return {
     name: 'lianke-offline-service-worker',
     apply: 'build',
@@ -14,7 +22,7 @@ export function offlineServiceWorker() {
       }
       const version = versionHash.digest('hex').slice(0, 12)
       const precacheURLs = [
-        './',
+        ...entryHTMLURLs,
         ...buildFiles.map((fileName) => `./${fileName}`),
         './fit-log-icon.png',
         './manifest.webmanifest',
@@ -72,7 +80,7 @@ function navigationFallback(pathname) {
   if (appPath === 'challenges' || appPath.startsWith('challenges/')) {
     return './challenges/index.html'
   }
-  return './index.html'
+  return './'
 }
 
 async function trimCache(cacheName, maxEntries) {
