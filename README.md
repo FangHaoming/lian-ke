@@ -83,3 +83,14 @@ git push origin v1.0.0
 ```
 
 工作流只监听 `v*` Tag。APK 使用 GitHub Actions 的 Debug 签名，适合内部测试和直接安装；如果要发布到 Google Play，还需要配置正式签名密钥并改为 Release 签名构建。
+
+为了让 Android 版本可以覆盖更新而不清除本地数据，Release 工作流要求配置一份固定的 Debug keystore。请在仓库 Settings → Secrets and variables → Actions 中添加以下 Secrets：
+
+```text
+ANDROID_DEBUG_KEYSTORE_BASE64
+ANDROID_DEBUG_KEYSTORE_PASSWORD
+ANDROID_DEBUG_KEY_ALIAS
+ANDROID_DEBUG_KEY_PASSWORD
+```
+
+其中 `ANDROID_DEBUG_KEYSTORE_BASE64` 是同一份 PKCS12 keystore 的 Base64 内容。以后所有 APK 都使用这份签名，Android 才能识别为同一个应用并保留本地数据。
