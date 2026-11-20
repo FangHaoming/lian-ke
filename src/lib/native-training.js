@@ -11,13 +11,15 @@ export function nativeTrainingAvailable() {
 }
 
 export async function requestNativeTrainingPermission() {
-  if (!nativeTrainingAvailable() || permissionRequested) return
+  if (!nativeTrainingAvailable() || permissionRequested) return true
   permissionRequested = true
   try {
     await NativeTraining.requestPermissions()
+    return true
   } catch (error) {
     permissionRequested = false
     console.warn('Native training notification permission failed', error)
+    return false
   }
 }
 
@@ -88,6 +90,9 @@ export function syncNativeTraining(session, force = false) {
     .catch(() => {})
     .then(() => (snapshot ? NativeTraining.update(snapshot) : NativeTraining.stop()))
     .catch((error) => {
+      // A permission dialog can race the first foreground-service update. Do
+      // not suppress the next retry after that update fails.
+      if (lastPayload === serialized) lastPayload = ''
       console.warn('Native training display update failed', error)
     })
   return updateQueue

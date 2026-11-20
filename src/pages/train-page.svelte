@@ -271,7 +271,10 @@
     }))
     const queue = flatten({ items: normalizedItems })
     if (!queue.length) return
-    void requestNativeTrainingPermission()
+    // Wait for POST_NOTIFICATIONS before the first foreground-service update.
+    // Otherwise Android 13+ can reject/suppress that update while the dialog
+    // is open, and the session would never be rendered on the lock screen.
+    const nativePermission = requestNativeTrainingPermission()
     prepareSound()
     session = {
       planName,
@@ -291,6 +294,9 @@
     finishingSet = false
     clearInterval(ticker)
     ticker = setInterval(updateTimer, 150)
+    void nativePermission.then((granted) => {
+      if (granted) void syncNativeTraining(session, true)
+    })
     void scrollToPageTop()
   }
   async function scrollToPageTop() {

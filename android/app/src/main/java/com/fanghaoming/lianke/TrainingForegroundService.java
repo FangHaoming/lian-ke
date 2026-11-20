@@ -15,7 +15,9 @@ import androidx.core.app.NotificationCompat;
 public class TrainingForegroundService extends Service {
     public static final String ACTION_UPDATE = "com.fanghaoming.lianke.training.UPDATE";
     public static final String ACTION_STOP = "com.fanghaoming.lianke.training.STOP";
-    private static final String CHANNEL_ID = "active_training";
+    // Bump the channel id so installs that already created the old LOW/
+    // silent channel receive the lock-screen-visible importance below.
+    private static final String CHANNEL_ID = "active_training_v2";
     private static final int NOTIFICATION_ID = 4101;
 
     @Override
@@ -68,6 +70,7 @@ public class TrainingForegroundService extends Service {
             .setSubText(plan)
             .setContentIntent(contentIntent)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -108,7 +111,7 @@ public class TrainingForegroundService extends Service {
         NotificationChannel channel = new NotificationChannel(
             CHANNEL_ID,
             "进行中的训练",
-            NotificationManager.IMPORTANCE_LOW
+            NotificationManager.IMPORTANCE_DEFAULT
         );
         channel.setDescription("在锁屏和通知栏显示当前动作与训练计时");
         channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
