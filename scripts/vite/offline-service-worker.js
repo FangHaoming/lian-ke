@@ -52,17 +52,29 @@ async function precacheApp() {
   await Promise.all(
     PRECACHE_URLS.map(async (url) => {
       const request = new Request(url, { cache: 'reload' })
-      const cached = await caches.match(request, { ignoreSearch: true })
-      if (cached) {
-        await cache.put(request, cached.clone())
-        return
-      }
+      const cached = await cache.match(request, { ignoreSearch: true })
+      if (cached) return
 
-      const response = await fetch(request)
-      if (!response.ok) throw new Error(\`Failed to precache \${request.url}: \${response.status}\`)
-      await cache.put(request, response)
+      try {
+        const response = await fetch(request)
+        if (!response.ok) throw new Error(\`Failed to precache \${request.url}: \${response.status}\`)
+        await cache.put(request, response)
+      } catch (error) {
+        const legacyCached = await caches.match(request, { ignoreSearch: true })
+        if (legacyCached) {
+          await cache.put(request, legacyCached.clone())
+          return
+        }
+        throw error
+      }
     }),
   )
+}
+
+async function matchCached(request) {
+  const currentCache = await caches.open(PRECACHE)
+  return (await currentCache.match(request, { ignoreSearch: true })) ||
+    caches.match(request, { ignoreSearch: true })
 }
 
 self.addEventListener('install', (event) => {
@@ -124,7 +136,7 @@ async function networkFirstNavigation(request) {
       new Promise((_, reject) => setTimeout(() => reject(new Error('network timeout')), 3500)),
     ])
   } catch {
-    return (await caches.match(navigationFallback(new URL(request.url).pathname))) || Response.error()
+    return (await matchCached(navigationFallback(new URL(request.url).pathname))) || Response.error()
   }
 }
 
@@ -161,7 +173,7 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     (async () => {
-      const cached = await caches.match(request, { ignoreSearch: true })
+      const cached = await matchCached(request)
       if (cached) return cached
       const isMedia = request.destination === 'image' || request.destination === 'video'
       return staleWhileRevalidate(
