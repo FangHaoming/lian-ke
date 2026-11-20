@@ -20,6 +20,7 @@
   import { challengeLevels } from '../lib/challenge-catalog.js'
   import { appPath } from '../lib/config.js'
   import { createHoldToRelease } from '../lib/hold-to-release.js'
+  import { requestNativeTrainingPermission, syncNativeTraining } from '../lib/native-training.js'
   import PlansPage from './plans-page.svelte'
   export let data
   export let quickItems
@@ -114,7 +115,10 @@
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
     restorePageScrolling()
   })
-  $: if (pageMounted) persistActiveSession(session)
+  $: if (pageMounted) {
+    persistActiveSession(session)
+    void syncNativeTraining(session)
+  }
   function enterFocus() {
     if (focusExitPromise) return
     if (!focusMode) {
@@ -267,6 +271,7 @@
     }))
     const queue = flatten({ items: normalizedItems })
     if (!queue.length) return
+    void requestNativeTrainingPermission()
     prepareSound()
     session = {
       planName,

@@ -3,14 +3,21 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22 <23"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "native:build": "CAPACITOR_BUILD=1 vite build",
+    "native:sync": "pnpm native:build && cap sync android",
+    "native:android": "pnpm native:sync && cap open android",
     "preview": "vite preview",
     "format": "prettier --write src --ignore-unknown",
     "format:check": "prettier --check src --ignore-unknown"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.2",
     "@sveltejs/vite-plugin-svelte": "^3.1.2",
     "prettier": "^3.9.10",
     "prettier-plugin-svelte": "^3.5.2",
@@ -18,6 +25,8 @@
     "vite": "^5.4.10"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
     "echarts": "^6.1.0"
   }
 }

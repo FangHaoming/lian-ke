@@ -43,6 +43,25 @@ pnpm dev
 
 支持安装 PWA 的 Chrome、Edge 等浏览器会在应用内显示“立即安装”；入口也会一直保留在“设置与备份”页面。iPhone 和 iPad 用户可使用 Safari 的“分享 → 添加到主屏幕”。安装后，练刻会以独立窗口运行，并提供训练、挑战闯关和体重记录快捷入口。
 
+## 原生应用与锁屏训练
+
+项目使用 Capacitor 8 提供 Android 原生容器。仓库通过 `.nvmrc` 固定 Node 22；宿主机无需修改默认 Node 版本，进入项目后执行：
+
+```bash
+nvm use
+pnpm install
+```
+
+同步原生工程：
+
+```bash
+pnpm native:sync
+```
+
+- Android：训练开始后启动前台服务，在锁屏和通知栏展示不可滑除的训练通知及系统 Chronometer。使用 `pnpm native:android` 打开 Android Studio；Android 13 以上首次训练会请求通知权限。
+
+网页端仍保持原有 PWA 行为；原生桥接只会在 Capacitor 环境中启用。
+
 ## GitHub Pages
 
 仓库的 `main` 分支推送会触发 `.github/workflows/deploy.yml`。在 GitHub 仓库的 **Settings → Secrets and variables → Actions** 添加：
@@ -53,3 +72,14 @@ pnpm dev
 这两个值会在构建阶段注入静态前端。它们属于浏览器公开配置；不要添加或暴露 `service_role` key。首次使用还需要在 Supabase SQL Editor 中按项目需要创建表并配置 RLS。
 
 在 **Settings → Pages → Build and deployment** 将 Source 设为 **GitHub Actions**。仓库名为 `lian-ke` 时，Vite 会自动使用 `/lian-ke/` 作为 Pages base 路径。
+
+## GitHub Release
+
+推送语义化版本 Tag 会自动创建 GitHub Release，并附带 Web/PWA 压缩包和 Android 未签名 APK：
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+工作流只监听 `v*` Tag。APK 当前是未签名构建，适合内部测试；如果要发布到 Google Play，还需要在 GitHub Actions Secrets 中配置 Android 签名密钥，并在工作流中增加签名步骤。

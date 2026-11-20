@@ -10,6 +10,7 @@ let initialized = false
 function isStandalone() {
   if (typeof window === 'undefined') return false
   return (
+    window.Capacitor?.isNativePlatform?.() === true ||
     window.matchMedia('(display-mode: standalone)').matches ||
     window.matchMedia('(display-mode: fullscreen)').matches ||
     window.navigator.standalone === true

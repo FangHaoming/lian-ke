@@ -1,0 +1,8 @@
+{
+  "appId": "com.fanghaoming.lianke",
+  "appName": "练刻",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false
+  }
+}

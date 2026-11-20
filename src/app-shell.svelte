@@ -5,6 +5,7 @@
   import { consumeAuthCallback, cloudSession, signOut } from './lib/cloud.js'
   import AuthCallbackPage from './pages/auth-callback-page.svelte'
   import ChallengeSharePage from './pages/challenge-share-page.svelte'
+  import DownloadPage from './pages/download-page.svelte'
   import SourceViewerPage from './pages/source-viewer-page.svelte'
   import GlobalDialog from './components/global-dialog.svelte'
   import GlobalToast from './components/global-toast.svelte'
@@ -26,6 +27,7 @@
   let challengeDirty = false
   let authCallback = false
   let challengeShare = false
+  let downloadPage = false
   let sourceViewer = false
   let sourcePage = 1
   let sourceAction = ''
@@ -62,19 +64,34 @@
       title: '囚徒健身 · 练刻',
       description: '查看《囚徒健身》六艺训练动作名称与原书页面。',
     },
+    download: {
+      title: '下载练刻 App · 练刻',
+      description: '下载练刻 Android App，训练时在锁屏页面持续查看计时和训练进度。',
+    },
   }
 
-  $: currentSeo = sourceViewer
-    ? {
-        ...seo.source,
-        title: sourceAction ? `囚徒健身 · ${sourceAction} · 练刻` : seo.source.title,
-      }
-    : challengeShare
-      ? { title: '挑战分享 · 练刻', description: '查看练刻挑战进度分享，继续完成自重训练挑战。' }
-      : seo[tab] || seo.train
-  $: isPublicSeoPage = challengeShare || sourceViewer || tab === 'train' || tab === 'challenges'
+  $: currentSeo = downloadPage
+    ? seo.download
+    : sourceViewer
+      ? {
+          ...seo.source,
+          title: sourceAction ? `囚徒健身 · ${sourceAction} · 练刻` : seo.source.title,
+        }
+      : challengeShare
+        ? { title: '挑战分享 · 练刻', description: '查看练刻挑战进度分享，继续完成自重训练挑战。' }
+        : seo[tab] || seo.train
+  $: isPublicSeoPage =
+    downloadPage || challengeShare || sourceViewer || tab === 'train' || tab === 'challenges'
   $: seoURL = appURL(
-    challengeShare ? 'share' : sourceViewer ? 'source' : tab === 'train' ? '' : routes[tab],
+    downloadPage
+      ? 'download'
+      : challengeShare
+        ? 'share'
+        : sourceViewer
+          ? 'source'
+          : tab === 'train'
+            ? ''
+            : routes[tab],
   )
   $: headerVariant = challengeShare ? 'brand' : 'app'
 
@@ -145,6 +162,13 @@
       .replace(new RegExp(`^${basePath}`), '')
       .replace(/^\/+|\/+$/g, '')
     return pathname === 'share'
+  }
+
+  function isDownloadLocation() {
+    const pathname = window.location.pathname
+      .replace(new RegExp(`^${basePath}`), '')
+      .replace(/^\/+|\/+$/g, '')
+    return pathname === 'download'
   }
 
   function sourcePageFromLocation() {
@@ -319,10 +343,11 @@
     restoreActiveSession()
     authCallback = isAuthCallbackLocation()
     challengeShare = isChallengeShareLocation()
+    downloadPage = isDownloadLocation()
     sourceViewer = isSourceViewerLocation()
     sourcePage = sourcePageFromLocation()
     sourceAction = sourceActionFromLocation()
-    if (!authCallback && !sourceViewer && !challengeShare) {
+    if (!authCallback && !sourceViewer && !challengeShare && !downloadPage) {
       consumeAuthCallback()
       tab = tabFromLocation()
       const routeUrl = routePath(tab)
@@ -352,6 +377,12 @@
         return
       }
       if (challengeShare) challengeShare = false
+      const nextIsDownload = isDownloadLocation()
+      if (nextIsDownload) {
+        downloadPage = true
+        return
+      }
+      if (downloadPage) downloadPage = false
       const next = tabFromLocation()
       if (next === tab) return
       if (tab === 'challenges' && challengeDirty) {
@@ -401,7 +432,8 @@
   }
   $: if (ready) persistActiveSession(session)
   $: if (ready) syncWakeLock(Boolean(session && !session.paused))
-  $: if (ready && !authCallback && !sourceViewer && !challengeShare) void loadPageComponent(tab)
+  $: if (ready && !authCallback && !sourceViewer && !challengeShare && !downloadPage)
+    void loadPageComponent(tab)
 </script>
 
 <svelte:head>
@@ -417,6 +449,8 @@
 <div class:source-mode={sourceViewer} class:share-mode={challengeShare} class="app">
   {#if sourceViewer}
     <SourceViewerPage page={sourcePage} action={sourceAction} />
+  {:else if downloadPage}
+    <DownloadPage />
   {:else if authCallback}
     <div class="app-content">
       {#if ready}<AuthCallbackPage />{/if}
@@ -478,6 +512,15 @@
         {/each}
       </nav>
       <div class="sidebar-bottom">
+        <a
+          class="sidebar-link sidebar-action sidebar-download-link"
+          href={appPath('download')}
+          aria-label="下载 Android App"
+          title={sidebarOpen ? undefined : '下载 Android App'}
+        >
+          <span aria-hidden="true">↓</span>
+          {#if sidebarOpen}<span>下载 Android App</span>{/if}
+        </a>
         {#if accountSession?.user?.email}
           <button
             class="sidebar-link sidebar-action"
@@ -578,6 +621,7 @@
     </main>
   {/if}
   <GlobalDialog />
-  {#if ready && !authCallback && !sourceViewer && !challengeShare}<PwaInstall />{/if}
+  {#if ready && !authCallback && !sourceViewer && !challengeShare && !downloadPage}<PwaInstall
+    />{/if}
   <GlobalToast />
 </div>

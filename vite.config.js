@@ -6,10 +6,11 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const projectRoot = dirname(fileURLToPath(import.meta.url))
+const nativeBuild = process.env.CAPACITOR_BUILD === '1'
 
 export default defineConfig({
   plugins: [svelte(), offlineServiceWorker()],
-  base: baseURL,
+  base: nativeBuild ? './' : baseURL,
   build: {
     rollupOptions: {
       input: {
