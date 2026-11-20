@@ -221,3 +221,103 @@ Use this format for every new correction:
 - Successful solution: Generate a dedicated complete-frame final transition, select evenly spaced transition frames, then use the exact Figure 42 crop only as the final frame.
 - Verification: `vertical-pulls-v5.gif` contains 30 frames; forward frames 10–16 were visually inspected for continuous torso motion, stable foot placement, natural arm length, and exact final pose.
 - Prevention rule: Use a complete-frame transition segment for endpoint convergence; reserve exact reference replacement for the final frame only.
+
+## 2026-11-19 — angled bridges — arms elongated and elbows locked
+
+- User feedback: The arms do not need to become fully straight, but the angled-bridge GIF makes them elongate unnaturally.
+- Evidence: Ebook Figure 88 explicitly says the arms do not need to be completely straight and the elbows should remain bent. In the current GIF, the last forward row locks the elbows and changes the visible upper-arm/forearm proportions relative to Figures 87 and 88.
+- Confirmed root cause: The generated transition interpreted the upward press as full elbow lockout and independently redrew the arms in late frames, causing limb-length drift instead of preserving a constant two-segment arm.
+- Failed attempts: The original prompt requested straighter arms and a higher chest without defining a maximum elbow extension or locking upper-arm and forearm lengths.
+- Successful solution: Pending regeneration with both arms treated as fixed-length two-segment chains, hands fixed on the bench, and a visible elbow bend required in every frame including the endpoint.
+- Verification: Pending; compare frames 9–16 against Figure 88, verify constant arm proportions, stable hand placement, smooth motion, and 30 assembled frames at 512×512.
+- Prevention rule: For angled bridges, never request straight arms. Preserve fixed upper-arm and forearm lengths, keep the hands planted, and require visibly bent elbows through the entire movement.
+
+## 2026-11-19 — angled bridges — bent-elbow regeneration verified
+
+- User feedback: Continue correcting the elongated-arm angled bridge after confirming that the elbows need not fully straighten.
+- Evidence: The regenerated forward sheet keeps a visible bend at both elbows in all 16 cells; frames 9–16 no longer lock the elbows or stretch the upper-arm/forearm silhouette.
+- Confirmed root cause: Same as the preceding entry: unconstrained late-frame elbow extension caused independent arm redraw and limb-length drift.
+- Failed attempts: The original `angled-bridges.gif`, whose final row used full lockout and visibly elongated arms.
+- Successful solution: Regenerated the complete forward sequence with both arms constrained as fixed-length two-segment chains, palms fixed on the bench, and bent elbows required through the endpoint; published it under a cache-busted filename.
+- Verification: `angled-bridges-v2.gif` contains 30 frames at 512×512. All 16 forward frames were inspected for stable hand placement, continuous motion, fixed arm proportions, and visible elbow flexion.
+- Prevention rule: Keep the angled-bridge elbow-bend invariant in both the generation prompt and the catalog description, and version the asset filename after replacement.
+
+## 2026-11-19 — assisted one-leg squats — basketball overlapped the planted foot
+
+- User feedback: No direct user correction; this issue was caught during the required pre-assembly visual inspection.
+- Evidence: In the first generated Figure 37→38 pose sheet, the basketball appeared directly beneath or behind the planted shoe across multiple frames, instead of clearly outside the supporting leg for hand assistance.
+- Confirmed root cause: The side-view reference visually overlaps the ball and foot, and the first prompt did not enforce a visible floor gap between the basketball and planted shoe.
+- Failed attempts: Describing the ball only as “just outside the supporting foot” while also asking it to remain in a fixed screen position.
+- Successful solution: Pending regeneration with an explicit invariant that the planted shoe stays fully on bare floor while the ball remains clearly to the viewer-left of the shoe with visible separation.
+- Verification: Pending; inspect all 16 forward frames for visible floor beneath the planted shoe, one stationary ball outside the leg, and gradual hand contact.
+- Prevention rule: For side-view assisted squats, encode prop placement as a screen-space separation constraint; “outside the leg” alone is too ambiguous.
+
+## 2026-11-19 — assisted one-leg squats — outside-ball placement verified
+
+- User feedback: No direct user correction; this follow-up closes the issue found during visual inspection.
+- Evidence: The regenerated Figure 37→38 sheet keeps the planted shoe visibly on bare floor and the basketball to the viewer-left with a clear floor gap throughout all 16 forward frames.
+- Confirmed root cause: The original side-view reference required an explicit screen-space separation invariant to disambiguate the ball from the planted foot.
+- Failed attempts: The first generation used only the semantic phrase “outside the supporting foot,” which allowed visual overlap.
+- Successful solution: Required the ball to remain viewer-left of the shoe with visible wooden floor between them, prohibited all shoe-ball overlap, and used the rejected draft as a negative reference.
+- Verification: All forward frames show one stationary ball outside the supporting leg, no shoe-ball overlap, a planted heel, a straight free leg, and gradual hand contact near the bottom.
+- Prevention rule: For props positioned beside a support point, specify both the semantic relationship and a visible screen-space gap, then inspect every frame before assembly.
+
+## 2026-11-19 — assisted one-leg squats — hand did not hold the basketball
+
+- User feedback: The assisted one-leg squat GIF did not show the hand holding the basketball.
+- Evidence: In the ending frames, the lowered hand stayed beside or behind the ball instead of visibly pressing onto its upper surface as shown in Figure 38.
+- Confirmed root cause: The generation prompt required gradual approach and final contact but did not require an unmistakable palm-on-ball hold across the final frames.
+- Failed attempts: Asking for “gradual hand contact near the bottom” while allowing the hand to remain adjacent to the ball.
+- Successful solution: Pending regeneration with the final four forward frames explicitly holding the basketball: palm visibly on the upper/front surface, fingers wrapping around the contour, ball stationary outside the planted foot.
+- Verification: Pending; inspect frames 13–16 for continuous hand-to-ball contact and compare frame 16 directly with Figure 38.
+- Prevention rule: When an exercise depends on a prop for assistance, specify the contact geometry (palm, fingers, pressure point) and require it to persist over multiple endpoint frames.
+
+## 2026-11-19 — assisted one-leg squats — sustained hand-on-ball hold verified
+
+- User feedback: The assisted one-leg squat GIF needed the hand to hold the basketball.
+- Evidence: The regenerated sheet shows fingertip contact beginning before the bottom phase and a clear palm-and-finger hold in frames 13–16; the assembled GIF preserves that contact in the ending transition.
+- Confirmed root cause: The previous sheet allowed the hand to remain adjacent to the ball because “contact” was not defined geometrically or temporally.
+- Failed attempts: The prior sheet with only a gradual approach and an implied endpoint contact.
+- Successful solution: Added explicit palm-on-upper/front-surface and fingers-wrapping constraints, required contact from frames 13–16, and regenerated the full forward sheet.
+- Verification: `assisted-one-leg-squats.gif` has 30 frames at 512px width; frames 13–16 visibly hold the stationary basketball, with the planted shoe separate from the ball.
+- Prevention rule: For prop-assisted movements, require a multi-frame contact hold with explicit palm/finger geometry, not just a final-frame touch.
+
+## 2026-11-19 — assisted one-leg squats — starting ball was too far from the foot
+
+- User feedback: The starting action must place the basketball beside the supporting foot; during the descent, the hand should touch the ball for assistance.
+- Evidence: The current corrected sheet keeps a conspicuous floor gap between the starting basketball and the planted shoe, while the original Figure 37 shows the ball immediately beside the foot.
+- Confirmed root cause: The previous fix overcorrected the earlier shoe-ball overlap by enforcing a visible separation throughout the sequence, which moved the starting prop too far away.
+- Failed attempts: Requiring a clear screen-space gap for every frame, even though the source anchor requires near-contact beside the foot.
+- Successful solution: Pending regeneration with the ball immediately beside—but not under—the planted shoe at frame 1, fixed in place, then hand contact introduced progressively during the squat.
+- Verification: Pending; compare frame 1 to Figure 37, inspect the hand/ball transition, and confirm frames 13–16 retain the assisted hold from Figure 38.
+- Prevention rule: Treat prop placement as phase-specific: match the source start distance exactly, then encode the later assistance contact separately.
+
+## 2026-11-19 — assisted one-leg squats — phase-specific ball placement verified
+
+- User feedback: The starting basketball should be beside the foot, then be used for support during the descent.
+- Evidence: The regenerated sheet places the ball immediately beside the planted shoe in frame 1, keeps it stationary, and transitions the lowered hand into a visible palm-and-finger hold during the final squat frames.
+- Confirmed root cause: The earlier correction applied the later “keep a visible gap” rule to the starting phase, contradicting the Figure 37 anchor.
+- Failed attempts: Keeping the basketball clearly separated from the shoe throughout all frames.
+- Successful solution: Made ball placement phase-specific: near the shoe at the start without being under it, then progressive hand contact during descent, with a sustained hold at the bottom.
+- Verification: `assisted-one-leg-squats.gif` has 30 frames at 512px width; frame 1 matches the beside-foot setup and frames 13–16 show hand-assisted contact.
+- Prevention rule: For prop-assisted actions, preserve the source prop distance at the start and model contact as a separate later phase.
+
+## 2026-11-19 — one-leg squats — hips touched the floor at the endpoint
+
+- User feedback: The one-leg squat GIF should not place the buttocks on the floor; the ending position must match the ebook.
+- Evidence: In the current forward frames 13–16, the pelvis descends to the wooden floor. Figure 40 instead shows the supporting thigh pressed against the calf while the pelvis remains visibly suspended above the floor.
+- Confirmed root cause: The generation prompt requested the deepest possible pistol squat without encoding a minimum pelvis-to-floor clearance, so the model interpreted the endpoint as a seated position.
+- Failed attempts: Describing only “supporting thigh pressed against calf” and relying on the endpoint reference without explicitly prohibiting floor contact.
+- Successful solution: Pending regeneration with the pelvis held above the floor in every frame, a visible floor gap at the endpoint, support-leg loading preserved, and Figure 40 used as the exact end-pose authority.
+- Verification: Pending; compare frames 13–16 directly with Figure 40, confirm no buttock-floor contact, exact frame-16 endpoint, smooth convergence, and 30 assembled frames at 512px width.
+- Prevention rule: For full pistol squats, distinguish thigh-to-calf compression from sitting; require a visible pelvis-to-floor gap and continued support-foot loading at the lowest point.
+
+## 2026-11-19 — one-leg squats — suspended ebook endpoint verified
+
+- User feedback: The one-leg squat ending should match the ebook without the buttocks touching the floor.
+- Evidence: The regenerated forward frames 13–16 retain a visible strip of wooden floor beneath the pelvis while the support thigh closes against the calf, matching Figure 40's loaded squat position.
+- Confirmed root cause: The previous sheet lacked an explicit pelvis-to-floor clearance invariant and therefore converged to a seated pose.
+- Failed attempts: The original generation relied on “deepest full pistol squat” and thigh-to-calf contact without prohibiting floor support.
+- Successful solution: Regenerated the entire forward sheet with a visible pelvis-floor gap required in every frame and Figure 40 as the endpoint authority, then published the corrected asset with a versioned filename.
+- Verification: `one-leg-squats-v2.gif` contains 30 frames at 512px width; frames 13–16 remain suspended, the planted foot bears the body, and the catalog references the cache-busted v2 asset.
+- Prevention rule: Every unassisted pistol-squat prompt must explicitly prohibit seated floor contact and require visible clearance at the deepest frame.

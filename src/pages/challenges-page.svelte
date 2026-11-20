@@ -66,7 +66,7 @@
   let celebrationParticles = []
   const celebrationColors = ['#b7f36a', '#f8d66d', '#ff8b7b', '#8ed8ff', '#d2a8ff']
 
-  $: attempts = data.challenges.attempts
+  $: attempts = Array.isArray(data?.challenges?.attempts) ? data.challenges.attempts : []
   $: summaries = challengeRoutes.map((route) => ({
     route,
     progress: getRouteProgress(route, attempts),
@@ -82,13 +82,7 @@
     progress.find((item) => item.unlocked && item.level.id === quickStartLevelId)?.level ||
     quickStartLevel
   $: stages = Object.keys(level.standards)
-  $: allHistory = attempts
-    .filter(
-      (item) =>
-        item.levelId === level.id &&
-        (!isAutoEvaluation(item) || item.qualityConfirmed || trainingDataStage(item)),
-    )
-    .slice()
+  $: allHistory = attempts.filter((item) => item.levelId === level.id).slice()
   $: history = allHistory
     .sort((a, b) => {
       const aPassed = recordPassed(a)
@@ -103,6 +97,8 @@
   )
   $: masterCount = summaries.filter((item) => item.progress[9].completed).length
   $: eliteCount = summaries.filter((item) => item.progress[9].achieved.elite).length
+  $: pendingConfirmations = Array.isArray(attempts) ? findPendingConfirmations(attempts) : []
+  $: pendingConfirmation = pendingConfirmations[0] || null
   $: shareRoute = challengeRoutes.find((item) => item.id === shareRouteOverrideId) || route
   $: shareProgress = summaries.find((item) => item.route.id === shareRoute.id)?.progress || progress
   $: latestPassedShareLevel = shareProgress.filter((item) => item.completed).at(-1)?.level
@@ -559,14 +555,46 @@
     )
   }
   function trainingDataStage(attempt) {
+    return getAutoMatchStage(level, selected, attempt)
+  }
+  function getAutoMatchStage(targetLevel, targetProgress, attempt) {
     if (attempt.qualityConfirmed) return attempt.stage
-    const achievedStages = Object.keys(level.standards).filter(
-      (stage) => selected.achieved?.[stage] === true,
+    const achievedStages = Object.keys(targetLevel.standards).filter(
+      (stage) => targetProgress?.achieved?.[stage] === true,
     )
-    return getTrainingStage(level, attempt.rows, attempt.stage, achievedStages)
+    return getTrainingStage(targetLevel, attempt.rows, attempt.stage, achievedStages)
   }
   function isAutoEvaluation(attempt) {
     return ['training-record', 'quick-challenge'].includes(attempt.source?.type)
+  }
+  function findPendingConfirmations(challengeAttempts) {
+    const pending = []
+    for (const attempt of challengeAttempts) {
+      if (!isAutoEvaluation(attempt) || attempt.qualityConfirmed) continue
+      const ownerRoute = challengeRoutes.find((item) =>
+        item.levels.some((entry) => entry.id === attempt.levelId),
+      )
+      const targetLevel = ownerRoute?.levels.find((entry) => entry.id === attempt.levelId)
+      const targetProgress = ownerRoute
+        ? getRouteProgress(ownerRoute, challengeAttempts).find(
+            (item) => item.level.id === attempt.levelId,
+          )
+        : null
+      if (ownerRoute && targetLevel && getAutoMatchStage(targetLevel, targetProgress, attempt)) {
+        pending.push({ attempt, route: ownerRoute, level: targetLevel })
+      }
+    }
+    return pending.sort(
+      (a, b) => Date.parse(b.attempt.recordedAt) - Date.parse(a.attempt.recordedAt),
+    )
+  }
+  async function openPendingConfirmation() {
+    if (!pendingConfirmation) return
+    await chooseLevel(pendingConfirmation.route, pendingConfirmation.level, true)
+    await tick()
+    document
+      .getElementById('challenge-history')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
   function recordPassed(attempt) {
     return (
@@ -904,6 +932,18 @@
 </p>
 
 {#if selected}
+  {#if pendingConfirmations.length}
+    <button
+      type="button"
+      class="challenge-floating-pending"
+      aria-label={`前往确认${pendingConfirmations.length}条待确认记录`}
+      on:click={openPendingConfirmation}
+    >
+      <span aria-hidden="true">✓</span>
+      待确认
+      <strong class="challenge-floating-pending-count">{pendingConfirmations.length}</strong>
+    </button>
+  {/if}
   <button
     type="button"
     class="challenge-floating-start"
