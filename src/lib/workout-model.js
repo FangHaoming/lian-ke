@@ -139,7 +139,7 @@ export const defaults = () => ({
   weights: [],
   sleepRecords: [],
   selected: null,
-  sounds: { set: 'triple', rest: 'double', finish: 'victory' },
+  sounds: { set: 'triple', rest: 'double', finish: 'victory', vibrate: false },
   exerciseNames: [],
   challenges: challengeDefaults(),
 })

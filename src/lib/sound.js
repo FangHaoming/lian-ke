@@ -1,5 +1,11 @@
 let audio
 
+export function vibrate(enabled, pattern = [120, 60, 120]) {
+  if (!enabled || typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function')
+    return
+  navigator.vibrate(pattern)
+}
+
 export function prepareSound() {
   try {
     audio ??= new (window.AudioContext || window.webkitAudioContext)()

@@ -6,6 +6,7 @@
   import initSql from '../lib/init.sql?raw'
   import { playSound } from '../lib/sound.js'
   import Select from '../components/select.svelte'
+  import ToggleSwitch from '../components/toggle-switch.svelte'
   import CheckboxGroup from '../components/checkbox-group.svelte'
   import ConfirmDialogInput from '../components/confirm-dialog-input.svelte'
   import { requestConfirm } from '../lib/confirm-dialog.js'
@@ -627,6 +628,13 @@
         试听 ▶
       </button>
     </div>{/each}
+  <ToggleSwitch
+    label="倒数结束震动"
+    description="倒计时归零时，与提示音同时触发设备震动。"
+    separated
+    bind:checked={data.sounds.vibrate}
+    on:change={() => (data = data)}
+  />
 </section>
 <section class="panel">
   <h3>本地数据</h3>

@@ -9,7 +9,7 @@
     normalizeActiveSession,
   } from '../lib/workout-model.js'
   import { flatten } from '../lib/data.js'
-  import { playSound, prepareSound } from '../lib/sound.js'
+  import { playSound, prepareSound, vibrate } from '../lib/sound.js'
   import Select from '../components/select.svelte'
   import TimePicker from '../components/time-picker.svelte'
   import { timeModes, trainingModes } from '../lib/select-options.js'
@@ -332,11 +332,17 @@
       session.remaining -= step
       delta -= step
       if (session.remaining > 0) break
-      if (session.phase === 'prep') beginWork()
-      else if (session.phase === 'rest') {
+      if (session.phase === 'prep') {
+        vibrate(data.sounds.vibrate)
+        beginWork()
+      } else if (session.phase === 'rest') {
+        vibrate(data.sounds.vibrate)
         playSound(data.sounds.rest)
         advance()
-      } else finishSet()
+      } else {
+        vibrate(data.sounds.vibrate)
+        finishSet()
+      }
     }
     if (session) session = session
   }
