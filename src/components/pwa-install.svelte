@@ -7,7 +7,10 @@
     mode === 'settings' ||
     (!$pwaInstallState.installed &&
       !$pwaInstallState.dismissed &&
-      ($pwaInstallState.installable || $pwaInstallState.ios))
+      ($pwaInstallState.installable ||
+        $pwaInstallState.installing ||
+        $pwaInstallState.manualInstall ||
+        $pwaInstallState.ios))
 
   async function install() {
     await requestPwaInstall()
@@ -26,6 +29,10 @@
       <strong>{$pwaInstallState.installed ? '练刻已安装' : '把练刻安装到桌面'}</strong>
       {#if $pwaInstallState.installed}
         <small>现在可以从桌面图标直接打开，并以独立窗口运行。</small>
+      {:else if $pwaInstallState.installing}
+        <small>正在请求浏览器打开安装窗口…</small>
+      {:else if $pwaInstallState.installMessage}
+        <small class="pwa-install-warning">{$pwaInstallState.installMessage}</small>
       {:else if $pwaInstallState.installable}
         <small>像普通 App 一样打开，训练记录和离线功能仍然可用。</small>
       {:else if $pwaInstallState.ios}

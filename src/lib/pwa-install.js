@@ -2,6 +2,7 @@ import { writable } from 'svelte/store'
 
 const DISMISSED_AT_KEY = 'lianke_pwa_install_dismissed_at'
 const DISMISS_DURATION = 7 * 24 * 60 * 60 * 1000
+const PROMPT_TIMEOUT = 5000
 
 let deferredPrompt = null
 let initialized = false
@@ -35,6 +36,8 @@ const initialState = {
   ios: isIOS(),
   dismissed: wasRecentlyDismissed(),
   installing: false,
+  manualInstall: false,
+  installMessage: '',
 }
 
 export const pwaInstallState = writable(initialState)
@@ -46,7 +49,12 @@ export function setupPwaInstall() {
   const onBeforeInstallPrompt = (event) => {
     event.preventDefault()
     deferredPrompt = event
-    pwaInstallState.update((state) => ({ ...state, installable: true }))
+    pwaInstallState.update((state) => ({
+      ...state,
+      installable: true,
+      manualInstall: false,
+      installMessage: '',
+    }))
   }
   const onInstalled = () => {
     deferredPrompt = null
@@ -57,6 +65,8 @@ export function setupPwaInstall() {
       installable: false,
       dismissed: false,
       installing: false,
+      manualInstall: false,
+      installMessage: '',
     }))
   }
   const displayMode = window.matchMedia('(display-mode: standalone)')
@@ -78,17 +88,50 @@ export function setupPwaInstall() {
 
 export async function requestPwaInstall() {
   if (!deferredPrompt) return false
-  pwaInstallState.update((state) => ({ ...state, installing: true }))
+  const installPrompt = deferredPrompt
+  deferredPrompt = null
+  pwaInstallState.update((state) => ({
+    ...state,
+    installable: false,
+    installing: true,
+    manualInstall: false,
+    installMessage: '',
+  }))
+
+  let timeoutId
   try {
-    await deferredPrompt.prompt()
-    const choice = await deferredPrompt.userChoice
+    const promptResult = installPrompt.prompt()
+    const choicePromise =
+      promptResult && typeof promptResult.then === 'function'
+        ? promptResult
+        : installPrompt.userChoice
+    const choice = await Promise.race([
+      choicePromise,
+      new Promise((resolve) => {
+        timeoutId = window.setTimeout(() => resolve({ outcome: 'unavailable' }), PROMPT_TIMEOUT)
+      }),
+    ])
     if (choice?.outcome === 'accepted') {
-      deferredPrompt = null
-      pwaInstallState.update((state) => ({ ...state, installable: false }))
       return true
     }
+    pwaInstallState.update((state) => ({
+      ...state,
+      manualInstall: true,
+      installMessage:
+        choice?.outcome === 'unavailable'
+          ? '浏览器没有打开安装窗口，请改用浏览器菜单安装。'
+          : '安装已取消，你仍可通过浏览器菜单重新安装。',
+    }))
+    return false
+  } catch {
+    pwaInstallState.update((state) => ({
+      ...state,
+      manualInstall: true,
+      installMessage: '无法调用浏览器安装窗口，请改用浏览器菜单安装。',
+    }))
     return false
   } finally {
+    window.clearTimeout(timeoutId)
     pwaInstallState.update((state) => ({ ...state, installing: false }))
   }
 }
