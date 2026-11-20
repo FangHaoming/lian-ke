@@ -1,0 +1,19 @@
+{
+  "name": "练刻 · 训练计划与记录",
+  "short_name": "练刻",
+  "description": "安排训练计划、记录训练数据和完成挑战闯关。",
+  "start_url": "/lian-ke/",
+  "scope": "/lian-ke/",
+  "display": "standalone",
+  "background_color": "#0b1015",
+  "theme_color": "#0b1015",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "fit-log-icon.png",
+      "sizes": "1254x1254",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

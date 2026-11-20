@@ -35,6 +35,10 @@ pnpm install
 pnpm dev
 ```
 
+## 离线支持
+
+生产构建会生成 Service Worker，预缓存应用外壳与所有版本化的 JS/CSS 资源。动作示范、原书页面等大体积图片按访问缓存并跨版本保留；在线访问时先显示缓存，再在后台检查并更新发生变化的资源。断网后，已打开过的内容与本地训练记录仍可继续使用。Service Worker 仅在生产环境注册，本地开发不受缓存影响。
+
 ## GitHub Pages
 
 仓库的 `main` 分支推送会触发 `.github/workflows/deploy.yml`。在 GitHub 仓库的 **Settings → Secrets and variables → Actions** 添加：

@@ -1,0 +1,144 @@
+import { createHash } from 'node:crypto'
+
+export function offlineServiceWorker() {
+  return {
+    name: 'lianke-offline-service-worker',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const buildFiles = Object.keys(bundle).filter((fileName) => !fileName.endsWith('.map'))
+      const versionHash = createHash('sha256')
+      for (const fileName of buildFiles.sort()) {
+        const output = bundle[fileName]
+        versionHash.update(fileName)
+        versionHash.update(output.type === 'chunk' ? output.code : output.source)
+      }
+      const version = versionHash.digest('hex').slice(0, 12)
+      const precacheURLs = [
+        './',
+        ...buildFiles.map((fileName) => `./${fileName}`),
+        './fit-log-icon.png',
+        './manifest.webmanifest',
+      ]
+
+      this.emitFile({
+        type: 'asset',
+        fileName: 'service-worker.js',
+        source: `const VERSION = ${JSON.stringify(version)}
+const PRECACHE = \`lianke-precache-\${VERSION}\`
+const RUNTIME = \`lianke-runtime-\${VERSION}\`
+const MEDIA = 'lianke-media-v1'
+const PRECACHE_URLS = ${JSON.stringify([...new Set(precacheURLs)], null, 2)}
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(PRECACHE).then((cache) =>
+      cache.addAll(PRECACHE_URLS.map((url) => new Request(url, { cache: 'reload' }))),
+    ),
+  )
+})
+
+async function activateCaches() {
+  const keys = await caches.keys()
+  const legacyMediaKeys = keys.filter(
+    (key) => key.startsWith('lianke-media-') && key !== MEDIA,
+  )
+  const mediaCache = await caches.open(MEDIA)
+
+  for (const key of legacyMediaKeys) {
+    const legacyCache = await caches.open(key)
+    for (const request of await legacyCache.keys()) {
+      if (await mediaCache.match(request)) continue
+      const response = await legacyCache.match(request)
+      if (response) await mediaCache.put(request, response)
+    }
+  }
+
+  await Promise.all(
+    keys
+      .filter((key) => key.startsWith('lianke-') && ![PRECACHE, RUNTIME, MEDIA].includes(key))
+      .map((key) => caches.delete(key)),
+  )
+}
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(activateCaches().then(() => self.clients.claim()))
+})
+
+function navigationFallback(pathname) {
+  const scopePath = new URL(self.registration.scope).pathname.replace(/\\/$/, '')
+  const appPath = pathname.slice(scopePath.length).replace(/^\\/+/, '')
+  if (appPath === 'share' || appPath.startsWith('share/')) return './share/index.html'
+  if (appPath === 'source' || appPath.startsWith('source/')) return './source/index.html'
+  if (appPath === 'challenges' || appPath.startsWith('challenges/')) {
+    return './challenges/index.html'
+  }
+  return './index.html'
+}
+
+async function trimCache(cacheName, maxEntries) {
+  const cache = await caches.open(cacheName)
+  const keys = await cache.keys()
+  await Promise.all(keys.slice(0, Math.max(0, keys.length - maxEntries)).map((key) => cache.delete(key)))
+}
+
+async function networkFirstNavigation(request) {
+  try {
+    return await Promise.race([
+      fetch(request),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('network timeout')), 3500)),
+    ])
+  } catch {
+    return (await caches.match(navigationFallback(new URL(request.url).pathname))) || Response.error()
+  }
+}
+
+async function staleWhileRevalidate(event, request, cacheName, maxEntries) {
+  const cache = await caches.open(cacheName)
+  const cached = await cache.match(request)
+  const network = fetch(request)
+    .then(async (response) => {
+      if (response.ok && response.type === 'basic') {
+        await cache.put(request, response.clone())
+        if (Number.isFinite(maxEntries)) await trimCache(cacheName, maxEntries)
+      }
+      return response
+    })
+    .catch(() => null)
+  if (cached) {
+    event.waitUntil(network)
+    return cached
+  }
+  return (await network) || Response.error()
+}
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event
+  if (request.method !== 'GET') return
+
+  const url = new URL(request.url)
+  if (url.origin !== self.location.origin) return
+
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirstNavigation(request))
+    return
+  }
+
+  event.respondWith(
+    caches.open(PRECACHE).then(async (cache) => {
+      const cached = await cache.match(request, { ignoreSearch: true })
+      if (cached) return cached
+      const isMedia = request.destination === 'image' || request.destination === 'video'
+      return staleWhileRevalidate(
+        event,
+        request,
+        isMedia ? MEDIA : RUNTIME,
+        isMedia ? undefined : 80,
+      )
+    }),
+  )
+})
+`,
+      })
+    },
+  }
+}
