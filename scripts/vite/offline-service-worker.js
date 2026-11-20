@@ -14,7 +14,10 @@ export function offlineServiceWorker() {
     name: 'lianke-offline-service-worker',
     apply: 'build',
     generateBundle(_options, bundle) {
-      const buildFiles = Object.keys(bundle).filter((fileName) => !fileName.endsWith('.map'))
+      const buildFiles = Object.entries(bundle)
+        .filter(([fileName]) => !fileName.endsWith('.map'))
+        .filter(([, output]) => output.type !== 'chunk' || output.code.trim().length > 0)
+        .map(([fileName]) => fileName)
       const versionHash = createHash('sha256')
       versionHash.update(cacheSchema)
       for (const fileName of buildFiles.sort()) {
