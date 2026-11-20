@@ -31,8 +31,12 @@ export function setupOfflineSupport() {
   if (!navigator.onLine) showConnectionStatus(false)
 
   navigator.serviceWorker
-    .register(appPath('service-worker.js'), { scope: appPath('') })
+    .register(appPath('service-worker.js'), {
+      scope: appPath(''),
+      updateViaCache: 'none',
+    })
     .then((registration) => {
+      registration.update().catch(() => {})
       if (registration.waiting && navigator.serviceWorker.controller) {
         showToast('新版本已准备好，正在更新', {
           type: 'success',
