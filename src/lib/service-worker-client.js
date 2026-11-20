@@ -2,7 +2,7 @@ import { appPath } from './config.js'
 import { showToast } from './toast.js'
 
 function showConnectionStatus(online) {
-  showToast(online ? '网络已恢复' : '当前处于离线模式，本地记录仍可使用', {
+  showToast(online ? '网络已恢复' : '网络已断开，已缓存页面仍可访问', {
     type: online ? 'success' : 'info',
     duration: 4200,
   })
