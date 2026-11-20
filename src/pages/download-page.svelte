@@ -2,6 +2,8 @@
   import { appPath, appURL } from '../lib/config.js'
   import packageJson from '../../package.json'
 
+  const appVersion = `v${packageJson.version}`
+  const apkURL = `https://github.com/FangHaoming/lian-ke/releases/latest/download/lianke-android-${appVersion}.apk`
   const releaseURL = 'https://github.com/FangHaoming/lian-ke/releases/latest'
 </script>
 
@@ -29,13 +31,13 @@
       下载练刻 Android App，训练时锁定屏幕也能持续查看动作、组数和倒计时。
     </p>
     <div class="download-actions">
-      <a class="btn download-primary" href={releaseURL}>
+      <a class="btn download-primary" href={apkURL}>
         下载 Android APK <span>↓</span>
       </a>
       <a class="btn download-secondary" href={appPath('')}>打开 Web 版</a>
     </div>
     <p class="download-note">
-      请在 Release 页面选择带版本号的 APK 文件。首次安装时，请允许浏览器或系统安装未知来源应用。
+      点击按钮会直接下载当前版本 APK。首次安装时，请允许浏览器或系统安装未知来源应用。
     </p>
   </section>
 
