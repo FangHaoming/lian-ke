@@ -107,6 +107,7 @@ export function loadSyncBaseline() {
     if (value?.version !== 1 || !value.data) return null
     return {
       ...value.data,
+      weights: dailyWeights(value.data.weights),
       sleepRecords: canonicalSleepRecords(value.data.sleepRecords),
     }
   } catch {
@@ -137,7 +138,11 @@ export function pendingSyncCounts(data, baseline = loadSyncBaseline()) {
       sounds: current.sounds ? 1 : 0,
       challenges: current.challenges.attempts.length,
     }
-  baseline = { ...baseline, sleepRecords: canonicalSleepRecords(baseline.sleepRecords) }
+  baseline = {
+    ...baseline,
+    weights: baseline.weights === undefined ? undefined : dailyWeights(baseline.weights),
+    sleepRecords: canonicalSleepRecords(baseline.sleepRecords),
+  }
   return {
     exerciseNames:
       baseline.exerciseNames === undefined
@@ -480,6 +485,14 @@ export function mergeSleepRecords(localRecords = [], remoteRecords = []) {
       (record) => latestTime(record.wakeAt, record.asleepAt),
     ),
   )
+}
+
+export function mergeWeightRecords(localRecords = [], remoteRecords = []) {
+  const localDays = new Set(localRecords.map((record) => dayKey(record.recordedAt)).filter(Boolean))
+  return dailyWeights([
+    ...localRecords,
+    ...remoteRecords.filter((record) => !localDays.has(dayKey(record.recordedAt))),
+  ])
 }
 
 export function mergeChallenges(localChallenges, remoteChallenges) {
@@ -972,7 +985,7 @@ export async function syncData(direction, localData, selection = defaultSyncSele
     ...(selection.plans && { plans: remote.plans }),
     ...(selection.records && { records: mergeTrainingRecords(localData.records, remote.records) }),
     ...(selection.weights && {
-      weights: dailyWeights([...(localData.weights || []), ...remote.weights]),
+      weights: mergeWeightRecords(localData.weights, remote.weights),
     }),
     ...(selection.sleep && {
       sleepRecords: mergeSleepRecords(localData.sleepRecords, remote.sleepRecords),

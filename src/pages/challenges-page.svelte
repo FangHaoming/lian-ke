@@ -393,11 +393,16 @@
   function confirmRemoveLastGroup() {
     rows = rows.slice(0, -1)
   }
-  function chooseRoute(nextRoute) {
+  async function chooseRoute(nextRoute) {
     const states = getRouteProgress(nextRoute, attempts)
     const nextLevel =
       states.find((item) => item.unlocked && !item.completed)?.level || nextRoute.levels[9]
-    chooseLevel(nextRoute, nextLevel)
+    await chooseLevel(nextRoute, nextLevel)
+    if (dirty || typeof document === 'undefined') return
+    await tick()
+    document
+      .getElementById('challenge-path')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
   function chooseStage(nextStage) {
     stage = nextStage

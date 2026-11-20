@@ -4,6 +4,7 @@ import {
   mergeChallenges,
   mergeSleepRecords,
   mergeTrainingRecords,
+  mergeWeightRecords,
   pendingSyncCounts,
   saveSyncBaseline,
 } from '../src/lib/cloud.js'
@@ -129,10 +130,39 @@ test('incremental sync de-duplicates a locally uploaded training record', () => 
   assert.equal(mergeTrainingRecords(local, remote).length, 1)
 })
 
-test('incremental sync keeps the latest weight for each day', () => {
-  const local = [{ id: 'local', recordedAt: '2026-11-13T08:00:00.000Z', kg: 70 }]
-  const remote = [{ id: 'remote', recordedAt: '2026-11-13T09:00:00.000Z', kg: 69.5 }]
-  assert.deepEqual(dailyWeights([...local, ...remote]), [remote[0]])
+test('multiple weights on the same day are averaged', () => {
+  const morning = { id: 'morning', recordedAt: '2026-11-13T00:00:00.000Z', kg: 70 }
+  const evening = { id: 'evening', recordedAt: '2026-11-13T08:00:00.000Z', kg: 69 }
+  assert.deepEqual(dailyWeights([morning, evening]), [
+    { ...evening, kg: 69.5, sampleCount: 2, kgTotal: 139 },
+  ])
+})
+
+test('an existing daily average keeps its sample weight when a new record is added', () => {
+  const existing = dailyWeights([
+    { id: 'first', recordedAt: '2026-11-13T00:00:00.000Z', kg: 70 },
+    { id: 'second', recordedAt: '2026-11-13T04:00:00.000Z', kg: 69 },
+  ])[0]
+  const latest = { id: 'third', recordedAt: '2026-11-13T08:00:00.000Z', kg: 68 }
+  assert.equal(dailyWeights([existing, latest])[0].kg, 69)
+})
+
+test('weight sync does not count remote data already included in the local day twice', () => {
+  const local = [
+    { id: 'remote-copy', recordedAt: '2026-11-13T00:00:00.000Z', kg: 70 },
+    { id: 'local', recordedAt: '2026-11-13T08:00:00.000Z', kg: 69 },
+  ]
+  const remote = [
+    { id: 'remote-copy', recordedAt: '2026-11-13T00:00:00.000Z', kg: 70 },
+    { id: 'remote-only-day', recordedAt: '2026-11-14T00:00:00.000Z', kg: 68.5 },
+  ]
+  assert.deepEqual(
+    mergeWeightRecords(local, remote).map(({ kg, sampleCount }) => ({ kg, sampleCount })),
+    [
+      { kg: 69.5, sampleCount: 2 },
+      { kg: 68.5, sampleCount: 1 },
+    ],
+  )
 })
 
 test('incremental sync merges sleep records and applies the newer version', () => {

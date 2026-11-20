@@ -74,15 +74,29 @@ export const dayKey = (value) => {
   return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
 }
 export const dailyWeights = (items = []) => {
-  const latestByDay = new Map()
+  const weightsByDay = new Map()
   items.forEach((item) => {
     const key = dayKey(item.recordedAt)
-    if (!key || !Number(item.kg)) return
-    const current = latestByDay.get(key)
-    if (!current || new Date(item.recordedAt) >= new Date(current.recordedAt))
-      latestByDay.set(key, item)
+    const kg = Number(item.kg)
+    if (!key || !Number.isFinite(kg) || kg <= 0) return
+    const sampleCount =
+      Number.isInteger(item.sampleCount) && item.sampleCount > 0 ? item.sampleCount : 1
+    const storedTotal = Number(item.kgTotal)
+    const kgTotal = Number.isFinite(storedTotal) && storedTotal > 0 ? storedTotal : kg * sampleCount
+    const current = weightsByDay.get(key) || { latest: item, sampleCount: 0, kgTotal: 0 }
+    if (new Date(item.recordedAt) >= new Date(current.latest.recordedAt)) current.latest = item
+    current.sampleCount += sampleCount
+    current.kgTotal += kgTotal
+    weightsByDay.set(key, current)
   })
-  return [...latestByDay.values()].sort((a, b) => new Date(a.recordedAt) - new Date(b.recordedAt))
+  return [...weightsByDay.values()]
+    .map(({ latest, sampleCount, kgTotal }) => ({
+      ...latest,
+      kg: kgTotal / sampleCount,
+      sampleCount,
+      kgTotal,
+    }))
+    .sort((a, b) => new Date(a.recordedAt) - new Date(b.recordedAt))
 }
 export const sleepRecords = (items = []) =>
   (items || [])

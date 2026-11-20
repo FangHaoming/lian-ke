@@ -11,6 +11,7 @@
   $: weights = dailyWeights(data.weights || [])
   $: latest = weights[weights.length - 1]
   $: previous = weights[weights.length - 2]
+  $: todayWeight = weights.find((item) => dayKey(item.recordedAt) === dayKey(new Date()))
   $: change = latest && previous ? Number(latest.kg) - Number(previous.kg) : null
   $: chartWeights =
     chartMode === 'weekly'
@@ -74,15 +75,8 @@
       return
     }
     const recordedIso = new Date().toISOString()
-    const sameDay = (data.weights || []).find(
-      (item) => dayKey(item.recordedAt) === dayKey(recordedIso),
-    )
-    if (sameDay && new Date(sameDay.recordedAt) > new Date(recordedIso)) {
-      error = '当天已经有更晚的记录，本次不会覆盖它'
-      return
-    }
     data.weights = [
-      ...(data.weights || []).filter((item) => dayKey(item.recordedAt) !== dayKey(recordedIso)),
+      ...(data.weights || []),
       { id: uid(), recordedAt: recordedIso, kg: Math.round(value * 100) / 100, note: note.trim() },
     ]
     data = data
@@ -101,8 +95,11 @@
 
 <div class="weight-summary grid">
   <div class="metric">
-    <span class="muted">当前体重</span>
-    <strong>{latest ? `${Number(latest.kg).toFixed(2)} kg` : '—'}</strong>
+    <span class="muted">今日平均体重</span>
+    <strong>
+      {#if todayWeight}<span class="weight-number">{Number(todayWeight.kg).toFixed(2)}</span>
+        <small>kg</small>{:else}—{/if}
+    </strong>
   </div>
   <div class="metric">
     <span class="muted">最近变化</span>
@@ -110,7 +107,9 @@
       class:accent={change !== null && change <= 0}
       class:orange={change !== null && change > 0}
     >
-      {change === null ? '—' : `${change > 0 ? '+' : ''}${change.toFixed(2)} kg`}
+      {#if change === null}—{:else}<span class="weight-sign">{change > 0 ? '+' : ''}</span>
+        <span class="weight-number">{change.toFixed(2)}</span>
+        <small>kg</small>{/if}
     </strong>
   </div>
   <div class="metric">
