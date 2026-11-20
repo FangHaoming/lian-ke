@@ -160,8 +160,8 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    caches.open(PRECACHE).then(async (cache) => {
-      const cached = await cache.match(request, { ignoreSearch: true })
+    (async () => {
+      const cached = await caches.match(request, { ignoreSearch: true })
       if (cached) return cached
       const isMedia = request.destination === 'image' || request.destination === 'video'
       return staleWhileRevalidate(
@@ -170,7 +170,7 @@ self.addEventListener('fetch', (event) => {
         isMedia ? MEDIA : RUNTIME,
         isMedia ? undefined : 80,
       )
-    }),
+    })(),
   )
 })
 `,
