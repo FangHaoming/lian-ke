@@ -11,10 +11,22 @@ function showConnectionStatus(online) {
 export function setupOfflineSupport() {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return () => {}
 
+  let isReloading = false
+  let hadController = Boolean(navigator.serviceWorker.controller)
   const handleOnline = () => showConnectionStatus(true)
   const handleOffline = () => showConnectionStatus(false)
+  const handleControllerChange = () => {
+    if (!hadController) {
+      hadController = true
+      return
+    }
+    if (isReloading) return
+    isReloading = true
+    window.location.reload()
+  }
   window.addEventListener('online', handleOnline)
   window.addEventListener('offline', handleOffline)
+  navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange)
 
   if (!navigator.onLine) showConnectionStatus(false)
 
@@ -22,20 +34,22 @@ export function setupOfflineSupport() {
     .register(appPath('service-worker.js'), { scope: appPath('') })
     .then((registration) => {
       if (registration.waiting && navigator.serviceWorker.controller) {
-        showToast('新版本已准备好，下次打开练刻时自动更新', {
+        showToast('新版本已准备好，正在更新', {
           type: 'success',
           duration: 5000,
         })
+        registration.waiting.postMessage({ type: 'SKIP_WAITING' })
       }
       registration.addEventListener('updatefound', () => {
         const worker = registration.installing
         if (!worker) return
         worker.addEventListener('statechange', () => {
           if (worker.state === 'installed' && navigator.serviceWorker.controller) {
-            showToast('新版本已准备好，下次打开练刻时自动更新', {
+            showToast('新版本已准备好，正在更新', {
               type: 'success',
               duration: 5000,
             })
+            worker.postMessage({ type: 'SKIP_WAITING' })
           }
         })
       })
@@ -47,5 +61,6 @@ export function setupOfflineSupport() {
   return () => {
     window.removeEventListener('online', handleOnline)
     window.removeEventListener('offline', handleOffline)
+    navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange)
   }
 }

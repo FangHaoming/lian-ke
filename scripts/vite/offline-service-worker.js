@@ -69,6 +69,10 @@ self.addEventListener('install', (event) => {
   event.waitUntil(precacheApp())
 })
 
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
+})
+
 async function activateCaches() {
   const keys = await caches.keys()
   const legacyMediaKeys = keys.filter(
