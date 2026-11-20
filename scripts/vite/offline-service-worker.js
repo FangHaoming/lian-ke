@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 
 export function offlineServiceWorker() {
+  const cacheSchema = 'offline-cache-v2'
   const entryHTMLURLs = [
     './',
     './index.html',
@@ -15,6 +16,7 @@ export function offlineServiceWorker() {
     generateBundle(_options, bundle) {
       const buildFiles = Object.keys(bundle).filter((fileName) => !fileName.endsWith('.map'))
       const versionHash = createHash('sha256')
+      versionHash.update(cacheSchema)
       for (const fileName of buildFiles.sort()) {
         const output = bundle[fileName]
         versionHash.update(fileName)
@@ -37,12 +39,27 @@ const RUNTIME = \`lianke-runtime-\${VERSION}\`
 const MEDIA = 'lianke-media-v1'
 const PRECACHE_URLS = ${JSON.stringify([...new Set(precacheURLs)], null, 2)}
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(PRECACHE).then((cache) =>
-      cache.addAll(PRECACHE_URLS.map((url) => new Request(url, { cache: 'reload' }))),
-    ),
+async function precacheApp() {
+  const cache = await caches.open(PRECACHE)
+
+  await Promise.all(
+    PRECACHE_URLS.map(async (url) => {
+      const request = new Request(url, { cache: 'reload' })
+      const cached = await caches.match(request, { ignoreSearch: true })
+      if (cached) {
+        await cache.put(request, cached.clone())
+        return
+      }
+
+      const response = await fetch(request)
+      if (!response.ok) throw new Error(\`Failed to precache \${request.url}: \${response.status}\`)
+      await cache.put(request, response)
+    }),
   )
+}
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(precacheApp())
 })
 
 async function activateCaches() {
