@@ -75,7 +75,7 @@ pnpm native:sync
 
 ## GitHub Release
 
-推送语义化版本 Tag 会自动创建 GitHub Release，并附带 Web/PWA 压缩包和可直接安装的 Android APK：
+推送语义化版本 Tag 会自动创建 GitHub Release，并附带 Web/PWA 压缩包和带版本号、可直接安装的 Android APK：
 
 ```bash
 git tag v1.0.0
