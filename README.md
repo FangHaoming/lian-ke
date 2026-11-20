@@ -75,11 +75,11 @@ pnpm native:sync
 
 ## GitHub Release
 
-推送语义化版本 Tag 会自动创建 GitHub Release，并附带 Web/PWA 压缩包和 Android 未签名 APK：
+推送语义化版本 Tag 会自动创建 GitHub Release，并附带 Web/PWA 压缩包和可直接安装的 Android APK：
 
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-工作流只监听 `v*` Tag。APK 当前是未签名构建，适合内部测试；如果要发布到 Google Play，还需要在 GitHub Actions Secrets 中配置 Android 签名密钥，并在工作流中增加签名步骤。
+工作流只监听 `v*` Tag。APK 使用 GitHub Actions 的 Debug 签名，适合内部测试和直接安装；如果要发布到 Google Play，还需要配置正式签名密钥并改为 Release 签名构建。
