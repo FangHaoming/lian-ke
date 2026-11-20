@@ -81,7 +81,19 @@ jobs:
             echo "Missing ANDROID_DEBUG_KEY_PASSWORD repository secret"
             exit 1
           }
-          printf '%s' "$ANDROID_DEBUG_KEYSTORE_BASE64" | base64 --decode > android/lianke-debug.keystore
+          export ANDROID_DEBUG_KEYSTORE_BASE64
+          python3 - <<'PY'
+          import base64
+          import os
+
+          value = os.environ['ANDROID_DEBUG_KEYSTORE_BASE64'].strip()
+          if value.startswith('data:') and ',' in value:
+              value = value.split(',', 1)[1]
+          value = ''.join(value.split())
+          value += '=' * (-len(value) % 4)
+          with open('android/lianke-debug.keystore', 'wb') as keystore:
+              keystore.write(base64.b64decode(value, validate=False))
+          PY
 
       - name: Build installable Android APK
         working-directory: android
