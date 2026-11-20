@@ -111,7 +111,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          release_options=()
+          case "$GITHUB_REF_NAME" in
+            *-rc*) release_options+=(--prerelease) ;;
+          esac
           gh release create "$GITHUB_REF_NAME" \
+            "${release_options[@]}" \
             "lianke-web-${GITHUB_REF_NAME}.tar.gz" \
             "lianke-android-${GITHUB_REF_NAME}.apk" \
             --verify-tag \
