@@ -38,16 +38,14 @@ function compareVersions(left, right) {
   return 0
 }
 
-export async function fetchLatestAppRelease() {
+export async function fetchLatestAppReleases() {
   const response = await fetch(RELEASES_URL, {
     headers: { Accept: 'application/vnd.github+json' },
   })
   if (!response.ok) throw Error(`更新检查失败 HTTP ${response.status}`)
   const releases = await response.json()
   const candidates = releases
-    // Only show public/stable releases. RC/beta tags are for internal tests
-    // and must not appear as user-facing update candidates.
-    .filter((release) => !release.draft && !release.prerelease)
+    .filter((release) => !release.draft)
     .map((release) => ({
       ...release,
       version: String(release.tag_name || '').replace(/^v/i, ''),
@@ -55,14 +53,24 @@ export async function fetchLatestAppRelease() {
     }))
     .filter((release) => release.apk && versionParts(release.version))
     .sort((left, right) => compareVersions(right.version, left.version))
-  const latest = candidates[0]
-  if (!latest) return null
+  const toRelease = (release) =>
+    release
+      ? {
+          latestVersion: release.version,
+          apkUrl: release.apk.browser_download_url,
+          releaseUrl: release.html_url,
+          releaseName: release.name || release.tag_name,
+        }
+      : null
   return {
-    latestVersion: latest.version,
-    apkUrl: latest.apk.browser_download_url,
-    releaseUrl: latest.html_url,
-    releaseName: latest.name || latest.tag_name,
+    stable: toRelease(candidates.find((release) => !release.prerelease)),
+    testing: toRelease(candidates.find((release) => release.prerelease)),
   }
+}
+
+export async function fetchLatestAppRelease() {
+  const releases = await fetchLatestAppReleases()
+  return releases.stable
 }
 
 export async function checkNativeAppUpdate() {

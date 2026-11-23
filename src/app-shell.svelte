@@ -467,8 +467,6 @@
 <div class:source-mode={sourceViewer} class:share-mode={challengeShare} class="app">
   {#if sourceViewer}
     <SourceViewerPage page={sourcePage} action={sourceAction} />
-  {:else if downloadPage}
-    <DownloadPage />
   {:else if authCallback}
     <div class="app-content">
       {#if ready}<AuthCallbackPage />{/if}
@@ -609,7 +607,9 @@
           <span class="pill">{today}</span>
         {/if}
       </header>
-      {#if challengeShare}
+      {#if downloadPage}
+        <DownloadPage />
+      {:else if challengeShare}
         <ChallengeSharePage />
       {:else if ready}
         {#if pageLoadErrors[tab]}

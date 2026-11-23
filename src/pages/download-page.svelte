@@ -1,15 +1,14 @@
 <script>
   import { onMount } from 'svelte'
-  import { appPath, appURL } from '../lib/config.js'
-  import { compareVersions, fetchLatestAppRelease } from '../lib/native-update.js'
+  import { fetchLatestAppReleases } from '../lib/native-update.js'
+  import { showToast } from '../lib/toast.js'
   import packageJson from '../../package.json'
 
   const appVersion = `v${packageJson.version}`
   const apkURL = `https://github.com/FangHaoming/lian-ke/releases/latest/download/lianke-android-${appVersion}.apk`
-  const releaseURL = 'https://github.com/FangHaoming/lian-ke/releases/latest'
-  let latestRelease = null
+  const releaseURL = 'https://github.com/FangHaoming/lian-ke/releases'
+  let latestReleases = { stable: null, testing: null }
   let checking = false
-  let checkMessage = ''
 
   onMount(() => {
     void checkForUpdate()
@@ -18,24 +17,30 @@
   async function checkForUpdate() {
     if (checking) return
     checking = true
-    checkMessage = ''
     try {
-      latestRelease = await fetchLatestAppRelease()
-      checkMessage = latestRelease
-        ? compareVersions(latestRelease.latestVersion, packageJson.version) > 0
-          ? `发现新版本 v${latestRelease.latestVersion}`
-          : `已是最新版本 v${packageJson.version}`
-        : '暂未找到可用的 APK Release'
+      latestReleases = await fetchLatestAppReleases()
+      if (latestReleases.stable || latestReleases.testing) {
+        const versions = [
+          latestReleases.stable && `正式版 v${latestReleases.stable.latestVersion}`,
+          latestReleases.testing && `测试版 v${latestReleases.testing.latestVersion}`,
+        ].filter(Boolean)
+        showToast(`已是最新版本：${versions.join('、')}`, { type: 'success' })
+      } else {
+        showToast('暂未找到可用的 APK Release', { type: 'info' })
+      }
     } catch {
-      checkMessage = '检查失败，请稍后重试'
+      showToast('检查失败，请稍后重试', { type: 'error' })
     } finally {
       checking = false
     }
   }
 
-  $: latestApkURL = latestRelease?.apkUrl || apkURL
-  $: hasUpdate =
-    latestRelease && compareVersions(latestRelease.latestVersion, packageJson.version) > 0
+  $: stableRelease = latestReleases.stable
+  $: testingRelease = latestReleases.testing
+  $: stableApkURL = stableRelease?.apkUrl || apkURL
+  $: testingApkURL = testingRelease?.apkUrl || apkURL
+  $: stableVersion = stableRelease?.latestVersion || packageJson.version
+  $: testingVersion = testingRelease?.latestVersion || packageJson.version
 </script>
 
 <svelte:head>
@@ -43,38 +48,30 @@
 </svelte:head>
 
 <main class="download-page">
-  <a class="download-brand" href={appPath('')} aria-label="返回练刻首页">
-    <span class="download-brand-icon"><img src={appURL('fit-log-icon.png')} alt="" /></span>
-    <span>
-      <strong>
-        练
-        <span>刻</span>
-      </strong>
-      <small>FIT LOG</small>
-    </span>
-  </a>
-
   <section class="download-hero">
     <p class="download-eyebrow">ANDROID APP</p>
     <div class="download-version-row">
-      <p class="download-version">当前版本 v{packageJson.version}</p>
+      <p class="download-version">最新正式版 v{stableVersion}</p>
       <button class="download-check" type="button" on:click={checkForUpdate} disabled={checking}>
         {checking ? '检查中…' : '检查更新'}
       </button>
     </div>
-    {#if checkMessage}<p class:download-update-found={hasUpdate} class="download-update-status">
-        {checkMessage}
-      </p>{/if}
-    <h1>把训练带到锁屏上</h1>
+    <h1>
+      <span>把训练</span>
+      <span>带到锁屏上</span>
+    </h1>
     <p class="download-lead">
       下载练刻 Android App，训练时锁定屏幕也能持续查看动作、组数和倒计时。
     </p>
     <div class="download-actions">
-      <a class="btn download-primary" href={latestApkURL}>
-        {hasUpdate ? `更新到 v${latestRelease.latestVersion}` : '下载 Android APK'}
+      <a class="btn download-primary" href={stableApkURL}>
+        下载正式版 v{stableVersion}
         <span>↓</span>
       </a>
-      <a class="btn download-secondary" href={appPath('')}>打开 Web 版</a>
+      <a class="btn download-testing" href={testingApkURL}>
+        下载测试版 v{testingVersion}
+        <span>↓</span>
+      </a>
     </div>
     <p class="download-note">
       点击按钮会直接下载当前版本 APK。首次安装时，请允许浏览器或系统安装未知来源应用。
@@ -148,8 +145,8 @@
     letter-spacing: 0.14em;
   }
   .download-hero {
-    max-width: 700px;
-    padding: clamp(82px, 14vh, 150px) 0 84px;
+    max-width: 760px;
+    padding: 24px 0 76px;
   }
   .download-eyebrow {
     margin: 0 0 14px;
@@ -160,26 +157,51 @@
   }
   .download-version {
     display: inline-flex;
-    margin: 0 0 18px;
+    margin: 0;
     padding: 5px 10px;
     border: 1px solid #3d5a43;
     border-radius: 999px;
     color: #c9f39c;
     background: #b7f36a12;
-    font-size: 12px;
+    font-size: 13px;
     font-variant-numeric: tabular-nums;
+  }
+  .download-version-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .download-check {
+    min-width: 0;
+    height: 36px;
+    padding: 0 14px;
+    border: 1px solid #3b5968;
+    border-radius: 999px;
+    background: #172630;
+    color: #cbdde2;
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .download-check:hover:not(:disabled) {
+    border-color: #b7f36a;
+    color: #e9f8d8;
   }
   h1 {
     max-width: 620px;
-    margin: 0;
+    margin: 24px 0 0;
     color: #f3f9f4;
-    font-size: clamp(42px, 8vw, 78px);
-    line-height: 1.03;
+    font-size: clamp(42px, 7.2vw, 76px);
+    line-height: 1.08;
     letter-spacing: -0.055em;
+  }
+  h1 span {
+    display: inline;
   }
   .download-lead {
     max-width: 530px;
-    margin: 26px 0 30px;
+    margin: 22px 0 30px;
     color: #aabcc3;
     font-size: 17px;
     line-height: 1.85;
@@ -188,6 +210,9 @@
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+  }
+  .download-actions a {
+    text-decoration: none;
   }
   .download-primary {
     background: #b7f36a;
@@ -206,6 +231,15 @@
   }
   .download-secondary {
     color: #d1e0e2;
+  }
+  .download-testing {
+    border: 1px solid #405561;
+    background: #172630;
+    color: #d1e0e2;
+  }
+  .download-testing:hover {
+    border-color: #9bcf64;
+    color: #eff9e8;
   }
   .download-note {
     max-width: 550px;
@@ -251,8 +285,15 @@
       padding-inline: 18px;
     }
     .download-hero {
-      padding-top: 80px;
+      padding-top: 28px;
       padding-bottom: 60px;
+    }
+    h1 {
+      margin-top: 20px;
+      font-size: clamp(40px, 12vw, 62px);
+    }
+    h1 span {
+      display: block;
     }
     .download-lead {
       font-size: 15px;
