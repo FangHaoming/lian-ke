@@ -1,8 +1,14 @@
+import { nativeTrainingAvailable, nativeVibrate } from './native-training.js'
+
 let audio
 
 export function vibrate(enabled, pattern = [120, 60, 120]) {
-  if (!enabled || typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function')
+  if (!enabled) return
+  if (nativeTrainingAvailable()) {
+    void nativeVibrate()
     return
+  }
+  if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return
   navigator.vibrate(pattern)
 }
 

@@ -9,6 +9,7 @@
   let note = ''
   let chartMode = 'daily'
   let weather = { icon: '☁️', label: '正在获取天气', temperature: null }
+  let weatherRequest
 
   onMount(() => {
     loadCurrentWeather()
@@ -104,41 +105,50 @@
     return { icon: '☁️', label: '天气未知' }
   }
 
-  async function loadCurrentWeather() {
+  function loadCurrentWeather() {
+    if (weatherRequest) return weatherRequest
     if (!navigator.geolocation) {
       weather = { icon: '☁️', label: '暂时无法获取天气', temperature: null }
-      return
+      return Promise.resolve(false)
     }
 
-    navigator.geolocation.getCurrentPosition(
-      async ({ coords }) => {
-        try {
-          const params = new URLSearchParams({
-            latitude: String(coords.latitude),
-            longitude: String(coords.longitude),
-            current: 'weather_code,is_day,temperature_2m',
-            timezone: 'auto',
-          })
-          const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
-          if (!response.ok) throw new Error('weather request failed')
-          const result = await response.json()
-          const current = result.current || {}
-          const info = weatherInfo(Number(current.weather_code), Number(current.is_day) === 1)
-          const temperature = Number(current.temperature_2m)
-          weather = {
-            icon: info.icon,
-            label: info.label,
-            temperature: Number.isFinite(temperature) ? temperature : null,
+    weatherRequest = new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        async ({ coords }) => {
+          try {
+            const params = new URLSearchParams({
+              latitude: String(coords.latitude),
+              longitude: String(coords.longitude),
+              current: 'weather_code,is_day,temperature_2m',
+              timezone: 'auto',
+            })
+            const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
+            if (!response.ok) throw new Error('weather request failed')
+            const result = await response.json()
+            const current = result.current || {}
+            const info = weatherInfo(Number(current.weather_code), Number(current.is_day) === 1)
+            const temperature = Number(current.temperature_2m)
+            weather = {
+              icon: info.icon,
+              label: info.label,
+              temperature: Number.isFinite(temperature) ? temperature : null,
+            }
+            resolve(true)
+          } catch {
+            weather = { icon: '☁️', label: '暂时无法获取天气', temperature: null }
+            resolve(false)
           }
-        } catch {
-          weather = { icon: '☁️', label: '暂时无法获取天气', temperature: null }
-        }
-      },
-      () => {
-        weather = { icon: '☁️', label: '开启定位后显示天气', temperature: null }
-      },
-      { enableHighAccuracy: false, maximumAge: 10 * 60 * 1000, timeout: 8000 },
-    )
+        },
+        () => {
+          weather = { icon: '☁️', label: '开启定位后显示天气', temperature: null }
+          resolve(false)
+        },
+        { enableHighAccuracy: false, maximumAge: 10 * 60 * 1000, timeout: 8000 },
+      )
+    }).finally(() => {
+      weatherRequest = null
+    })
+    return weatherRequest
   }
 
   function weatherSnapshot() {
@@ -229,6 +239,7 @@
       cancelText: '取消',
     })
     if (!confirmed) return
+    if (!isWaking) await loadCurrentWeather()
     if (isWaking) recordWake()
     else recordAsleep()
   }

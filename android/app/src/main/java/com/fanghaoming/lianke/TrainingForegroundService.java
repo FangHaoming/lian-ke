@@ -9,6 +9,10 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.Handler;
+import android.os.Looper;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
@@ -18,7 +22,21 @@ public class TrainingForegroundService extends Service {
     // Bump the channel id so installs that already created the old LOW/
     // silent channel receive the lock-screen-visible importance below.
     private static final String CHANNEL_ID = "active_training_v2";
+    private static final String ALERT_CHANNEL_ID = "training_alerts_v1";
     private static final int NOTIFICATION_ID = 4101;
+    private static final int ALERT_NOTIFICATION_ID = 4102;
+    private final Handler notificationHandler = new Handler(Looper.getMainLooper());
+    private Intent latestUpdate;
+    private long notifiedEndAt;
+    private final Runnable notificationTicker = new Runnable() {
+        @Override
+        public void run() {
+            if (latestUpdate == null) return;
+            startForeground(NOTIFICATION_ID, buildNotification(latestUpdate));
+            notifyCountdownFinishedIfNeeded(latestUpdate);
+            notificationHandler.postDelayed(this, 1000L);
+        }
+    };
 
     @Override
     public void onCreate() {
@@ -29,12 +47,59 @@ public class TrainingForegroundService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null || ACTION_STOP.equals(intent.getAction())) {
+            notificationHandler.removeCallbacks(notificationTicker);
+            latestUpdate = null;
+            notifiedEndAt = 0L;
             stopForeground(STOP_FOREGROUND_REMOVE);
             stopSelf();
             return START_NOT_STICKY;
         }
+        // The web layer may advance to the next phase before the native
+        // ticker gets its next second. Check the previous phase once more so
+        // that a background app cannot skip the completion alert.
+        if (latestUpdate != null) notifyCountdownFinishedIfNeeded(latestUpdate);
+        latestUpdate = new Intent(intent);
+        long timerEndAt = latestUpdate.getLongExtra("timerEndAt", 0L);
+        if (timerEndAt != notifiedEndAt && timerEndAt > 0L && timerEndAt > System.currentTimeMillis()) {
+            notifiedEndAt = 0L;
+        }
         startForeground(NOTIFICATION_ID, buildNotification(intent));
+        notificationHandler.removeCallbacks(notificationTicker);
+        notificationHandler.postDelayed(notificationTicker, 1000L);
         return START_STICKY;
+    }
+
+    private void notifyCountdownFinishedIfNeeded(Intent data) {
+        if (data.getBooleanExtra("paused", false)) return;
+        long timerEndAt = data.getLongExtra("timerEndAt", 0L);
+        if (timerEndAt <= 0L || timerEndAt > System.currentTimeMillis() || timerEndAt == notifiedEndAt) return;
+        notifiedEndAt = timerEndAt;
+        if (MainActivity.isAppVisible()) return;
+
+        String exercise = data.getStringExtra("exerciseName");
+        String phase = data.getStringExtra("phase");
+        String message = "rest".equals(phase)
+            ? "休息结束，继续训练"
+            : ("prep".equals(phase) ? "准备结束，开始训练" : "动作时间结束");
+        Intent openIntent = new Intent(this, MainActivity.class)
+            .setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent contentIntent = PendingIntent.getActivity(
+            this, 1, openIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        Notification notification = new NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_training_notification)
+            .setColor(Color.rgb(183, 243, 106))
+            .setContentTitle(exercise == null || exercise.isEmpty() ? "练刻 · 训练提醒" : exercise)
+            .setContentText(message)
+            .setContentIntent(contentIntent)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .setDefaults(Notification.DEFAULT_ALL)
+            .setWhen(System.currentTimeMillis())
+            .build();
+        getSystemService(NotificationManager.class).notify(ALERT_NOTIFICATION_ID, notification);
     }
 
     private Notification buildNotification(Intent data) {
@@ -50,6 +115,11 @@ public class TrainingForegroundService extends Service {
         int elapsed = data.getIntExtra("elapsedSeconds", 0);
         long timerEndAt = data.getLongExtra("timerEndAt", 0L);
         long timerStartAt = data.getLongExtra("timerStartAt", 0L);
+        if (!paused && timerEndAt > 0L) {
+            remaining = Math.max(0, (int) Math.ceil((timerEndAt - System.currentTimeMillis()) / 1000.0));
+        } else if (!paused && timerStartAt > 0L) {
+            elapsed = Math.max(0, (int) ((System.currentTimeMillis() - timerStartAt) / 1000L));
+        }
 
         Intent openIntent = new Intent(this, MainActivity.class)
             .setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -62,11 +132,14 @@ public class TrainingForegroundService extends Service {
 
         String phaseLabel = paused ? "已暂停" : phaseLabel(phase);
         String detail = "第 " + currentSet + "/" + totalSets + " 组 · " + phaseLabel;
+        boolean countdown = "prep".equals(phase) || "rest".equals(phase)
+            || timerEndAt > 0L;
+        String timerLabel = formatSeconds(countdown ? remaining : elapsed);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_training_notification)
             .setColor(Color.rgb(183, 243, 106))
             .setContentTitle(exercise == null || exercise.isEmpty() ? "练刻 · 训练中" : exercise)
-            .setContentText(detail)
+            .setContentText(detail + " · " + timerLabel)
             .setSubText(plan)
             .setContentIntent(contentIntent)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
@@ -77,21 +150,10 @@ public class TrainingForegroundService extends Service {
             .setSilent(true)
             .setProgress(Math.max(totalItems, 1), Math.max(currentItem - 1, 0), false);
 
-        if (!paused && timerEndAt > 0L) {
-            builder.setWhen(timerEndAt)
-                .setUsesChronometer(true)
-                .setChronometerCountDown(true)
-                .setShowWhen(true);
-        } else if (!paused && timerStartAt > 0L) {
-            builder.setWhen(timerStartAt)
-                .setUsesChronometer(true)
-                .setShowWhen(true);
-        } else {
-            builder.setShowWhen(false)
-                .setStyle(new NotificationCompat.BigTextStyle().bigText(
-                    detail + " · " + formatSeconds("rest".equals(phase) ? remaining : elapsed)
-                ));
-        }
+        // Render the timer as text instead of Notification Chronometer. Some
+        // lock screens reset a Chronometer to 00:00 whenever an ongoing
+        // foreground notification is refreshed.
+        builder.setShowWhen(false);
         return builder.build();
     }
 
@@ -117,10 +179,22 @@ public class TrainingForegroundService extends Service {
         channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
         channel.setSound(null, null);
         getSystemService(NotificationManager.class).createNotificationChannel(channel);
+
+        Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+        NotificationChannel alertChannel = new NotificationChannel(
+            ALERT_CHANNEL_ID, "训练结束提醒", NotificationManager.IMPORTANCE_HIGH
+        );
+        alertChannel.setDescription("倒计时结束时提醒继续训练");
+        alertChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+        alertChannel.setSound(sound, null);
+        getSystemService(NotificationManager.class).createNotificationChannel(alertChannel);
     }
 
     @Override
     public void onDestroy() {
+        notificationHandler.removeCallbacks(notificationTicker);
+        latestUpdate = null;
+        notifiedEndAt = 0L;
         stopForeground(STOP_FOREGROUND_REMOVE);
         super.onDestroy();
     }

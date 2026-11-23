@@ -5,9 +5,46 @@ const NativeTraining = registerPlugin('NativeTraining')
 let lastPayload = ''
 let updateQueue = Promise.resolve()
 let permissionRequested = false
+let nativeScreenAwake
 
 export function nativeTrainingAvailable() {
   return Capacitor.isNativePlatform()
+}
+
+export function nativeVibrate() {
+  if (!nativeTrainingAvailable()) return Promise.resolve()
+  return NativeTraining.vibrate().catch((error) => {
+    console.warn('Native training vibration failed', error)
+  })
+}
+
+export function setNativeScreenAwake(enabled) {
+  if (!nativeTrainingAvailable() || nativeScreenAwake === enabled) return Promise.resolve()
+  nativeScreenAwake = enabled
+  return NativeTraining.setScreenAwake({ enabled }).catch((error) => {
+    nativeScreenAwake = undefined
+    console.warn('Native screen-awake update failed', error)
+  })
+}
+
+export async function nativeAppInfo() {
+  if (!nativeTrainingAvailable()) return null
+  try {
+    return await NativeTraining.getAppInfo()
+  } catch (error) {
+    console.warn('Native app info unavailable', error)
+    return null
+  }
+}
+
+export function openNativeExternalUrl(url) {
+  if (!nativeTrainingAvailable()) return Promise.resolve(false)
+  return NativeTraining.openExternalUrl({ url })
+    .then(() => true)
+    .catch((error) => {
+      console.warn('Native external URL failed', error)
+      return false
+    })
 }
 
 export async function requestNativeTrainingPermission() {
@@ -71,10 +108,11 @@ export function nativeTrainingSnapshot(session) {
     totalSets: totalSetsForExercise(session),
     currentItem: session.index + 1,
     totalItems: session.queue.length,
-    remainingSeconds:
-      session.paused || !endAt ? Math.max(0, Math.ceil(Number(session.remaining) || 0)) : 0,
-    elapsedSeconds:
-      session.paused || !startAt ? Math.max(0, Math.floor(Number(session.elapsed) || 0)) : 0,
+    // Keep the display values populated while running as well. The Android
+    // notification renders these values directly so OEM lock screens cannot
+    // reset a platform Chronometer to 00:00 while the notification refreshes.
+    remainingSeconds: Math.max(0, Math.ceil(Number(session.remaining) || 0)),
+    elapsedSeconds: Math.max(0, Math.floor(Number(session.elapsed) || 0)),
     timerEndAt: endAt,
     timerStartAt: startAt,
   }

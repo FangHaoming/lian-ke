@@ -12,6 +12,9 @@
   import PwaInstall from './components/pwa-install.svelte'
   import { requestConfirm } from './lib/confirm-dialog.js'
   import { appPath, appURL, basePath } from './lib/config.js'
+  import { setNativeScreenAwake } from './lib/native-training.js'
+  import { checkNativeAppUpdate } from './lib/native-update.js'
+  import { openNativeExternalUrl } from './lib/native-training.js'
 
   let data = defaults()
   let tab = 'train'
@@ -37,6 +40,8 @@
   let sidebarOpen = typeof window === 'undefined' ? true : window.innerWidth > 760
   let accountSession = cloudSession()
   let pendingTab = null
+  let nativeUpdate = null
+  let nativeUpdateOpening = false
   let sessionPersistTimer
   let dataSaveTimer
   const ACTIVE_SESSION_KEY = 'lianke_active_training_session'
@@ -304,6 +309,8 @@
   }
 
   function syncWakeLock(active) {
+    const nativeActive = active && document.visibilityState === 'visible'
+    void setNativeScreenAwake(nativeActive)
     if (!active || document.visibilityState !== 'visible') {
       if (wakeLock) {
         const lock = wakeLock
@@ -364,6 +371,9 @@
       weekday: 'short',
     })
     ready = true
+    void checkNativeAppUpdate()
+      .then((update) => (nativeUpdate = update))
+      .catch(() => {})
     const onPopState = () => {
       const nextIsAuthCallback = isAuthCallbackLocation()
       if (nextIsAuthCallback) {
@@ -423,6 +433,7 @@
       window.removeEventListener('lianke-start-challenge-training', onStartChallengeTraining)
       window.removeEventListener('lianke-return-to-challenges', onReturnToChallenge)
       document.removeEventListener('visibilitychange', onVisibilityChange)
+      void setNativeScreenAwake(false)
       if (wakeLock) void wakeLock.release().catch(() => {})
     }
   })
@@ -434,6 +445,13 @@
   $: if (ready) syncWakeLock(Boolean(session && !session.paused))
   $: if (ready && !authCallback && !sourceViewer && !challengeShare && !downloadPage)
     void loadPageComponent(tab)
+
+  async function openNativeUpdate() {
+    if (!nativeUpdate?.apkUrl || nativeUpdateOpening) return
+    nativeUpdateOpening = true
+    await openNativeExternalUrl(nativeUpdate.apkUrl)
+    nativeUpdateOpening = false
+  }
 </script>
 
 <svelte:head>
@@ -623,5 +641,21 @@
   <GlobalDialog />
   {#if ready && !authCallback && !sourceViewer && !challengeShare && !downloadPage}<PwaInstall
     />{/if}
+  {#if nativeUpdate}
+    <aside class="native-update-banner" aria-live="polite">
+      <div>
+        <strong>发现练刻新版本 v{nativeUpdate.latestVersion}</strong>
+        <small>当前版本 v{nativeUpdate.currentVersion}，下载 APK 后按系统提示更新。</small>
+      </div>
+      <button
+        class="btn primary"
+        type="button"
+        on:click={openNativeUpdate}
+        disabled={nativeUpdateOpening}
+      >
+        {nativeUpdateOpening ? '正在打开…' : '立即更新'}
+      </button>
+    </aside>
+  {/if}
   <GlobalToast />
 </div>

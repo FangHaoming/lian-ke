@@ -1,10 +1,41 @@
 <script>
+  import { onMount } from 'svelte'
   import { appPath, appURL } from '../lib/config.js'
+  import { compareVersions, fetchLatestAppRelease } from '../lib/native-update.js'
   import packageJson from '../../package.json'
 
   const appVersion = `v${packageJson.version}`
   const apkURL = `https://github.com/FangHaoming/lian-ke/releases/latest/download/lianke-android-${appVersion}.apk`
   const releaseURL = 'https://github.com/FangHaoming/lian-ke/releases/latest'
+  let latestRelease = null
+  let checking = false
+  let checkMessage = ''
+
+  onMount(() => {
+    void checkForUpdate()
+  })
+
+  async function checkForUpdate() {
+    if (checking) return
+    checking = true
+    checkMessage = ''
+    try {
+      latestRelease = await fetchLatestAppRelease()
+      checkMessage = latestRelease
+        ? compareVersions(latestRelease.latestVersion, packageJson.version) > 0
+          ? `发现新版本 v${latestRelease.latestVersion}`
+          : `已是最新版本 v${packageJson.version}`
+        : '暂未找到可用的 APK Release'
+    } catch {
+      checkMessage = '检查失败，请稍后重试'
+    } finally {
+      checking = false
+    }
+  }
+
+  $: latestApkURL = latestRelease?.apkUrl || apkURL
+  $: hasUpdate =
+    latestRelease && compareVersions(latestRelease.latestVersion, packageJson.version) > 0
 </script>
 
 <svelte:head>
@@ -25,14 +56,23 @@
 
   <section class="download-hero">
     <p class="download-eyebrow">ANDROID APP</p>
-    <p class="download-version">当前版本 v{packageJson.version}</p>
+    <div class="download-version-row">
+      <p class="download-version">当前版本 v{packageJson.version}</p>
+      <button class="download-check" type="button" on:click={checkForUpdate} disabled={checking}>
+        {checking ? '检查中…' : '检查更新'}
+      </button>
+    </div>
+    {#if checkMessage}<p class:download-update-found={hasUpdate} class="download-update-status">
+        {checkMessage}
+      </p>{/if}
     <h1>把训练带到锁屏上</h1>
     <p class="download-lead">
       下载练刻 Android App，训练时锁定屏幕也能持续查看动作、组数和倒计时。
     </p>
     <div class="download-actions">
-      <a class="btn download-primary" href={apkURL}>
-        下载 Android APK <span>↓</span>
+      <a class="btn download-primary" href={latestApkURL}>
+        {hasUpdate ? `更新到 v${latestRelease.latestVersion}` : '下载 Android APK'}
+        <span>↓</span>
       </a>
       <a class="btn download-secondary" href={appPath('')}>打开 Web 版</a>
     </div>

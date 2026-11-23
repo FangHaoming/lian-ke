@@ -109,8 +109,20 @@ export const sleepRecords = (items = []) =>
     .map((item) => {
       const asleepAt = Number.isFinite(Date.parse(item.asleepAt)) ? item.asleepAt : ''
       const wakeAt = Number.isFinite(Date.parse(item.wakeAt)) ? item.wakeAt : ''
-      const asleepTemperature = Number(item.asleepTemperature)
-      const wakeTemperature = Number(item.wakeTemperature)
+      // `Number(null)` is 0, but a missing temperature must stay missing so
+      // sync baselines do not oscillate between null and 0 on every compare.
+      const asleepTemperature =
+        item.asleepTemperature === null ||
+        item.asleepTemperature === undefined ||
+        item.asleepTemperature === ''
+          ? NaN
+          : Number(item.asleepTemperature)
+      const wakeTemperature =
+        item.wakeTemperature === null ||
+        item.wakeTemperature === undefined ||
+        item.wakeTemperature === ''
+          ? NaN
+          : Number(item.wakeTemperature)
       return {
         id: item.id || uid(),
         ...(asleepAt && (!wakeAt || new Date(wakeAt) > new Date(asleepAt)) && { asleepAt }),
