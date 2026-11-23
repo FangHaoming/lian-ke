@@ -84,7 +84,7 @@ public class NativeTrainingPlugin extends Plugin {
             vibrator = (Vibrator) getContext().getSystemService(Vibrator.class);
         }
         if (vibrator != null && vibrator.hasVibrator()) {
-            vibrator.vibrate(VibrationEffect.createWaveform(new long[] { 0, 120, 60, 120 }, -1));
+            vibrator.vibrate(VibrationEffect.createWaveform(new long[] { 0, 220, 40, 220 }, -1));
         }
         call.resolve();
     }

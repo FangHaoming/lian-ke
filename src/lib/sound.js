@@ -2,7 +2,7 @@ import { nativeTrainingAvailable, nativeVibrate } from './native-training.js'
 
 let audio
 
-export function vibrate(enabled, pattern = [120, 60, 120]) {
+export function vibrate(enabled, pattern = [0, 220, 40, 220]) {
   if (!enabled) return
   if (nativeTrainingAvailable()) {
     void nativeVibrate()
