@@ -17,13 +17,13 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onStart() {
+    public void onStart() {
         super.onStart();
         appVisible = true;
     }
 
     @Override
-    protected void onStop() {
+    public void onStop() {
         appVisible = false;
         super.onStop();
     }

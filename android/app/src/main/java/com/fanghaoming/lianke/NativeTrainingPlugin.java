@@ -7,6 +7,7 @@ import android.os.Build;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
+import android.content.pm.PackageInfo;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PermissionState;
@@ -104,9 +105,17 @@ public class NativeTrainingPlugin extends Plugin {
     @PluginMethod
     public void getAppInfo(PluginCall call) {
         JSObject result = new JSObject();
-        result.put("version", BuildConfig.VERSION_NAME);
-        result.put("versionCode", BuildConfig.VERSION_CODE);
-        call.resolve(result);
+        try {
+            PackageInfo info = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0);
+            result.put("version", info.versionName == null ? "" : info.versionName);
+            result.put(
+                "versionCode",
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.P ? info.getLongVersionCode() : info.versionCode
+            );
+            call.resolve(result);
+        } catch (Exception error) {
+            call.reject("Unable to read app version", error);
+        }
     }
 
     @PluginMethod
