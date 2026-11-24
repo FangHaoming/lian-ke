@@ -157,6 +157,11 @@
       busy = false
     }
   }
+  async function handleProjectChange(event) {
+    selectedProjectRef = event.detail.value
+    localStorage.setItem(SELECTED_PROJECT_KEY, selectedProjectRef)
+    await initializeManagedProject()
+  }
   function disconnectManagedSupabase() {
     disconnectSupabase()
     managementSession = null
@@ -588,15 +593,15 @@
         {#if managementProjects.length}
           <label class="supabase-project-picker">
             <span>项目</span>
-            <select
-              bind:value={selectedProjectRef}
-              aria-label="选择 Supabase 项目"
-              on:change={() => localStorage.setItem(SELECTED_PROJECT_KEY, selectedProjectRef)}
-            >
-              {#each managementProjects as project}
-                <option value={project.ref}>{project.name || project.ref}</option>
-              {/each}
-            </select>
+            <Select
+              label="Supabase 项目"
+              options={managementProjects.map((project) => ({
+                value: project.ref,
+                label: project.name || project.ref,
+              }))}
+              value={selectedProjectRef}
+              on:change={handleProjectChange}
+            />
           </label>
           <button
             class="btn primary"
