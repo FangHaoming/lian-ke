@@ -10,6 +10,7 @@
   let status = '正在连接云端……'
   let detail = '请稍候，正在确认你的登录状态。'
   let completed = false
+  let processing = true
   const homePath = appPath('settings')
 
   onMount(async () => {
@@ -38,6 +39,8 @@
     } catch (error) {
       status = '云端连接失败'
       detail = error.message || '请回到设置页重试。'
+    } finally {
+      processing = false
     }
   })
 
@@ -52,6 +55,8 @@
     <span class="challenge-eyebrow">练刻 · 云端连接</span>
     <h1>{status}</h1>
     <p class="muted">{detail}</p>
-    <button type="button" class="btn primary" on:click={returnHome}>返回设置</button>
+    {#if !processing}
+      <button type="button" class="btn primary" on:click={returnHome}>返回设置</button>
+    {/if}
   </section>
 </main>
