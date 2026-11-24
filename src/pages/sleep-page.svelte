@@ -20,6 +20,7 @@
   $: latest = completedRecords[completedRecords.length - 1]
   $: previous = completedRecords[completedRecords.length - 2]
   $: openRecord = [...records].reverse().find((record) => record.asleepAt && !record.wakeAt)
+  $: hasCurrentWeather = Number.isFinite(weather.temperature)
   $: sleepChangeMinutes =
     latest && previous ? durationMinutes(latest) - durationMinutes(previous) : null
   $: chartPoints = buildChartPoints(completedRecords, chartMode)
@@ -273,12 +274,18 @@
         <button
           class="btn primary sleep-record-button"
           aria-label={openRecord ? '记录醒来' : '记录入睡'}
-          title={`${weather.label}${weather.temperature !== null ? ` · ${weather.temperature}°C` : ''}`}
+          title={hasCurrentWeather ? `${weather.label} · ${weather.temperature}°C` : undefined}
           on:click={recordCurrentTime}
         >
-          <span class="sleep-weather-icon" aria-hidden="true">{weather.icon}</span>
           <span>{openRecord ? '记录醒来' : '记录入睡'}</span>
         </button>
+        {#if hasCurrentWeather}
+          <div class="sleep-current-weather" aria-label={`当前天气：${weather.label}，${weather.temperature}°C`}>
+            <span class="sleep-weather-icon" aria-hidden="true">{weather.icon}</span>
+            <span class="sleep-weather-temperature">{weather.temperature}°C</span>
+            <span class="muted small">{weather.label}</span>
+          </div>
+        {/if}
       </div>
     </div>
   </div>
