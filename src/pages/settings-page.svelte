@@ -14,11 +14,9 @@
   import { soundOptions } from '../lib/select-options.js'
   import { showToast } from '../lib/toast.js'
   import {
-    cloudConfig,
     cloudSession,
     deleteAccount,
     deleteRemoteData,
-    saveCloudConfig,
     authenticate,
     syncData,
     loadSyncBaseline,
@@ -34,7 +32,6 @@
     initializeSupabaseProject,
   } from '../lib/cloud.js'
   export let data
-  let config = cloudConfig()
   let session = cloudSession()
   let email = '',
     password = '',
@@ -43,7 +40,6 @@
     busy = false
   let deletePassword = ''
   let deletePasswordError = ''
-  let databaseStatus = '尚未检测'
   let managementSession = supabaseManagementSession()
   let managementProjects = []
   let selectedProjectRef = ''
@@ -122,7 +118,6 @@
         config = { ...config, url: `https://${project.ref}.supabase.co`, anonKey }
         saveCloudConfig(config)
       }
-      databaseStatus = '数据库初始化完成，项目配置已自动保存'
       setStatus('Supabase 数据库已初始化', 'success')
     } catch (error) {
       setStatus(error.message, 'error')
@@ -136,37 +131,6 @@
     managementProjects = []
     selectedProjectRef = ''
     setStatus('已断开 Supabase 管理授权')
-  }
-  async function checkDatabase() {
-    databaseStatus = '正在检查数据表……'
-    const tables = [
-      'exercise_names',
-      'plans',
-      'plan_items',
-      'training_records',
-      'training_sets',
-      'user_settings',
-      'body_weights',
-      'sleep_records',
-      'challenge_attempts',
-    ]
-    const results = await Promise.all(
-      tables.map(async (table) => {
-        try {
-          return (
-            await fetch(`${config.url}/rest/v1/${table}?select=*&limit=0`, {
-              headers: { apikey: config.anonKey },
-            })
-          ).ok
-        } catch {
-          return false
-        }
-      }),
-    )
-    const missing = tables.filter((_, index) => !results[index])
-    databaseStatus = missing.length
-      ? `缺少：${missing.join('、')}`
-      : '数据库已初始化，九张表均可访问'
   }
   async function auth(action) {
     try {
@@ -565,8 +529,8 @@
 </section>
 <details class="panel settings-advanced">
   <summary>
-    <span>云端登录配置</span>
-    <small>首次登录必做 · Supabase 配置与数据库初始化</small>
+    <span>一键连接 Supabase</span>
+    <small>授权后自动选择项目并初始化数据库</small>
     <em class="settings-advanced-toggle">展开指引</em>
   </summary>
   <div class="settings-advanced-body">
@@ -607,98 +571,6 @@
           {/if}
         </div>
       {/if}
-    </section>
-    <div class="settings-setup-guide">
-      <div>
-        <b>1</b>
-        <span>
-          <strong>创建 Supabase 项目</strong>
-          <small>在 Supabase 控制台新建一个项目。</small>
-        </span>
-      </div>
-      <div>
-        <b>2</b>
-        <span>
-          <strong>配置项目 URL 和 Key</strong>
-          <small>从项目设置中复制 Project URL 和 publishable key。</small>
-        </span>
-      </div>
-      <div>
-        <b>3</b>
-        <span>
-          <strong>执行初始化 SQL</strong>
-          <small>创建数据表、权限和账号注销函数。</small>
-        </span>
-      </div>
-      <div>
-        <b>4</b>
-        <span>
-          <strong>检测数据库</strong>
-          <small>确认九张业务表都可以访问。</small>
-        </span>
-      </div>
-    </div>
-    <section class="settings-advanced-section">
-      <h3>步骤 3、4：执行 SQL 并检测数据库</h3>
-      <p class="muted small">
-        首次使用或升级已有数据库时，复制初始化 SQL 到 Supabase SQL Editor
-        执行；重复执行会补齐新字段。
-      </p>
-      <div class="row">
-        <button class="btn" on:click={checkDatabase}>检测数据库</button>
-        <button
-          class="btn"
-          on:click={async () => {
-            await navigator.clipboard.writeText(initSql)
-            databaseStatus = '初始化 SQL 已复制'
-          }}
-        >
-          复制初始化 SQL
-        </button>
-        <a
-          class="btn"
-          href={`https://supabase.com/dashboard/project/${config.url.split('//')[1]?.split('.')[0] || ''}/sql/new`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          打开 SQL Editor
-        </a>
-      </div>
-      <p class="muted small">{databaseStatus}</p>
-    </section>
-    <section class="settings-advanced-section">
-      <div class="row between settings-panel-heading">
-        <h3>步骤 2：配置项目 URL 和 Key</h3>
-        <a
-          class="supabase-link"
-          href="https://supabase.com/dashboard"
-          target="_blank"
-          rel="noreferrer"
-        >
-          打开 Supabase 控制台 ↗
-        </a>
-      </div>
-      <p class="muted small settings-help">
-        新手可以先在控制台创建项目，再复制下面的 Project URL 和密钥。
-      </p>
-      <label class="field">
-        Project URL
-        <input type="url" bind:value={config.url} placeholder="https://xxxx.supabase.co" />
-      </label>
-      <label class="field">
-        publishable key（或旧版 anon public key）
-        <input type="password" bind:value={config.anonKey} />
-      </label>
-      <button
-        class="btn primary"
-        style="margin-top:12px"
-        on:click={() => {
-          saveCloudConfig(config)
-          setStatus('配置已保存', 'success')
-        }}
-      >
-        保存配置
-      </button>
     </section>
   </div>
 </details>
