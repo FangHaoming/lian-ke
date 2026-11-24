@@ -606,19 +606,21 @@
 <section class="panel">
   <h3>独立提示音</h3>
   {#each [['set', '每组训练结束'], ['rest', '休息结束'], ['finish', '全部训练完成']] as [key, label]}<div
-      class="field"
+      class="field sound-setting"
       style="margin:12px 0"
     >
       <span>{label}</span>
-      <Select
-        {label}
-        options={soundOptions}
-        bind:value={data.sounds[key]}
-        on:change={() => (data = data)}
-      />
-      <button class="btn tiny" type="button" on:click={() => playSound(data.sounds[key])}>
-        试听 ▶
-      </button>
+      <div class="sound-setting-controls">
+        <Select
+          {label}
+          options={soundOptions}
+          bind:value={data.sounds[key]}
+          on:change={() => (data = data)}
+        />
+        <button class="btn tiny" type="button" on:click={() => playSound(data.sounds[key])}>
+          试听 ▶
+        </button>
+      </div>
     </div>{/each}
   <ToggleSwitch
     label="倒数结束震动"
