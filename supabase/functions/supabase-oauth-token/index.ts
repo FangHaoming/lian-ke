@@ -75,6 +75,7 @@ async function proxyManagementApi(path, accessToken, options = {}) {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: 'application/json',
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
       ...(options.headers || {}),
     },
   })
