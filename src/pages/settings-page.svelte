@@ -49,6 +49,7 @@
   const PROJECTS_KEY = 'lianke_supabase_projects'
   const SELECTED_PROJECT_KEY = 'lianke_supabase_selected_project'
   const INITIALIZED_PROJECT_KEY = 'lianke_supabase_initialized_project'
+  const DATA_SCHEMA_VERSION = 2
   let syncSelection = loadSyncSelection()
   let syncBaseline = loadSyncBaseline()
   $: if (status) {
@@ -126,10 +127,18 @@
         managementProjects[0]?.ref ||
         ''
       localStorage.setItem(SELECTED_PROJECT_KEY, selectedProjectRef)
+      let initialized = null
+      try {
+        initialized = JSON.parse(localStorage.getItem(INITIALIZED_PROJECT_KEY) || 'null')
+      } catch {
+        initialized = null
+      }
       if (
         autoInitialize &&
         managementProjects.length > 0 &&
-        localStorage.getItem(INITIALIZED_PROJECT_KEY) !== selectedProjectRef
+        (!initialized ||
+          initialized.ref !== selectedProjectRef ||
+          initialized.version !== DATA_SCHEMA_VERSION)
       ) {
         await initializeManagedProject()
       }
@@ -149,7 +158,10 @@
         config = { ...config, url: `https://${project.ref}.supabase.co`, anonKey }
         saveCloudConfig(config)
       }
-      localStorage.setItem(INITIALIZED_PROJECT_KEY, selectedProjectRef)
+      localStorage.setItem(
+        INITIALIZED_PROJECT_KEY,
+        JSON.stringify({ ref: selectedProjectRef, version: DATA_SCHEMA_VERSION }),
+      )
       setStatus('云端已准备就绪', 'success')
       return true
     } catch (error) {
