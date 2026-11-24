@@ -458,9 +458,6 @@
       <button class="btn primary" type="button" on:click={connectManagedSupabase}>连接云端</button>
     {:else}
       <div class="row supabase-project-actions">
-        <button class="btn" type="button" disabled={busy} on:click={() => loadManagedProjects()}>
-          刷新数据空间
-        </button>
         {#if managementProjects.length}
           <label class="supabase-project-picker">
             <span>数据空间</span>
@@ -474,6 +471,9 @@
               on:change={handleProjectChange}
             />
           </label>
+          <button class="btn" type="button" disabled={busy} on:click={() => loadManagedProjects()}>
+            刷新数据空间
+          </button>
           <button
             class="btn primary"
             type="button"
