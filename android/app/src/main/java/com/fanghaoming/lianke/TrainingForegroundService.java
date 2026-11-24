@@ -110,6 +110,7 @@ public class TrainingForegroundService extends Service {
 
     private Notification buildNotification(Intent data) {
         String exercise = data.getStringExtra("exerciseName");
+        String exerciseIcon = data.getStringExtra("exerciseIcon");
         String plan = data.getStringExtra("planName");
         String phase = data.getStringExtra("phase");
         boolean paused = data.getBooleanExtra("paused", false);
