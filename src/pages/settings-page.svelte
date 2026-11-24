@@ -183,6 +183,9 @@
   }
   function disconnectManagedSupabase() {
     disconnectSupabase()
+    signOut()
+    session = null
+    notifyAuthChange()
     managementSession = null
     managementProjects = []
     selectedProjectRef = ''
