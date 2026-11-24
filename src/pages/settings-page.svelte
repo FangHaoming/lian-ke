@@ -14,9 +14,11 @@
   import { soundOptions } from '../lib/select-options.js'
   import { showToast } from '../lib/toast.js'
   import {
+    cloudConfig,
     cloudSession,
     deleteAccount,
     deleteRemoteData,
+    saveCloudConfig,
     authenticate,
     syncData,
     loadSyncBaseline,
@@ -32,6 +34,7 @@
     initializeSupabaseProject,
   } from '../lib/cloud.js'
   export let data
+  let config = cloudConfig()
   let session = cloudSession()
   let email = '',
     password = '',
@@ -43,6 +46,8 @@
   let managementSession = supabaseManagementSession()
   let managementProjects = []
   let selectedProjectRef = ''
+  const PROJECTS_KEY = 'lianke_supabase_projects'
+  const SELECTED_PROJECT_KEY = 'lianke_supabase_selected_project'
   let syncSelection = loadSyncSelection()
   let syncBaseline = loadSyncBaseline()
   $: if (status) {
@@ -84,6 +89,17 @@
     const onOpenDeleteAccount = () => requestDeleteAccount()
     window.addEventListener('lianke-auth-change', onAuthChange)
     window.addEventListener('open-delete-account', onOpenDeleteAccount)
+    if (managementSession) {
+      loadManagedProjects({ autoInitialize: true })
+    } else {
+      try {
+        managementProjects = JSON.parse(localStorage.getItem(PROJECTS_KEY) || '[]')
+        selectedProjectRef =
+          localStorage.getItem(SELECTED_PROJECT_KEY) || managementProjects[0]?.ref || ''
+      } catch {
+        managementProjects = []
+      }
+    }
     return () => {
       window.removeEventListener('lianke-auth-change', onAuthChange)
       window.removeEventListener('open-delete-account', onOpenDeleteAccount)
@@ -99,10 +115,14 @@
       setStatus(error.message, 'error')
     }
   }
-  async function loadManagedProjects() {
+  async function loadManagedProjects({ autoInitialize = false } = {}) {
     try {
       managementProjects = await listSupabaseProjects()
-      selectedProjectRef = managementProjects[0]?.ref || ''
+      localStorage.setItem(PROJECTS_KEY, JSON.stringify(managementProjects))
+      selectedProjectRef =
+        localStorage.getItem(SELECTED_PROJECT_KEY) || managementProjects[0]?.ref || ''
+      localStorage.setItem(SELECTED_PROJECT_KEY, selectedProjectRef)
+      if (autoInitialize && managementProjects.length > 0) await initializeManagedProject()
     } catch (error) {
       setStatus(error.message, 'error')
     }
@@ -111,6 +131,7 @@
     if (!selectedProjectRef) return
     busy = true
     try {
+      localStorage.setItem(SELECTED_PROJECT_KEY, selectedProjectRef)
       await initializeSupabaseProject(selectedProjectRef, initSql)
       const project = managementProjects.find((item) => item.ref === selectedProjectRef)
       if (project?.ref) {
@@ -130,6 +151,8 @@
     managementSession = null
     managementProjects = []
     selectedProjectRef = ''
+    localStorage.removeItem(PROJECTS_KEY)
+    localStorage.removeItem(SELECTED_PROJECT_KEY)
     setStatus('已断开 Supabase 管理授权')
   }
   async function auth(action) {
@@ -546,21 +569,30 @@
         连接 Supabase
       </button>
     {:else}
-      <div class="row">
-        <button class="btn" type="button" on:click={loadManagedProjects}>读取我的项目</button>
+      <div class="row supabase-project-actions">
+        <button class="btn" type="button" disabled={busy} on:click={() => loadManagedProjects()}>
+          刷新项目
+        </button>
         {#if managementProjects.length}
-          <select bind:value={selectedProjectRef} aria-label="选择 Supabase 项目">
-            {#each managementProjects as project}
-              <option value={project.ref}>{project.name || project.ref}</option>
-            {/each}
-          </select>
+          <label class="supabase-project-picker">
+            <span>项目</span>
+            <select
+              bind:value={selectedProjectRef}
+              aria-label="选择 Supabase 项目"
+              on:change={() => localStorage.setItem(SELECTED_PROJECT_KEY, selectedProjectRef)}
+            >
+              {#each managementProjects as project}
+                <option value={project.ref}>{project.name || project.ref}</option>
+              {/each}
+            </select>
+          </label>
           <button
             class="btn primary"
             type="button"
             disabled={busy}
             on:click={initializeManagedProject}
           >
-            自动初始化数据库
+            重新初始化数据库
           </button>
         {/if}
       </div>
