@@ -31,6 +31,7 @@
     supabaseManagementSession,
     listSupabaseProjects,
     getSupabaseProjectPublishableKey,
+    configureSupabaseAuth,
     initializeSupabaseProject,
   } from '../lib/cloud.js'
   export let data
@@ -151,6 +152,7 @@
     busy = true
     try {
       localStorage.setItem(SELECTED_PROJECT_KEY, selectedProjectRef)
+      await configureSupabaseAuth(selectedProjectRef)
       await initializeSupabaseProject(selectedProjectRef, initSql)
       const project = managementProjects.find((item) => item.ref === selectedProjectRef)
       if (project?.ref) {

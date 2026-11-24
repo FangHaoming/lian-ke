@@ -300,12 +300,19 @@ async function managementRequest(path, options = {}) {
             access_token: session.access_token,
             project_ref: path.split('/')[2],
           }
-        : {
-            action: 'database_query',
-            access_token: session.access_token,
-            project_ref: path.split('/')[2],
-            query: JSON.parse(options.body || '{}').query,
-          }
+        : path.includes('/config/auth')
+          ? {
+              action: 'auth_config',
+              access_token: session.access_token,
+              project_ref: path.split('/')[2],
+              config: JSON.parse(options.body || '{}'),
+            }
+          : {
+              action: 'database_query',
+              access_token: session.access_token,
+              project_ref: path.split('/')[2],
+              query: JSON.parse(options.body || '{}').query,
+            }
   const response = await fetch(
     useProxy ? SUPABASE_OAUTH_TOKEN_URL : `${SUPABASE_MANAGEMENT_API}${path}`,
     {
@@ -344,6 +351,18 @@ export async function initializeSupabaseProject(projectRef, sql) {
   return managementRequest(`/projects/${encodeURIComponent(projectRef)}/database/query`, {
     method: 'POST',
     body: JSON.stringify({ query: sql }),
+  })
+}
+
+export function configureSupabaseAuth(projectRef) {
+  return managementRequest(`/projects/${encodeURIComponent(projectRef)}/config/auth`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      site_url: appURL(),
+      uri_allow_list: appURL('auth/callback'),
+      mailer_templates_confirmation_content:
+        '<p>请点击下面的链接完成注册：</p><p><a href="{{ .ConfirmationURL }}">确认邮箱并继续</a></p>',
+    }),
   })
 }
 

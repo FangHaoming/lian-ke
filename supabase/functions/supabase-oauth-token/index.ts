@@ -23,6 +23,12 @@ Deno.serve(async (request) => {
       if (action === 'api_keys' && project_ref) {
         return proxyManagementApi(`/projects/${encodeURIComponent(project_ref)}/api-keys?reveal=true`, access_token)
       }
+      if (action === 'auth_config' && project_ref && config) {
+        return proxyManagementApi(`/projects/${encodeURIComponent(project_ref)}/config/auth`, access_token, {
+          method: 'PATCH',
+          body: JSON.stringify(config),
+        })
+      }
       if (action === 'database_query' && project_ref && query) {
         return proxyManagementApi(`/projects/${encodeURIComponent(project_ref)}/database/query`, access_token, {
           method: 'POST',
