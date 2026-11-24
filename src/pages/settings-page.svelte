@@ -570,28 +570,26 @@
 <section class="panel settings-advanced-body">
   <section class="settings-advanced-section supabase-managed-setup">
     <div class="row between settings-panel-heading">
-      <h3>一键连接 Supabase</h3>
+      <h3>开启云端同步</h3>
       {#if managementSession}
         <button class="btn tiny" type="button" on:click={disconnectManagedSupabase}>
-          断开授权
+          断开云端连接
         </button>
       {/if}
     </div>
-    <p class="muted small">授权后会自动完成云端设置，无需手动复制地址或进行额外配置。</p>
+    <p class="muted small">连接后可在不同设备间同步训练数据，设置过程会自动完成。</p>
     {#if !managementSession}
-      <button class="btn primary" type="button" on:click={connectManagedSupabase}>
-        连接 Supabase
-      </button>
+      <button class="btn primary" type="button" on:click={connectManagedSupabase}>连接云端</button>
     {:else}
       <div class="row supabase-project-actions">
         <button class="btn" type="button" disabled={busy} on:click={() => loadManagedProjects()}>
-          刷新项目
+          刷新同步空间
         </button>
         {#if managementProjects.length}
           <label class="supabase-project-picker">
-            <span>项目</span>
+            <span>同步空间</span>
             <Select
-              label="Supabase 项目"
+              label="同步空间"
               options={managementProjects.map((project) => ({
                 value: project.ref,
                 label: project.name || project.ref,
@@ -606,7 +604,7 @@
             disabled={busy}
             on:click={initializeManagedProject}
           >
-            重新准备云端
+            重新设置同步
           </button>
         {/if}
       </div>
