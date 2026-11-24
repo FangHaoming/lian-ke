@@ -168,7 +168,7 @@
     const pathname = window.location.pathname
       .replace(new RegExp(`^${basePath}`), '')
       .replace(/^\/+|\/+$/g, '')
-    return pathname === 'auth/callback'
+    return pathname === 'auth/callback' || pathname === 'supabase/callback'
   }
 
   function isSourceViewerLocation() {

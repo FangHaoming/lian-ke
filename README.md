@@ -10,7 +10,7 @@
 
 顶部六个页面使用浏览器路由：`/`（训练）、`/plans`、`/challenges`、`/weight`、`/stats`、`/settings`。切换页面会更新地址，刷新后从当前路由恢复；旧的 `/train` 地址会自动规范化到 `/`。
 
-邮箱注册后的授权回调使用独立路由 `/auth/callback`，授权完成后可返回训练首页。
+邮箱注册后的授权回调使用独立路由 `/auth/callback`，授权完成后可返回训练首页。Supabase 管理授权使用 `/supabase/callback`，两者互不冲突。
 
 - 前九关达到进阶标准后解锁下一关；第十关达到入门标准即获得最终技成就，精英成就独立展示。
 - 每次挑战填写逐组实际成绩并确认动作质量；单侧动作需要两侧分别达标，连续保持不能跨次累加。未达标成绩也能保存并查看差距。
@@ -73,7 +73,7 @@ pnpm native:sync
 
 ### Supabase 一键连接（可选）
 
-设置页支持通过 Supabase OAuth 连接用户自己的项目，并自动执行初始化 SQL。需要先在 Supabase 创建 OAuth App，将回调地址设置为 `https://fanghaoming.github.io/lian-ke/auth/callback`，并为 OAuth App 开启 Projects Read、Secrets Read 和 Database Write 权限。
+设置页支持通过 Supabase OAuth 连接用户自己的项目，并自动执行初始化 SQL。需要先在 Supabase 创建 OAuth App，将回调地址设置为 `https://fanghaoming.github.io/lian-ke/supabase/callback`，并为 OAuth App 开启 Projects Read、Secrets Read 和 Database Write 权限。
 
 部署 `supabase/functions/supabase-oauth-token` Edge Function 后配置运行时 secrets：
 
