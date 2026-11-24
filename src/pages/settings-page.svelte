@@ -491,9 +491,8 @@
   <div class="cloud-account-heading">
     <div>
       <h3>云端账号</h3>
-      <p class="muted small">登录 Supabase 账号，在不同设备间同步训练数据。</p>
+      <p class="muted small">登录云端账号，在不同设备间同步训练数据。</p>
     </div>
-    <span class="cloud-provider">Supabase</span>
   </div>
 
   {#if session?.user?.email}
