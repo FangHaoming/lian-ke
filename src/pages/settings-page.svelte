@@ -150,7 +150,7 @@
         saveCloudConfig(config)
       }
       localStorage.setItem(INITIALIZED_PROJECT_KEY, selectedProjectRef)
-      setStatus('Supabase 数据库已初始化', 'success')
+      setStatus('云端已准备就绪', 'success')
     } catch (error) {
       setStatus(error.message, 'error')
     } finally {
@@ -577,10 +577,7 @@
         </button>
       {/if}
     </div>
-    <p class="muted small">
-      授权后可直接选择自己的 Supabase 项目并自动执行初始化 SQL，不需要手动复制 URL 或打开 SQL
-      Editor。
-    </p>
+    <p class="muted small">授权后会自动完成云端设置，无需手动复制地址或进行额外配置。</p>
     {#if !managementSession}
       <button class="btn primary" type="button" on:click={connectManagedSupabase}>
         连接 Supabase
@@ -609,7 +606,7 @@
             disabled={busy}
             on:click={initializeManagedProject}
           >
-            重新初始化数据库
+            重新准备云端
           </button>
         {/if}
       </div>
