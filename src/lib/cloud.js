@@ -267,7 +267,7 @@ export async function consumeSupabaseManagementCallback() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       code,
-      redirect_uri: AUTH_REDIRECT_URL,
+      redirect_uri: MANAGEMENT_REDIRECT_URL,
       code_verifier: expected.verifier,
     }),
   })
