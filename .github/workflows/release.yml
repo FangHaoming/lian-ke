@@ -46,8 +46,11 @@ jobs:
         run: pnpm build
         env:
           VITE_BASE_PATH: /lian-ke/
+          VITE_AUTH_REDIRECT_URL: https://fanghaoming.github.io/lian-ke/auth/callback
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_OAUTH_CLIENT_ID: ${{ secrets.VITE_SUPABASE_OAUTH_CLIENT_ID }}
+          VITE_SUPABASE_OAUTH_TOKEN_URL: https://jagugsfdnwyaclrxpsum.supabase.co/functions/v1/supabase-oauth-token
 
       - name: Package web release
         run: tar -czf "lianke-web-${GITHUB_REF_NAME}.tar.gz" -C dist .
@@ -55,8 +58,11 @@ jobs:
       - name: Sync Android project
         run: pnpm native:sync
         env:
+          VITE_AUTH_REDIRECT_URL: https://fanghaoming.github.io/lian-ke/auth/callback
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_OAUTH_CLIENT_ID: ${{ secrets.VITE_SUPABASE_OAUTH_CLIENT_ID }}
+          VITE_SUPABASE_OAUTH_TOKEN_URL: https://jagugsfdnwyaclrxpsum.supabase.co/functions/v1/supabase-oauth-token
 
       - name: Prepare stable Android debug signing
         env:
