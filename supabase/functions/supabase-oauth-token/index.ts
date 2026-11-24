@@ -15,7 +15,7 @@ Deno.serve(async (request) => {
 
   try {
     const body = await request.json()
-    const { code, redirect_uri, code_verifier, action, access_token, project_ref, query } = body
+    const { code, redirect_uri, code_verifier, action, access_token, project_ref, query, config } = body
     if (action && access_token) {
       if (action === 'projects') {
         return proxyManagementApi('/projects', access_token)
