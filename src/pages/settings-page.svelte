@@ -54,13 +54,10 @@
   const DATA_SCHEMA_VERSION = 2
   let syncSelection = loadSyncSelection()
   let syncBaseline = loadSyncBaseline()
-  $: if (status) {
-    showToast(status, { type: statusType })
-  }
-
   function setStatus(message, type = 'info') {
     status = message
     statusType = type
+    showToast(message, { type })
   }
   function deletePasswordMessage(error) {
     const message = String(error?.message || '').toLowerCase()
