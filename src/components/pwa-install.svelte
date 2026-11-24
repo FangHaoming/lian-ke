@@ -1,16 +1,18 @@
 <script>
   import { dismissPwaInstall, pwaInstallState, requestPwaInstall } from '../lib/pwa-install.js'
+  import { nativeTrainingAvailable } from '../lib/native-training.js'
 
   export let mode = 'prompt'
 
   $: visible =
-    mode === 'settings' ||
-    (!$pwaInstallState.installed &&
-      !$pwaInstallState.dismissed &&
-      ($pwaInstallState.installable ||
-        $pwaInstallState.installing ||
-        $pwaInstallState.manualInstall ||
-        $pwaInstallState.ios))
+    !nativeTrainingAvailable() &&
+    (mode === 'settings' ||
+      (!$pwaInstallState.installed &&
+        !$pwaInstallState.dismissed &&
+        ($pwaInstallState.installable ||
+          $pwaInstallState.installing ||
+          $pwaInstallState.manualInstall ||
+          $pwaInstallState.ios)))
 
   async function install() {
     await requestPwaInstall()

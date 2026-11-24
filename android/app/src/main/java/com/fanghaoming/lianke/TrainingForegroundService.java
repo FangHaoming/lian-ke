@@ -87,7 +87,8 @@ public class TrainingForegroundService extends Service {
             ? "休息结束，继续训练"
             : ("prep".equals(phase) ? "准备结束，开始训练" : "动作时间结束");
         Intent openIntent = new Intent(this, MainActivity.class)
-            .setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            .setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            .putExtra(MainActivity.EXTRA_OPEN_TRAINING, true);
         PendingIntent contentIntent = PendingIntent.getActivity(
             this, 1, openIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
@@ -127,7 +128,8 @@ public class TrainingForegroundService extends Service {
         }
 
         Intent openIntent = new Intent(this, MainActivity.class)
-            .setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            .setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            .putExtra(MainActivity.EXTRA_OPEN_TRAINING, true);
         PendingIntent contentIntent = PendingIntent.getActivity(
             this,
             0,

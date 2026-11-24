@@ -285,6 +285,21 @@
     if (window.innerWidth <= 760) sidebarOpen = false
   }
 
+  function openTrainingFromNotification() {
+    // A notification is an explicit request to return to the active workout;
+    // bypass any in-app page state and expose the persisted training session.
+    downloadPage = false
+    challengeShare = false
+    sourceViewer = false
+    authCallback = false
+    pendingTab = null
+    challengeDirty = false
+    delete window.__liankeOpenTrainingRequested
+    tab = 'train'
+    history.replaceState({ ...(history.state || {}), tab: 'train' }, '', routePath('train'))
+    sidebarOpen = false
+  }
+
   function openDownloadPage(event) {
     event?.preventDefault()
     if (downloadPage) return
@@ -447,6 +462,8 @@
       tab = next
     }
     window.addEventListener('popstate', onPopState)
+    window.addEventListener('lianke-open-training', openTrainingFromNotification)
+    if (window.__liankeOpenTrainingRequested) openTrainingFromNotification()
     const onVisibilityChange = () => syncWakeLock(Boolean(session && !session.paused))
     const onAuthChange = () => (accountSession = cloudSession())
     const onRequestSignOut = () => requestSignOut()
@@ -459,6 +476,7 @@
     document.addEventListener('visibilitychange', onVisibilityChange)
     return () => {
       window.removeEventListener('popstate', onPopState)
+      window.removeEventListener('lianke-open-training', openTrainingFromNotification)
       window.removeEventListener('lianke-auth-change', onAuthChange)
       window.removeEventListener('request-sign-out', onRequestSignOut)
       window.removeEventListener('lianke-start-challenge-training', onStartChallengeTraining)
