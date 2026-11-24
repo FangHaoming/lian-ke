@@ -360,8 +360,6 @@ export function configureSupabaseAuth(projectRef) {
     body: JSON.stringify({
       site_url: appURL(),
       uri_allow_list: appURL('auth/callback'),
-      mailer_templates_confirmation_content:
-        '<p>请点击下面的链接完成注册：</p><p><a href="{{ .ConfirmationURL }}">确认邮箱并继续</a></p>',
     }),
   })
 }
