@@ -20,6 +20,9 @@ Deno.serve(async (request) => {
       if (action === 'projects') {
         return proxyManagementApi('/projects', access_token)
       }
+      if (action === 'api_keys' && project_ref) {
+        return proxyManagementApi(`/projects/${encodeURIComponent(project_ref)}/api-keys?reveal=true`, access_token)
+      }
       if (action === 'database_query' && project_ref && query) {
         return proxyManagementApi(`/projects/${encodeURIComponent(project_ref)}/database/query`, access_token, {
           method: 'POST',

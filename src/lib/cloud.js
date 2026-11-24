@@ -294,12 +294,18 @@ async function managementRequest(path, options = {}) {
   const proxyPayload =
     path === '/projects'
       ? { action: 'projects', access_token: session.access_token }
-      : {
-          action: 'database_query',
-          access_token: session.access_token,
-          project_ref: path.split('/')[2],
-          query: JSON.parse(options.body || '{}').query,
-        }
+      : path.includes('/api-keys')
+        ? {
+            action: 'api_keys',
+            access_token: session.access_token,
+            project_ref: path.split('/')[2],
+          }
+        : {
+            action: 'database_query',
+            access_token: session.access_token,
+            project_ref: path.split('/')[2],
+            query: JSON.parse(options.body || '{}').query,
+          }
   const response = await fetch(
     useProxy ? SUPABASE_OAUTH_TOKEN_URL : `${SUPABASE_MANAGEMENT_API}${path}`,
     {
