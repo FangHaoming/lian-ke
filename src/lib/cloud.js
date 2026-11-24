@@ -290,14 +290,28 @@ export function disconnectSupabase() {
 async function managementRequest(path, options = {}) {
   const session = supabaseManagementSession()
   if (!session?.access_token) throw Error('请先连接 Supabase')
-  const response = await fetch(`${SUPABASE_MANAGEMENT_API}${path}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
+  const useProxy = Boolean(SUPABASE_OAUTH_TOKEN_URL)
+  const proxyPayload =
+    path === '/projects'
+      ? { action: 'projects', access_token: session.access_token }
+      : {
+          action: 'database_query',
+          access_token: session.access_token,
+          project_ref: path.split('/')[2],
+          query: JSON.parse(options.body || '{}').query,
+        }
+  const response = await fetch(
+    useProxy ? SUPABASE_OAUTH_TOKEN_URL : `${SUPABASE_MANAGEMENT_API}${path}`,
+    {
+      ...options,
+      ...(useProxy ? { method: 'POST', body: JSON.stringify(proxyPayload) } : {}),
+      headers: {
+        ...(useProxy ? {} : { Authorization: `Bearer ${session.access_token}` }),
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      },
     },
-  })
+  )
   if (!response.ok) {
     const result = await response.json().catch(() => ({}))
     throw Error(result.message || result.error || `Supabase API HTTP ${response.status}`)
