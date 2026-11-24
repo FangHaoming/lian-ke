@@ -30,6 +30,7 @@ jobs:
       - run: pnpm build
         env:
           VITE_BASE_PATH: /lian-ke/
+          VITE_AUTH_REDIRECT_URL: https://fanghaoming.github.io/lian-ke/auth/callback
           VITE_SUPABASE_OAUTH_CLIENT_ID: ${{ secrets.VITE_SUPABASE_OAUTH_CLIENT_ID }}
           VITE_SUPABASE_OAUTH_TOKEN_URL: https://jagugsfdnwyaclrxpsum.supabase.co/functions/v1/supabase-oauth-token
       - uses: actions/configure-pages@v5
