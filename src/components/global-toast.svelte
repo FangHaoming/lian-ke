@@ -5,6 +5,6 @@
 
 {#if $toast.message}
   {#key $toast.id}
-    <Toast message={$toast.message} type={$toast.type} duration={$toast.duration} />
+    <Toast message={$toast.message} type={$toast.type} duration={$toast.duration} id={$toast.id} />
   {/key}
 {/if}
