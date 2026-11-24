@@ -16,6 +16,7 @@
   import {
     cloudConfig,
     cloudSession,
+    signOut,
     deleteAccount,
     deleteRemoteData,
     saveCloudConfig,
@@ -151,8 +152,10 @@
       }
       localStorage.setItem(INITIALIZED_PROJECT_KEY, selectedProjectRef)
       setStatus('云端已准备就绪', 'success')
+      return true
     } catch (error) {
       setStatus(error.message, 'error')
+      return false
     } finally {
       busy = false
     }
@@ -160,7 +163,12 @@
   async function handleProjectChange(event) {
     selectedProjectRef = event.detail.value
     localStorage.setItem(SELECTED_PROJECT_KEY, selectedProjectRef)
-    await initializeManagedProject()
+    const initialized = await initializeManagedProject()
+    if (!initialized) return
+    signOut()
+    session = null
+    notifyAuthChange()
+    setStatus('同步空间已切换，请重新登录', 'success')
   }
   function disconnectManagedSupabase() {
     disconnectSupabase()
