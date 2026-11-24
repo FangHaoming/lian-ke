@@ -530,12 +530,6 @@
       <button type="button" class="btn ghost" on:click={() => auth('signup')}>注册账号</button>
     </div>
   {/if}
-  {#if !session?.user?.email}<p class="settings-guidance">
-      <strong>首次登录前，请先完成下方“云端登录配置”中的 4 个步骤。</strong>
-      <br />
-      只在当前设备使用不需要登录；登录后可以在不同设备间同步训练数据。
-    </p>{/if}
-
   <div class="cloud-divider"></div>
 
   <div class="cloud-sync-heading">
