@@ -48,6 +48,7 @@
   let selectedProjectRef = ''
   const PROJECTS_KEY = 'lianke_supabase_projects'
   const SELECTED_PROJECT_KEY = 'lianke_supabase_selected_project'
+  const INITIALIZED_PROJECT_KEY = 'lianke_supabase_initialized_project'
   let syncSelection = loadSyncSelection()
   let syncBaseline = loadSyncBaseline()
   $: if (status) {
@@ -119,10 +120,19 @@
     try {
       managementProjects = await listSupabaseProjects()
       localStorage.setItem(PROJECTS_KEY, JSON.stringify(managementProjects))
+      const savedProjectRef = localStorage.getItem(SELECTED_PROJECT_KEY)
       selectedProjectRef =
-        localStorage.getItem(SELECTED_PROJECT_KEY) || managementProjects[0]?.ref || ''
+        managementProjects.find((project) => project.ref === savedProjectRef)?.ref ||
+        managementProjects[0]?.ref ||
+        ''
       localStorage.setItem(SELECTED_PROJECT_KEY, selectedProjectRef)
-      if (autoInitialize && managementProjects.length > 0) await initializeManagedProject()
+      if (
+        autoInitialize &&
+        managementProjects.length > 0 &&
+        localStorage.getItem(INITIALIZED_PROJECT_KEY) !== selectedProjectRef
+      ) {
+        await initializeManagedProject()
+      }
     } catch (error) {
       setStatus(error.message, 'error')
     }
@@ -139,6 +149,7 @@
         config = { ...config, url: `https://${project.ref}.supabase.co`, anonKey }
         saveCloudConfig(config)
       }
+      localStorage.setItem(INITIALIZED_PROJECT_KEY, selectedProjectRef)
       setStatus('Supabase 数据库已初始化', 'success')
     } catch (error) {
       setStatus(error.message, 'error')
@@ -153,6 +164,7 @@
     selectedProjectRef = ''
     localStorage.removeItem(PROJECTS_KEY)
     localStorage.removeItem(SELECTED_PROJECT_KEY)
+    localStorage.removeItem(INITIALIZED_PROJECT_KEY)
     setStatus('已断开 Supabase 管理授权')
   }
   async function auth(action) {
