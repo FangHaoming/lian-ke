@@ -527,53 +527,46 @@
     <small>仅删除当前登录账号的云端数据，不影响本地数据和账号。</small>
   </div>
 </section>
-<details class="panel settings-advanced">
-  <summary>
-    <span>一键连接 Supabase</span>
-    <small>授权后自动选择项目并初始化数据库</small>
-    <em class="settings-advanced-toggle">展开指引</em>
-  </summary>
-  <div class="settings-advanced-body">
-    <section class="settings-advanced-section supabase-managed-setup">
-      <div class="row between settings-panel-heading">
-        <h3>一键连接 Supabase</h3>
-        {#if managementSession}
-          <button class="btn tiny" type="button" on:click={disconnectManagedSupabase}>
-            断开授权
+<section class="panel settings-advanced-body">
+  <section class="settings-advanced-section supabase-managed-setup">
+    <div class="row between settings-panel-heading">
+      <h3>一键连接 Supabase</h3>
+      {#if managementSession}
+        <button class="btn tiny" type="button" on:click={disconnectManagedSupabase}>
+          断开授权
+        </button>
+      {/if}
+    </div>
+    <p class="muted small">
+      授权后可直接选择自己的 Supabase 项目并自动执行初始化 SQL，不需要手动复制 URL 或打开 SQL
+      Editor。
+    </p>
+    {#if !managementSession}
+      <button class="btn primary" type="button" on:click={connectManagedSupabase}>
+        连接 Supabase
+      </button>
+    {:else}
+      <div class="row">
+        <button class="btn" type="button" on:click={loadManagedProjects}>读取我的项目</button>
+        {#if managementProjects.length}
+          <select bind:value={selectedProjectRef} aria-label="选择 Supabase 项目">
+            {#each managementProjects as project}
+              <option value={project.ref}>{project.name || project.ref}</option>
+            {/each}
+          </select>
+          <button
+            class="btn primary"
+            type="button"
+            disabled={busy}
+            on:click={initializeManagedProject}
+          >
+            自动初始化数据库
           </button>
         {/if}
       </div>
-      <p class="muted small">
-        授权后可直接选择自己的 Supabase 项目并自动执行初始化 SQL，不需要手动复制 URL 或打开 SQL
-        Editor。
-      </p>
-      {#if !managementSession}
-        <button class="btn primary" type="button" on:click={connectManagedSupabase}>
-          连接 Supabase
-        </button>
-      {:else}
-        <div class="row">
-          <button class="btn" type="button" on:click={loadManagedProjects}>读取我的项目</button>
-          {#if managementProjects.length}
-            <select bind:value={selectedProjectRef} aria-label="选择 Supabase 项目">
-              {#each managementProjects as project}
-                <option value={project.ref}>{project.name || project.ref}</option>
-              {/each}
-            </select>
-            <button
-              class="btn primary"
-              type="button"
-              disabled={busy}
-              on:click={initializeManagedProject}
-            >
-              自动初始化数据库
-            </button>
-          {/if}
-        </div>
-      {/if}
-    </section>
-  </div>
-</details>
+    {/if}
+  </section>
+</section>
 <section class="panel">
   <h3>独立提示音</h3>
   {#each [['set', '每组训练结束'], ['rest', '休息结束'], ['finish', '全部训练完成']] as [key, label]}<div
