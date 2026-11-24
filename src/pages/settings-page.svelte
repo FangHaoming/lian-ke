@@ -28,6 +28,7 @@
     loadSyncSelection,
     saveSyncSelection,
     connectSupabase,
+    disconnectSupabase,
     supabaseManagementSession,
     listSupabaseProjects,
     getSupabaseProjectPublishableKey,
@@ -182,6 +183,16 @@
     session = null
     notifyAuthChange()
     setStatus('数据空间已切换，请重新登录', 'success')
+  }
+  function disconnectManagedSupabase() {
+    disconnectSupabase()
+    managementSession = null
+    managementProjects = []
+    selectedProjectRef = ''
+    localStorage.removeItem(PROJECTS_KEY)
+    localStorage.removeItem(SELECTED_PROJECT_KEY)
+    localStorage.removeItem(INITIALIZED_PROJECT_KEY)
+    setStatus('已断开云端连接')
   }
   async function auth(action) {
     try {
@@ -439,14 +450,7 @@
     <div class="row between settings-panel-heading">
       <h3>开启云端同步</h3>
       {#if managementSession}
-        <button
-          class="btn tiny"
-          type="button"
-          disabled={busy}
-          on:click={() => loadManagedProjects()}
-        >
-          刷新数据空间
-        </button>
+        <button class="btn tiny" type="button" on:click={disconnectManagedSupabase}>断开</button>
       {/if}
     </div>
     <p class="muted small">连接后可在不同设备间同步训练数据，设置过程会自动完成。</p>
@@ -454,6 +458,9 @@
       <button class="btn primary" type="button" on:click={connectManagedSupabase}>连接云端</button>
     {:else}
       <div class="row supabase-project-actions">
+        <button class="btn" type="button" disabled={busy} on:click={() => loadManagedProjects()}>
+          刷新数据空间
+        </button>
         {#if managementProjects.length}
           <label class="supabase-project-picker">
             <span>数据空间</span>
