@@ -7,6 +7,8 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.Handler;
@@ -25,6 +27,8 @@ public class TrainingForegroundService extends Service {
     private static final String ALERT_CHANNEL_ID = "training_alerts_v1";
     private static final int NOTIFICATION_ID = 4101;
     private static final int ALERT_NOTIFICATION_ID = 4102;
+    // Match the app's bright lime theme accent on the lock-screen progress bar.
+    private static final int NOTIFICATION_COLOR = Color.rgb(183, 243, 106);
     private final Handler notificationHandler = new Handler(Looper.getMainLooper());
     private Intent latestUpdate;
     private long notifiedEndAt;
@@ -77,6 +81,7 @@ public class TrainingForegroundService extends Service {
         if (MainActivity.isAppVisible()) return;
 
         String exercise = data.getStringExtra("exerciseName");
+        String exerciseIcon = data.getStringExtra("exerciseIcon");
         String phase = data.getStringExtra("phase");
         String message = "rest".equals(phase)
             ? "休息结束，继续训练"
@@ -88,7 +93,7 @@ public class TrainingForegroundService extends Service {
         );
         Notification notification = new NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_training_notification)
-            .setColor(Color.rgb(183, 243, 106))
+            .setColor(NOTIFICATION_COLOR)
             .setContentTitle(exercise == null || exercise.isEmpty() ? "练刻 · 训练提醒" : exercise)
             .setContentText(message)
             .setContentIntent(contentIntent)
@@ -137,8 +142,9 @@ public class TrainingForegroundService extends Service {
         String timerLabel = formatSeconds(countdown ? remaining : elapsed);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_training_notification)
-            .setColor(Color.rgb(183, 243, 106))
+            .setColor(NOTIFICATION_COLOR)
             .setContentTitle(exercise == null || exercise.isEmpty() ? "练刻 · 训练中" : exercise)
+            .setLargeIcon(loadExerciseIcon(exerciseIcon))
             .setContentText(detail + " · " + timerLabel)
             .setSubText(plan)
             .setContentIntent(contentIntent)
@@ -155,6 +161,20 @@ public class TrainingForegroundService extends Service {
         // foreground notification is refreshed.
         builder.setShowWhen(false);
         return builder.build();
+    }
+
+    private Bitmap loadExerciseIcon(String iconId) {
+        String assetName = iconId == null ? "" : iconId.replaceFirst("^cc-", "");
+        if (!assetName.isEmpty()) {
+            try (java.io.InputStream stream = getAssets().open("public/action-icons/" + assetName + ".png")) {
+                Bitmap icon = BitmapFactory.decodeStream(stream);
+                if (icon != null) return icon;
+            } catch (Exception ignored) {
+                // Custom actions and builds without synced action assets use
+                // the app logo below.
+            }
+        }
+        return BitmapFactory.decodeResource(getResources(), R.drawable.fit_log_icon);
     }
 
     private String phaseLabel(String phase) {

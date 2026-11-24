@@ -52,6 +52,7 @@ public class NativeTrainingPlugin extends Plugin {
         intent.setAction(TrainingForegroundService.ACTION_UPDATE);
         copyString(call, intent, "planName");
         copyString(call, intent, "exerciseName");
+        copyString(call, intent, "exerciseIcon");
         copyString(call, intent, "phase");
         copyInt(call, intent, "currentSet");
         copyInt(call, intent, "totalSets");

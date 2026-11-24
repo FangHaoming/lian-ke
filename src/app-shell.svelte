@@ -16,8 +16,24 @@
   import { checkNativeAppUpdate } from './lib/native-update.js'
   import { openNativeExternalUrl } from './lib/native-training.js'
 
+  function initialTabFromLocation() {
+    if (typeof window === 'undefined') return 'train'
+    const pathname = window.location.pathname
+      .replace(new RegExp(`^${basePath}`), '')
+      .replace(/^\/+|\/+$/g, '')
+    return (
+      {
+        challenges: 'challenges',
+        weight: 'weight',
+        sleep: 'sleep',
+        stats: 'stats',
+        settings: 'settings',
+      }[pathname] || 'train'
+    )
+  }
+
   let data = defaults()
-  let tab = 'train'
+  let tab = initialTabFromLocation()
   let ready = false
   let today = ''
   let session = null
@@ -30,7 +46,7 @@
   let challengeDirty = false
   let authCallback = false
   let challengeShare = false
-  let downloadPage = false
+  let downloadPage = typeof window !== 'undefined' && isDownloadLocation()
   let sourceViewer = false
   let sourcePage = 1
   let sourceAction = ''
@@ -207,7 +223,14 @@
   }
 
   function switchTab(next) {
-    if (next === tab) return
+    const leavingDownloadPage = downloadPage
+    downloadPage = false
+    if (next === tab) {
+      if (leavingDownloadPage) {
+        history.pushState({ ...(history.state || {}), tab: next }, '', routePath(next))
+      }
+      return
+    }
     if (tab === 'challenges' && challengeDirty) {
       pendingTab = next
       requestConfirm({
@@ -259,6 +282,14 @@
 
   function selectTab(next) {
     switchTab(next)
+    if (window.innerWidth <= 760) sidebarOpen = false
+  }
+
+  function openDownloadPage(event) {
+    event?.preventDefault()
+    if (downloadPage) return
+    downloadPage = true
+    history.pushState({ ...(history.state || {}), downloadPage: true }, '', appPath('download'))
     if (window.innerWidth <= 760) sidebarOpen = false
   }
 
@@ -514,7 +545,7 @@
       <nav class="sidebar-nav" aria-label="主导航">
         {#each [['train', '◉', '训练'], ['challenges', '⚑', '挑战闯关'], ['weight', '◒', '体重'], ['sleep', '☾', '睡眠'], ['stats', '▥', '数据分析'], ['settings', '⚙', '设置/备份']] as [id, icon, label]}
           <button
-            class:active={tab === id}
+            class:active={!downloadPage && tab === id}
             class="sidebar-link"
             aria-label={label}
             title={sidebarOpen ? undefined : label}
@@ -533,6 +564,7 @@
           href={appPath('download')}
           aria-label="下载 Android App"
           title={sidebarOpen ? undefined : '下载 Android App'}
+          on:click={openDownloadPage}
         >
           <span aria-hidden="true">↓</span>
           {#if sidebarOpen}<span>下载 Android App</span>{/if}

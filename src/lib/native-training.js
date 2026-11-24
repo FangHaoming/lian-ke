@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from '@capacitor/core'
+import { challengeLevels } from './challenge-catalog.js'
 
 const NativeTraining = registerPlugin('NativeTraining')
 
@@ -99,9 +100,11 @@ export function nativeTrainingSnapshot(session) {
   if (!current) return null
   const endAt = timerEndAt(session)
   const startAt = timerStartAt(session)
+  const challenge = challengeLevels.find((level) => level.name === current.name)
   return {
     planName: session.planName || '自由训练',
     exerciseName: current.name || '训练',
+    exerciseIcon: challenge?.id || '',
     phase: session.phase,
     paused: session.paused === true,
     currentSet: currentSetNumber(session),

@@ -15,9 +15,11 @@
   import { timeModes, trainingModes } from '../lib/select-options.js'
   import ExerciseNameSelect from '../components/exercise-name-select.svelte'
   import ChallengeActionLink from '../components/challenge-action-link.svelte'
+  import ActionGuidePreview from '../components/action-guide-preview.svelte'
   import { requestConfirm } from '../lib/confirm-dialog.js'
   import { appendTrainingEvaluation, isChallengeExercise } from '../lib/challenge-model.js'
   import { challengeLevels } from '../lib/challenge-catalog.js'
+  import { actionGuideFor } from '../lib/action-guide-catalog.js'
   import { appPath } from '../lib/config.js'
   import { createHoldToRelease } from '../lib/hold-to-release.js'
   import { requestNativeTrainingPermission, syncNativeTraining } from '../lib/native-training.js'
@@ -61,6 +63,7 @@
   const REVIEW_DRAFT_KEY = 'lianke_review_draft'
   $: plan = data.plans.find((item) => item.id === selected) || data.plans[0]
   $: current = session?.queue?.[session.index] || null
+  $: currentActionGuide = current ? actionGuideFor(current.name) : null
   $: availableNames = [
     ...new Set([...(data.exerciseNames || []), ...challengeLevels.map((level) => level.name)]),
   ]
@@ -645,7 +648,6 @@
                   ? '组间休息'
                   : '正在训练'}
             </div>
-            <h1>{current.name} · 第 {current.setIndex} 组</h1>
             <div class="training-target">{targetDescription(current)}</div>
             <div
               class="clock"
@@ -671,6 +673,10 @@
             <div class="muted small">
               已完成 {session.results.length} / {session.queue.length} 组
             </div>
+          </div>
+          <div class="training-lock-exercise-footer">
+            <div>{current.name}</div>
+            <ActionGuidePreview guide={currentActionGuide} compact />
           </div>
           <button
             bind:this={unlockButton}
@@ -712,7 +718,6 @@
             <span class="muted small">第 {session.index + 1} / {session.queue.length} 组</span>
           </div>
           <div class="timer">
-            <div class="muted">{current.name} · 第 {current.setIndex} 组</div>
             <div class="training-target">{targetDescription(current)}</div>
             <div
               class="clock"
@@ -737,6 +742,10 @@
               </div>{/if}
             <div class="progress">
               <div style={`width:${(session.results.length / session.queue.length) * 100}%`}></div>
+            </div>
+            <div class="training-exercise-footer">
+              <div>{current.name}</div>
+              <ActionGuidePreview guide={currentActionGuide} compact />
             </div>
           </div>
           <div class="row" style="justify-content:center">
@@ -765,11 +774,23 @@
         <section class="panel">
           <h3>训练进度 · 已完成 {session.results.length}/{session.queue.length} 组</h3>
           {#each session.queue as item, i}<div class="setline">
-              <span>
-                {i < session.results.length ? '✓' : i === session.index ? '▶' : '○'}
-                {item.name} · 第 {item.setIndex} 组
+              <span class="setline-label">
+                <span
+                  class="set-status-checkbox"
+                  class:checked={i < session.results.length}
+                  role="checkbox"
+                  aria-checked={i < session.results.length}
+                  aria-label={i < session.results.length ? '已完成' : '未完成'}
+                ></span>
+                <span>{i + 1}.</span>
+                <span>{item.name}</span>
               </span>
-              <span class="muted small">{item.weight} kg</span>
+              <span class="setline-meta">
+                {#if i < session.results.length}
+                  {@const result = session.results[i]}
+                  <span class="actual-duration">耗时 {fmt(result?.actualSeconds || 0)}</span>
+                {/if}
+              </span>
             </div>{/each}
         </section>
       {/if}
