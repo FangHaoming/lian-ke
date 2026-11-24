@@ -168,7 +168,7 @@
     signOut()
     session = null
     notifyAuthChange()
-    setStatus('同步空间已切换，请重新登录', 'success')
+    setStatus('数据空间已切换，请重新登录', 'success')
   }
   function disconnectManagedSupabase() {
     disconnectSupabase()
@@ -447,13 +447,13 @@
     {:else}
       <div class="row supabase-project-actions">
         <button class="btn" type="button" disabled={busy} on:click={() => loadManagedProjects()}>
-          刷新同步空间
+          刷新数据空间
         </button>
         {#if managementProjects.length}
           <label class="supabase-project-picker">
-            <span>同步空间</span>
+            <span>数据空间</span>
             <Select
-              label="同步空间"
+              label="数据空间"
               options={managementProjects.map((project) => ({
                 value: project.ref,
                 label: project.name || project.ref,
