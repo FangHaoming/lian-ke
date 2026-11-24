@@ -425,6 +425,51 @@
 
 <PwaInstall mode="settings" />
 
+<section class="panel settings-advanced-body">
+  <section class="settings-advanced-section supabase-managed-setup">
+    <div class="row between settings-panel-heading">
+      <h3>开启云端同步</h3>
+      {#if managementSession}
+        <button class="btn tiny" type="button" on:click={disconnectManagedSupabase}>
+          断开云端连接
+        </button>
+      {/if}
+    </div>
+    <p class="muted small">连接后可在不同设备间同步训练数据，设置过程会自动完成。</p>
+    {#if !managementSession}
+      <button class="btn primary" type="button" on:click={connectManagedSupabase}>连接云端</button>
+    {:else}
+      <div class="row supabase-project-actions">
+        <button class="btn" type="button" disabled={busy} on:click={() => loadManagedProjects()}>
+          刷新同步空间
+        </button>
+        {#if managementProjects.length}
+          <label class="supabase-project-picker">
+            <span>同步空间</span>
+            <Select
+              label="同步空间"
+              options={managementProjects.map((project) => ({
+                value: project.ref,
+                label: project.name || project.ref,
+              }))}
+              value={selectedProjectRef}
+              on:change={handleProjectChange}
+            />
+          </label>
+          <button
+            class="btn primary"
+            type="button"
+            disabled={busy}
+            on:click={initializeManagedProject}
+          >
+            重新设置同步
+          </button>
+        {/if}
+      </div>
+    {/if}
+  </section>
+</section>
+
 <section class="panel cloud-account-card">
   <div class="cloud-account-heading">
     <div>
@@ -566,50 +611,6 @@
     </button>
     <small>仅删除当前登录账号的云端数据，不影响本地数据和账号。</small>
   </div>
-</section>
-<section class="panel settings-advanced-body">
-  <section class="settings-advanced-section supabase-managed-setup">
-    <div class="row between settings-panel-heading">
-      <h3>开启云端同步</h3>
-      {#if managementSession}
-        <button class="btn tiny" type="button" on:click={disconnectManagedSupabase}>
-          断开云端连接
-        </button>
-      {/if}
-    </div>
-    <p class="muted small">连接后可在不同设备间同步训练数据，设置过程会自动完成。</p>
-    {#if !managementSession}
-      <button class="btn primary" type="button" on:click={connectManagedSupabase}>连接云端</button>
-    {:else}
-      <div class="row supabase-project-actions">
-        <button class="btn" type="button" disabled={busy} on:click={() => loadManagedProjects()}>
-          刷新同步空间
-        </button>
-        {#if managementProjects.length}
-          <label class="supabase-project-picker">
-            <span>同步空间</span>
-            <Select
-              label="同步空间"
-              options={managementProjects.map((project) => ({
-                value: project.ref,
-                label: project.name || project.ref,
-              }))}
-              value={selectedProjectRef}
-              on:change={handleProjectChange}
-            />
-          </label>
-          <button
-            class="btn primary"
-            type="button"
-            disabled={busy}
-            on:click={initializeManagedProject}
-          >
-            重新设置同步
-          </button>
-        {/if}
-      </div>
-    {/if}
-  </section>
 </section>
 <section class="panel">
   <h3>独立提示音</h3>
