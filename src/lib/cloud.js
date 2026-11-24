@@ -13,6 +13,11 @@ const SESSION_KEY = 'lianke_supabase_session'
 const SYNC_SELECTION_KEY = 'lianke_sync_selection'
 const SYNC_BASELINE_KEY = 'lianke_sync_baseline'
 const AUTH_REDIRECT_URL = import.meta.env?.VITE_AUTH_REDIRECT_URL || appURL('auth/callback')
+const SUPABASE_MANAGEMENT_API = 'https://api.supabase.com/v1'
+const SUPABASE_OAUTH_CLIENT_ID = import.meta.env?.VITE_SUPABASE_OAUTH_CLIENT_ID || ''
+const SUPABASE_OAUTH_TOKEN_URL = import.meta.env?.VITE_SUPABASE_OAUTH_TOKEN_URL || ''
+const MANAGEMENT_SESSION_KEY = 'lianke_supabase_management_session'
+const MANAGEMENT_OAUTH_STATE_KEY = 'lianke_supabase_management_oauth_state'
 const defaultSyncSelection = {
   exerciseNames: true,
   plans: true,
@@ -204,6 +209,120 @@ export function cloudSession() {
 }
 export function signOut() {
   localStorage.removeItem(SESSION_KEY)
+}
+
+function randomBytes(length = 32) {
+  const bytes = new Uint8Array(length)
+  crypto.getRandomValues(bytes)
+  return bytes
+}
+
+function base64Url(bytes) {
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+}
+
+async function sha256(value) {
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))
+}
+
+export function supabaseManagementSession() {
+  try {
+    return JSON.parse(localStorage.getItem(MANAGEMENT_SESSION_KEY))
+  } catch {
+    return null
+  }
+}
+
+export async function connectSupabase() {
+  if (!SUPABASE_OAUTH_CLIENT_ID) throw Error('尚未配置 Supabase OAuth Client ID')
+  const verifier = base64Url(randomBytes())
+  const state = base64Url(randomBytes(24))
+  const challenge = base64Url(await sha256(verifier))
+  localStorage.setItem(MANAGEMENT_OAUTH_STATE_KEY, JSON.stringify({ state, verifier }))
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: SUPABASE_OAUTH_CLIENT_ID,
+    redirect_uri: AUTH_REDIRECT_URL,
+    state,
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+  })
+  location.assign(`https://api.supabase.com/v1/oauth/authorize?${params}`)
+}
+
+export async function consumeSupabaseManagementCallback() {
+  const params = new URLSearchParams(location.search)
+  const code = params.get('code')
+  if (!code) return null
+  const expected = JSON.parse(localStorage.getItem(MANAGEMENT_OAUTH_STATE_KEY) || 'null')
+  if (!expected || expected.state !== params.get('state')) throw Error('Supabase 授权状态校验失败')
+  if (!SUPABASE_OAUTH_TOKEN_URL) throw Error('尚未配置 Supabase OAuth Token Function 地址')
+  const response = await fetch(SUPABASE_OAUTH_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      code,
+      redirect_uri: AUTH_REDIRECT_URL,
+      code_verifier: expected.verifier,
+    }),
+  })
+  const result = await response.json()
+  if (!response.ok || !result.access_token) throw Error(result.error || 'Supabase 授权失败')
+  localStorage.removeItem(MANAGEMENT_OAUTH_STATE_KEY)
+  const session = {
+    ...result,
+    expires_at: Math.floor(Date.now() / 1000) + Number(result.expires_in || 3600),
+  }
+  localStorage.setItem(MANAGEMENT_SESSION_KEY, JSON.stringify(session))
+  history.replaceState(history.state, '', location.pathname)
+  return session
+}
+
+export function disconnectSupabase() {
+  localStorage.removeItem(MANAGEMENT_SESSION_KEY)
+}
+
+async function managementRequest(path, options = {}) {
+  const session = supabaseManagementSession()
+  if (!session?.access_token) throw Error('请先连接 Supabase')
+  const response = await fetch(`${SUPABASE_MANAGEMENT_API}${path}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+  })
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}))
+    throw Error(result.message || result.error || `Supabase API HTTP ${response.status}`)
+  }
+  return response.status === 204 ? null : response.json()
+}
+
+export function listSupabaseProjects() {
+  return managementRequest('/projects')
+}
+
+export async function getSupabaseProjectPublishableKey(projectRef) {
+  const keys = await managementRequest(
+    `/projects/${encodeURIComponent(projectRef)}/api-keys?reveal=true`,
+  )
+  const key =
+    keys.find((item) => item.type === 'publishable') ||
+    keys.find((item) => item.type === 'legacy' && item.name === 'anon')
+  if (!key?.api_key) throw Error('未找到项目的 publishable key，请在 Supabase 中开启 API Keys')
+  return key.api_key
+}
+
+export async function initializeSupabaseProject(projectRef, sql) {
+  return managementRequest(`/projects/${encodeURIComponent(projectRef)}/database/query`, {
+    method: 'POST',
+    body: JSON.stringify({ query: sql }),
+  })
 }
 
 export async function deleteAccount() {

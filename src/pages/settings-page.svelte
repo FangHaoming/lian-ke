@@ -26,6 +26,12 @@
     pendingSyncCounts,
     loadSyncSelection,
     saveSyncSelection,
+    connectSupabase,
+    disconnectSupabase,
+    supabaseManagementSession,
+    listSupabaseProjects,
+    getSupabaseProjectPublishableKey,
+    initializeSupabaseProject,
   } from '../lib/cloud.js'
   export let data
   let config = cloudConfig()
@@ -38,6 +44,9 @@
   let deletePassword = ''
   let deletePasswordError = ''
   let databaseStatus = '尚未检测'
+  let managementSession = supabaseManagementSession()
+  let managementProjects = []
+  let selectedProjectRef = ''
   let syncSelection = loadSyncSelection()
   let syncBaseline = loadSyncBaseline()
   $: if (status) {
@@ -86,6 +95,47 @@
   })
   function notifyAuthChange() {
     window.dispatchEvent(new CustomEvent('lianke-auth-change'))
+  }
+  async function connectManagedSupabase() {
+    try {
+      await connectSupabase()
+    } catch (error) {
+      setStatus(error.message, 'error')
+    }
+  }
+  async function loadManagedProjects() {
+    try {
+      managementProjects = await listSupabaseProjects()
+      selectedProjectRef = managementProjects[0]?.ref || ''
+    } catch (error) {
+      setStatus(error.message, 'error')
+    }
+  }
+  async function initializeManagedProject() {
+    if (!selectedProjectRef) return
+    busy = true
+    try {
+      await initializeSupabaseProject(selectedProjectRef, initSql)
+      const project = managementProjects.find((item) => item.ref === selectedProjectRef)
+      if (project?.ref) {
+        const anonKey = await getSupabaseProjectPublishableKey(project.ref)
+        config = { ...config, url: `https://${project.ref}.supabase.co`, anonKey }
+        saveCloudConfig(config)
+      }
+      databaseStatus = '数据库初始化完成，项目配置已自动保存'
+      setStatus('Supabase 数据库已初始化', 'success')
+    } catch (error) {
+      setStatus(error.message, 'error')
+    } finally {
+      busy = false
+    }
+  }
+  function disconnectManagedSupabase() {
+    disconnectSupabase()
+    managementSession = null
+    managementProjects = []
+    selectedProjectRef = ''
+    setStatus('已断开 Supabase 管理授权')
   }
   async function checkDatabase() {
     databaseStatus = '正在检查数据表……'
@@ -520,6 +570,44 @@
     <em class="settings-advanced-toggle">展开指引</em>
   </summary>
   <div class="settings-advanced-body">
+    <section class="settings-advanced-section supabase-managed-setup">
+      <div class="row between settings-panel-heading">
+        <h3>一键连接 Supabase</h3>
+        {#if managementSession}
+          <button class="btn tiny" type="button" on:click={disconnectManagedSupabase}>
+            断开授权
+          </button>
+        {/if}
+      </div>
+      <p class="muted small">
+        授权后可直接选择自己的 Supabase 项目并自动执行初始化 SQL，不需要手动复制 URL 或打开 SQL
+        Editor。
+      </p>
+      {#if !managementSession}
+        <button class="btn primary" type="button" on:click={connectManagedSupabase}>
+          连接 Supabase
+        </button>
+      {:else}
+        <div class="row">
+          <button class="btn" type="button" on:click={loadManagedProjects}>读取我的项目</button>
+          {#if managementProjects.length}
+            <select bind:value={selectedProjectRef} aria-label="选择 Supabase 项目">
+              {#each managementProjects as project}
+                <option value={project.ref}>{project.name || project.ref}</option>
+              {/each}
+            </select>
+            <button
+              class="btn primary"
+              type="button"
+              disabled={busy}
+              on:click={initializeManagedProject}
+            >
+              自动初始化数据库
+            </button>
+          {/if}
+        </div>
+      {/if}
+    </section>
     <div class="settings-setup-guide">
       <div>
         <b>1</b>

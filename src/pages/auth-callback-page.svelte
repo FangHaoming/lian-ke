@@ -1,6 +1,10 @@
 <script>
   import { onMount } from 'svelte'
-  import { cloudSession, consumeAuthCallback } from '../lib/cloud.js'
+  import {
+    cloudSession,
+    consumeAuthCallback,
+    consumeSupabaseManagementCallback,
+  } from '../lib/cloud.js'
   import { appPath } from '../lib/config.js'
 
   let status = '正在处理邮箱授权……'
@@ -9,19 +13,31 @@
   const homePath = appPath()
 
   onMount(async () => {
-    const callbackSession = await consumeAuthCallback()
-    const session = callbackSession || cloudSession()
-    if (callbackSession?.access_token && callbackSession.user?.id) {
-      status = '邮箱授权成功'
-      detail = '你的账号已经登录，可以返回练刻继续训练。'
-      completed = true
-    } else if (!callbackSession && session?.access_token) {
-      status = '当前登录状态有效'
-      detail = '可以返回练刻继续训练。'
-      completed = true
-    } else {
-      status = '授权链接无效或已过期'
-      detail = '请回到设置页重新注册或发送验证邮件。'
+    try {
+      if (new URLSearchParams(location.search).has('code')) {
+        await consumeSupabaseManagementCallback()
+        status = 'Supabase 连接成功'
+        detail = '已完成授权，可以返回设置页选择项目并自动初始化数据库。'
+        completed = true
+        return
+      }
+      const callbackSession = await consumeAuthCallback()
+      const session = callbackSession || cloudSession()
+      if (callbackSession?.access_token && callbackSession.user?.id) {
+        status = '邮箱授权成功'
+        detail = '你的账号已经登录，可以返回练刻继续训练。'
+        completed = true
+      } else if (!callbackSession && session?.access_token) {
+        status = '当前登录状态有效'
+        detail = '可以返回练刻继续训练。'
+        completed = true
+      } else {
+        status = '授权链接无效或已过期'
+        detail = '请回到设置页重新注册或发送验证邮件。'
+      }
+    } catch (error) {
+      status = 'Supabase 连接失败'
+      detail = error.message || '请回到设置页重试。'
     }
   })
 

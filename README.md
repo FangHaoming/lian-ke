@@ -66,10 +66,23 @@ pnpm native:sync
 
 仓库的 `main` 分支推送会触发 `.github/workflows/deploy.yml`。在 GitHub 仓库的 **Settings → Secrets and variables → Actions** 添加：
 
-- `VITE_SUPABASE_URL`：Supabase Project URL
-- `VITE_SUPABASE_ANON_KEY`：Supabase anon public key 或 publishable key
+- `VITE_SUPABASE_OAUTH_CLIENT_ID`：Supabase OAuth App Client ID
+- `VITE_SUPABASE_OAUTH_TOKEN_URL`：OAuth token exchange Edge Function URL
 
-这两个值会在构建阶段注入静态前端。它们属于浏览器公开配置；不要添加或暴露 `service_role` key。首次使用还需要在 Supabase SQL Editor 中按项目需要创建表并配置 RLS。
+启用“一键连接 Supabase”后，GitHub Pages 不再需要配置这两个变量；用户授权并选择项目后，应用会自动读取并保存项目 URL 和 publishable key。它们仍可作为本地开发和手动配置的兜底值，属于浏览器公开配置；不要添加或暴露 `service_role` key。
+
+### Supabase 一键连接（可选）
+
+设置页支持通过 Supabase OAuth 连接用户自己的项目，并自动执行初始化 SQL。需要先在 Supabase 创建 OAuth App，将回调地址设置为 `https://fanghaoming.github.io/lian-ke/auth/callback`，并为 OAuth App 开启 Projects Read、Secrets Read 和 Database Write 权限。
+
+部署 `supabase/functions/supabase-oauth-token` Edge Function 后配置运行时 secrets：
+
+```bash
+supabase secrets set LIANKE_OAUTH_CLIENT_ID=... LIANKE_OAUTH_CLIENT_SECRET=...
+supabase functions deploy supabase-oauth-token
+```
+
+前端构建变量为 `VITE_SUPABASE_OAUTH_CLIENT_ID` 和 `VITE_SUPABASE_OAUTH_TOKEN_URL`。其中 client ID 和 token function URL 可以公开，client secret 只能保存在 Edge Function secrets 中；不要把它写入 `VITE_*` 变量。由于 Supabase 保留了 `SUPABASE_` 前缀，Edge Function secret 使用 `LIANKE_OAUTH_CLIENT_ID` 和 `LIANKE_OAUTH_CLIENT_SECRET`。
 
 在 **Settings → Pages → Build and deployment** 将 Source 设为 **GitHub Actions**。仓库名为 `lian-ke` 时，Vite 会自动使用 `/lian-ke/` 作为 Pages base 路径。
 
