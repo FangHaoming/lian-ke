@@ -518,6 +518,11 @@
   $: if (ready && !authCallback && !sourceViewer && !challengeShare && !downloadPage)
     void loadPageComponent(tab)
 
+  $: if (typeof window !== 'undefined') {
+    window.__liankeTrainingActive = Boolean(session)
+    window.dispatchEvent(new CustomEvent('lianke-training-state'))
+  }
+
   async function openNativeUpdate() {
     if (!nativeUpdate?.apkUrl || nativeUpdateOpening) return
     nativeUpdateOpening = true

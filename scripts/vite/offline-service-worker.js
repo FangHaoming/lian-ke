@@ -48,6 +48,7 @@ const RUNTIME = \`lianke-runtime-\${VERSION}\`
 const MEDIA = 'lianke-media-v1'
 const REMOTE_BASE = 'https://fanghaoming.github.io/lian-ke/'
 const REMOTE_CACHE = 'lianke-remote-v1'
+let trainingActive = false
 const PRECACHE_URLS = ${JSON.stringify([...new Set(precacheURLs)], null, 2)}
 
 async function precacheApp() {
@@ -85,6 +86,7 @@ async function matchCached(request) {
 }
 
 async function refreshRemoteWebAssets() {
+  if (trainingActive) return
   try {
     const remoteWorker = await fetch(new URL('service-worker.js', REMOTE_BASE), {
       cache: 'no-store',
@@ -112,6 +114,10 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
+  if (event.data?.type === 'TRAINING_STATE') {
+    trainingActive = event.data.active === true
+    if (!trainingActive) event.waitUntil(refreshRemoteWebAssets())
+  }
 })
 
 async function activateCaches() {
