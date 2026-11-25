@@ -136,7 +136,7 @@
       action: action || '',
       return: returnTo,
     })
-    return `${appPath('source')}?${params}`
+    return `${appPath('source/')}?${params}`
   }
   $: dirty = false
   $: if (typeof window !== 'undefined' && routeId && levelId) {

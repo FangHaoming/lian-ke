@@ -5,7 +5,7 @@
     consumeAuthCallback,
     consumeSupabaseManagementCallback,
   } from '../lib/cloud.js'
-  import { appPath } from '../lib/config.js'
+  import { appPath, basePath } from '../lib/config.js'
 
   let status = '正在连接云端……'
   let detail = '请稍候，正在确认你的登录状态。'
@@ -52,7 +52,10 @@
   })
 
   function returnHome() {
-    window.location.assign(homePath)
+    // GitHub Pages does not serve client-side routes such as /settings
+    // directly. Return to the app entry and let the client router select the
+    // settings tab from the hash instead of triggering a server-side 404.
+    window.location.assign(`${appPath()}#${homePath.replace(`${basePath}/`, '')}`)
   }
 </script>
 

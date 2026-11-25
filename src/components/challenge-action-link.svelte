@@ -10,7 +10,7 @@
     .find((entry) => entry.level.name === name.trim())
   $: href = target
     ? appPath(
-        `source?page=${encodeURIComponent(target.level.sourcePage)}&action=${encodeURIComponent(target.level.name)}&return=${encodeURIComponent(returnPath)}`,
+        `source/?page=${encodeURIComponent(target.level.sourcePage)}&action=${encodeURIComponent(target.level.name)}&return=${encodeURIComponent(returnPath)}`,
       )
     : ''
 </script>
