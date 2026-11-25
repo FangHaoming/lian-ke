@@ -466,10 +466,14 @@
     if (window.__liankeOpenTrainingRequested) openTrainingFromNotification()
     const onVisibilityChange = () => syncWakeLock(Boolean(session && !session.paused))
     const onAuthChange = () => (accountSession = cloudSession())
+    const onOAuthCallback = () => {
+      authCallback = Boolean(window.__liankeOAuthCallbackQuery)
+    }
     const onRequestSignOut = () => requestSignOut()
     const onStartChallengeTraining = (event) => startChallengeTraining(event)
     const onReturnToChallenge = (event) => returnToChallenge(event)
     window.addEventListener('lianke-auth-change', onAuthChange)
+    window.addEventListener('lianke-oauth-callback', onOAuthCallback)
     window.addEventListener('request-sign-out', onRequestSignOut)
     window.addEventListener('lianke-start-challenge-training', onStartChallengeTraining)
     window.addEventListener('lianke-return-to-challenges', onReturnToChallenge)
@@ -478,6 +482,7 @@
       window.removeEventListener('popstate', onPopState)
       window.removeEventListener('lianke-open-training', openTrainingFromNotification)
       window.removeEventListener('lianke-auth-change', onAuthChange)
+      window.removeEventListener('lianke-oauth-callback', onOAuthCallback)
       window.removeEventListener('request-sign-out', onRequestSignOut)
       window.removeEventListener('lianke-start-challenge-training', onStartChallengeTraining)
       window.removeEventListener('lianke-return-to-challenges', onReturnToChallenge)

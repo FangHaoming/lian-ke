@@ -45,9 +45,9 @@ public class MainActivity extends BridgeActivity {
         Handler handler = new Handler(Looper.getMainLooper());
         Runnable openCallback = () -> {
             if (getBridge() == null || getBridge().getWebView() == null) return;
-            String callbackPath = "/supabase/callback?" + query;
             getBridge().getWebView().evaluateJavascript(
-                "window.location.href=" + JSONObject.quote(callbackPath),
+                "window.__liankeOAuthCallbackQuery=" + JSONObject.quote("?" + query)
+                    + ";window.dispatchEvent(new CustomEvent('lianke-oauth-callback'))",
                 null
             );
         };

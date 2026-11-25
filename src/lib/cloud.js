@@ -258,8 +258,8 @@ export async function connectSupabase() {
   location.assign(`https://api.supabase.com/v1/oauth/authorize?${params}`)
 }
 
-export async function consumeSupabaseManagementCallback() {
-  const params = new URLSearchParams(location.search)
+export async function consumeSupabaseManagementCallback(search = location.search) {
+  const params = new URLSearchParams(search)
   const code = params.get('code')
   if (!code) return null
   const expected = JSON.parse(localStorage.getItem(MANAGEMENT_OAUTH_STATE_KEY) || 'null')
