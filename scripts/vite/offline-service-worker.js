@@ -56,6 +56,7 @@ const REMOTE_POINTER = 'lianke-remote-pointer-v1'
 const RUNTIME_MODE_CACHE = 'lianke-runtime-mode-v1'
 let trainingActive = false
 let nativeRuntime = false
+const REMOTE_CACHE_TIMEOUT = 350
 const PRECACHE_URLS = ${JSON.stringify([...new Set(precacheURLs)], null, 2)}
 
 async function precacheApp() {
@@ -85,7 +86,12 @@ async function precacheApp() {
 
 async function matchCached(request) {
   const remoteCache = (await isNativeRuntime()) ? await getCurrentRemoteCache() : null
-  const remote = remoteCache && (await remoteCache.match(request, { ignoreSearch: true }))
+  const remote = remoteCache
+    ? await Promise.race([
+        remoteCache.match(request, { ignoreSearch: true }),
+        new Promise((resolve) => setTimeout(() => resolve(null), REMOTE_CACHE_TIMEOUT)),
+      ])
+    : null
   if (remote) return remote
   const currentCache = await caches.open(PRECACHE)
   return (await currentCache.match(request, { ignoreSearch: true })) ||

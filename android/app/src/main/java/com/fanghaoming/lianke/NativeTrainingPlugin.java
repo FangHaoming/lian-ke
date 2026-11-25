@@ -17,6 +17,11 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 @CapacitorPlugin(
     name = "NativeTraining",
@@ -129,6 +134,116 @@ public class NativeTrainingPlugin extends Plugin {
         }
         getContext().startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(value)));
         call.resolve();
+    }
+
+    @PluginMethod
+    public void downloadAsset(PluginCall call) {
+        String urlValue = call.getString("url", "");
+        String version = call.getString("version", "");
+        String path = call.getString("path", "");
+        if (!urlValue.startsWith("https://") || version.isEmpty() || path.isEmpty() || path.contains("..")) {
+            call.reject("Invalid asset download request");
+            return;
+        }
+        new Thread(() -> {
+            try {
+                File root = new File(getContext().getFilesDir(), "lianke-assets/staging/" + version);
+                File target = new File(root, path.replaceFirst("^/+", ""));
+                if (!target.getCanonicalPath().startsWith(root.getCanonicalPath() + File.separator)) {
+                    call.reject("Invalid asset path");
+                    return;
+                }
+                File parent = target.getParentFile();
+                if (parent != null && !parent.exists() && !parent.mkdirs()) {
+                    call.reject("Unable to create asset directory");
+                    return;
+                }
+                HttpURLConnection connection = (HttpURLConnection) new URL(urlValue).openConnection();
+                connection.setConnectTimeout(10000);
+                connection.setReadTimeout(30000);
+                connection.setInstanceFollowRedirects(true);
+                if (connection.getResponseCode() < 200 || connection.getResponseCode() >= 300) {
+                    throw new IllegalStateException("HTTP " + connection.getResponseCode());
+                }
+                try (InputStream input = connection.getInputStream(); FileOutputStream output = new FileOutputStream(target)) {
+                    byte[] buffer = new byte[8192];
+                    int count;
+                    while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+                } finally {
+                    connection.disconnect();
+                }
+                call.resolve();
+            } catch (Exception error) {
+                call.reject("Asset download failed", error);
+            }
+        }, "lianke-asset-download").start();
+    }
+
+    @PluginMethod
+    public void activateAssetVersion(PluginCall call) {
+        String version = call.getString("version", "");
+        if (version.isEmpty() || version.contains("..") || version.contains("/")) {
+            call.reject("Invalid asset version");
+            return;
+        }
+        File base = new File(getContext().getFilesDir(), "lianke-assets");
+        File current = new File(base, "current");
+        File staging = new File(base, "staging/" + version);
+        File previous = new File(base, "previous");
+        if (!staging.isDirectory()) {
+            call.reject("Staged asset version not found");
+            return;
+        }
+        if (previous.exists()) deleteRecursively(previous);
+        if (current.exists() && !current.renameTo(previous)) {
+            call.reject("Unable to preserve current asset version");
+            return;
+        }
+        if (!staging.renameTo(current)) {
+            if (previous.exists()) previous.renameTo(current);
+            call.reject("Unable to activate asset version");
+            return;
+        }
+        try (FileOutputStream output = new FileOutputStream(new File(base, "current-version"))) {
+            output.write(version.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } catch (Exception error) {
+            call.reject("Unable to record asset version", error);
+            return;
+        }
+        File stagingRoot = new File(base, "staging");
+        File[] leftovers = stagingRoot.listFiles();
+        if (leftovers != null) for (File leftover : leftovers) deleteRecursively(leftover);
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void getAssetVersion(PluginCall call) {
+        File marker = new File(getContext().getFilesDir(), "lianke-assets/current-version");
+        try {
+            String value = "";
+            if (marker.isFile()) {
+                try (InputStream input = new java.io.FileInputStream(marker)) {
+                    java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
+                    byte[] buffer = new byte[256];
+                    int count;
+                    while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+                    value = new String(output.toByteArray(), java.nio.charset.StandardCharsets.UTF_8).trim();
+                }
+            }
+            JSObject result = new JSObject();
+            result.put("version", value);
+            call.resolve(result);
+        } catch (Exception error) {
+            call.reject("Unable to read asset version", error);
+        }
+    }
+
+    private void deleteRecursively(File file) {
+        if (file.isDirectory()) {
+            File[] children = file.listFiles();
+            if (children != null) for (File child : children) deleteRecursively(child);
+        }
+        file.delete();
     }
 
     private void copyString(PluginCall call, Intent intent, String key) {

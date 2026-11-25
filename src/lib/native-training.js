@@ -38,6 +38,38 @@ export async function nativeAppInfo() {
   }
 }
 
+export async function updateNativeWebAssets() {
+  if (!nativeTrainingAvailable()) return { updated: false }
+  try {
+    const workerURL = 'https://fanghaoming.github.io/lian-ke/app-assets/service-worker.js'
+    const response = await fetch(workerURL, { cache: 'no-store' })
+    if (!response.ok) throw new Error(`资源清单请求失败 HTTP ${response.status}`)
+    const source = await response.text()
+    const version = source.match(/const VERSION = ["']([^"']+)["']/)?.[1]
+    const precache = source.match(/const PRECACHE_URLS = (\[[\s\S]*?\])/)?.[1]
+    if (!version || !precache) throw new Error('资源清单格式无效')
+    const current = await NativeTraining.getAssetVersion()
+    if (current?.version === version) return { updated: false, version }
+    const paths = JSON.parse(precache).filter((path) =>
+      /\.html(?:$|[?#])|\.js(?:$|[?#])|\.css(?:$|[?#])|\.json(?:$|[?#])/.test(path) ||
+      path === './' || path === './manifest.webmanifest',
+    )
+    for (const path of paths) {
+      const relativePath = path.replace(/^\.\//, '') || 'index.html'
+      await NativeTraining.downloadAsset({
+        version,
+        path: relativePath,
+        url: new URL(relativePath, 'https://fanghaoming.github.io/lian-ke/app-assets/').toString(),
+      })
+    }
+    await NativeTraining.activateAssetVersion({ version })
+    return { updated: true, version }
+  } catch (error) {
+    console.warn('Native web asset update failed', error)
+    return { updated: false, error }
+  }
+}
+
 export function openNativeExternalUrl(url) {
   if (!nativeTrainingAvailable()) return Promise.resolve(false)
   return NativeTraining.openExternalUrl({ url })
