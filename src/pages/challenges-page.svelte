@@ -544,6 +544,11 @@
   }
   function attemptDescription(attempt) {
     const unit = level.mode === 'time' ? '秒' : '次'
+    if (isAutoEvaluation(attempt) && level.unilateral) {
+      return attempt.rows
+        .map((row, index) => `第 ${index + 1} 组：${row.left ?? row.right} ${unit}`)
+        .join('；')
+    }
     return attempt.rows
       .map(
         (row, index) =>
@@ -621,7 +626,7 @@
         `本次记录完成 ${attempt.rows.length}/${goal.sets} 组，还需完成 ${missingSets} 组，每组至少 ${goal.value} ${unit}。`,
       )
     if (lowSets) messages.push(`已有 ${lowSets} 组未达到标准，每组至少 ${goal.value} ${unit}。`)
-    return messages.join(' ') || '训练数据已达到标准；确认动作质量后即可计入通关。'
+    return messages.join(' ') || '训练数据已达到本关标准。'
   }
   function beforeUnload(event) {
     if (!dirty) return
@@ -860,7 +865,7 @@
             <div class="row between challenge-record-heading">
               <strong>
                 {stageLabels[matchedStage]} · {autoPassed && !attempt.qualityConfirmed
-                  ? '待确认'
+                  ? '已达标 · 待确认'
                   : displayResult.passed
                     ? '目标达成'
                     : displayResult.valid
@@ -880,7 +885,7 @@
                 {attempt.source?.type === 'quick-challenge' ? '快速挑战' : '训练记录'}：{autoPassed
                   ? attempt.qualityConfirmed
                     ? '已确认'
-                    : '已达标'
+                    : '已自动判定达到本关标准'
                   : '未达到本次挑战标准'}
               </p>
               {#if autoPassed && !attempt.qualityConfirmed}

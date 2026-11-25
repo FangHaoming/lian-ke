@@ -266,10 +266,10 @@ function trainingRows(level, results) {
     .map((result) => {
       if (level.mode === 'time') return { both: Number(result.actualSeconds) || 0 }
       if (level.unilateral) {
-        if (result.actualLeft === undefined || result.actualRight === undefined) return null
+        const actualReps = Number(result.actualReps) || 0
         return {
-          left: Number(result.actualLeft) || 0,
-          right: Number(result.actualRight) || 0,
+          left: Number(result.actualLeft ?? actualReps) || 0,
+          right: Number(result.actualRight ?? actualReps) || 0,
         }
       }
       return { both: Number(result.actualReps) || 0 }
@@ -345,7 +345,7 @@ export function appendTrainingEvaluation(state, record) {
       false,
       sourceType === 'quick-challenge'
         ? '来自快速挑战的自动判定；请确认动作质量后计入通关。'
-        : '来自训练记录的自动判定；请在挑战页确认动作质量后计入通关。',
+        : '训练记录已自动判定达到本关标准。',
       { type: sourceType, recordId: record.id },
     )
     additions.push(attempt)
