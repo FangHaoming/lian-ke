@@ -19,10 +19,16 @@ export function setupOfflineSupport() {
   let trainingActive = Boolean(window.__liankeTrainingActive)
   const isTrainingActive = () => Boolean(window.__liankeTrainingActive)
   const activateWaitingWorker = (registration) => {
-    // Native WebView updates are intentionally staged for the next app launch.
-    // Activating a waiting worker here would fire controllerchange and reload
-    // the current screen unexpectedly.
+    // Native WebView updates are intentionally staged until training ends or
+    // the next app launch. Activating a waiting worker during a session would
+    // fire controllerchange and reload the current screen unexpectedly.
     if (Capacitor.isNativePlatform() || !registration?.waiting || isTrainingActive()) return
+    registration.waiting.postMessage({ type: 'SKIP_WAITING' })
+  }
+  const activateNativeWorkerOnStartup = (registration) => {
+    if (!Capacitor.isNativePlatform() || !registration?.waiting || isTrainingActive()) return
+    // A waiting worker here was installed before this app launch. Activate it
+    // now so the next navigation uses the refreshed native/remote resources.
     registration.waiting.postMessage({ type: 'SKIP_WAITING' })
   }
   const showResourceUpdateToast = () => {
@@ -67,10 +73,14 @@ export function setupOfflineSupport() {
         navigator.serviceWorker.controller?.postMessage({ type: 'REFRESH_REMOTE' })
       }
       registration.update().catch(() => {})
-      if (registration.waiting && navigator.serviceWorker.controller) {
+      if (registration.waiting) {
         if (!isTrainingActive()) {
-          showResourceUpdateToast()
-          activateWaitingWorker(registration)
+          if (Capacitor.isNativePlatform()) {
+            activateNativeWorkerOnStartup(registration)
+          } else if (navigator.serviceWorker.controller) {
+            showResourceUpdateToast()
+            activateWaitingWorker(registration)
+          }
         }
       }
       registration.addEventListener('updatefound', () => {
