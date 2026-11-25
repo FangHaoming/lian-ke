@@ -1,5 +1,6 @@
 import { appURL } from './config.js'
 import { showToast } from './toast.js'
+import { Capacitor } from '@capacitor/core'
 
 function showConnectionStatus(online) {
   showToast(online ? '网络已恢复' : '网络已断开，已缓存页面仍可访问', {
@@ -9,7 +10,7 @@ function showConnectionStatus(online) {
 }
 
 export function setupOfflineSupport() {
-  if (!import.meta.env.PROD || !('serviceWorker' in navigator))
+  if (Capacitor.isNativePlatform() || !import.meta.env.PROD || !('serviceWorker' in navigator))
     return () => {}
 
   let isReloading = false
