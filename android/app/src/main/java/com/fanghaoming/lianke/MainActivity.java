@@ -45,11 +45,16 @@ public class MainActivity extends BridgeActivity {
         Runnable openCallback = () -> {
             if (getBridge() == null || getBridge().getWebView() == null) return;
             getBridge().getWebView().loadUrl(
-                "https://fanghaoming.github.io/lian-ke/supabase/callback?" + query
+                "https://localhost/supabase/callback?" + query
             );
         };
-        handler.postDelayed(openCallback, 350L);
-        handler.postDelayed(openCallback, 1200L);
+        handler.postDelayed(() -> {
+            if (getBridge() == null || getBridge().getWebView() == null) {
+                handler.postDelayed(openCallback, 800L);
+                return;
+            }
+            openCallback.run();
+        }, 350L);
     }
 
     private void dispatchTrainingNavigation(android.content.Intent intent) {
