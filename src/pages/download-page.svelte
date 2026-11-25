@@ -2,6 +2,7 @@
   import { onMount } from 'svelte'
   import { fetchLatestAppReleases } from '../lib/native-update.js'
   import { showToast } from '../lib/toast.js'
+  import { nativeAppInfo } from '../lib/native-training.js'
   import packageJson from '../../package.json'
 
   const appVersion = `v${packageJson.version}`
@@ -9,10 +10,17 @@
   const releaseURL = 'https://github.com/FangHaoming/lian-ke/releases'
   let latestReleases = { stable: null, testing: null }
   let checking = false
+  let currentVersion = packageJson.version
 
   onMount(() => {
+    void loadCurrentVersion()
     void checkForUpdate()
   })
+
+  async function loadCurrentVersion() {
+    const info = await nativeAppInfo()
+    if (info?.version) currentVersion = info.version
+  }
 
   async function checkForUpdate() {
     if (checking) return
@@ -51,7 +59,7 @@
   <section class="download-hero">
     <p class="download-eyebrow">ANDROID APP</p>
     <div class="download-version-row">
-      <p class="download-version">最新正式版 v{stableVersion}</p>
+      <p class="download-version">当前版本 v{currentVersion} · 最新正式版 v{stableVersion}</p>
       <button class="download-check" type="button" on:click={checkForUpdate} disabled={checking}>
         {checking ? '检查中…' : '检查更新'}
       </button>
