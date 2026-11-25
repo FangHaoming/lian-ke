@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto'
 
 export function offlineServiceWorker() {
+  const nativeBuild = process.env.CAPACITOR_BUILD === '1'
+  const remoteBase = nativeBuild
+    ? 'https://fanghaoming.github.io/lian-ke/app-assets/'
+    : 'https://fanghaoming.github.io/lian-ke/'
   const cacheSchema = 'offline-cache-v2'
   const entryHTMLURLs = [
     './',
@@ -46,7 +50,7 @@ export function offlineServiceWorker() {
 const PRECACHE = \`lianke-precache-\${VERSION}\`
 const RUNTIME = \`lianke-runtime-\${VERSION}\`
 const MEDIA = 'lianke-media-v1'
-const REMOTE_BASE = 'https://fanghaoming.github.io/lian-ke/'
+const REMOTE_BASE = ${JSON.stringify(remoteBase)}
 const REMOTE_CACHE_PREFIX = 'lianke-remote-'
 const REMOTE_POINTER = 'lianke-remote-pointer-v1'
 const RUNTIME_MODE_CACHE = 'lianke-runtime-mode-v1'

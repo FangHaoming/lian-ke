@@ -33,6 +33,12 @@ jobs:
           VITE_AUTH_REDIRECT_URL: https://fanghaoming.github.io/lian-ke/auth/callback
           VITE_SUPABASE_OAUTH_CLIENT_ID: ${{ secrets.VITE_SUPABASE_OAUTH_CLIENT_ID }}
           VITE_SUPABASE_OAUTH_TOKEN_URL: https://jagugsfdnwyaclrxpsum.supabase.co/functions/v1/supabase-oauth-token
+      - name: Build native app assets for remote updates
+        run: |
+          mv dist dist-web
+          CAPACITOR_BUILD=1 pnpm build
+          mv dist dist-web/app-assets
+          mv dist-web dist
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
