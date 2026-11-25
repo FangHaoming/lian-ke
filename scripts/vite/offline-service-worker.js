@@ -49,6 +49,7 @@ const MEDIA = 'lianke-media-v1'
 const REMOTE_BASE = 'https://fanghaoming.github.io/lian-ke/'
 const REMOTE_CACHE_PREFIX = 'lianke-remote-'
 const REMOTE_POINTER = 'lianke-remote-pointer-v1'
+const RUNTIME_MODE_CACHE = 'lianke-runtime-mode-v1'
 let trainingActive = false
 let nativeRuntime = false
 const PRECACHE_URLS = ${JSON.stringify([...new Set(precacheURLs)], null, 2)}
@@ -79,7 +80,7 @@ async function precacheApp() {
 }
 
 async function matchCached(request) {
-  const remoteCache = await getCurrentRemoteCache()
+  const remoteCache = (await isNativeRuntime()) ? await getCurrentRemoteCache() : null
   const remote = remoteCache && (await remoteCache.match(request, { ignoreSearch: true }))
   if (remote) return remote
   const currentCache = await caches.open(PRECACHE)
@@ -93,6 +94,20 @@ async function getCurrentRemoteCache() {
   if (!response) return null
   const version = (await response.text()).trim()
   return version ? caches.open(\`\${REMOTE_CACHE_PREFIX}\${version}\`) : null
+}
+
+async function getCurrentRemoteVersion() {
+  const pointer = await caches.open(REMOTE_POINTER)
+  const response = await pointer.match('./current')
+  return response ? (await response.text()).trim() : ''
+}
+
+async function isNativeRuntime() {
+  if (nativeRuntime) return true
+  const cache = await caches.open(RUNTIME_MODE_CACHE)
+  const response = await cache.match('./native')
+  nativeRuntime = response ? (await response.text()) === '1' : false
+  return nativeRuntime
 }
 
 async function cleanupRemoteCaches(keepVersion = '') {
@@ -115,7 +130,6 @@ async function notifyClients(message) {
 
 async function refreshRemoteWebAssets() {
   if (trainingActive) return
-  await notifyClients({ type: 'REMOTE_UPDATE_START' })
   try {
     const remoteWorker = await fetch(new URL('service-worker.js', REMOTE_BASE), {
       cache: 'no-store',
@@ -126,6 +140,8 @@ async function refreshRemoteWebAssets() {
     const match = source.match(/const PRECACHE_URLS = (\[[\\s\\S]*?\])/)
     if (!versionMatch || !match) return
     const version = versionMatch[1]
+    if (version === (await getCurrentRemoteVersion())) return
+    await notifyClients({ type: 'REMOTE_UPDATE_START' })
     const urls = JSON.parse(match[1]).filter((url) => /\.html(?:$|[?#])|\.js(?:$|[?#])|\.css(?:$|[?#])|\.json(?:$|[?#])/.test(url) || url === './' || url === './manifest.webmanifest')
     const cache = await caches.open(\`\${REMOTE_CACHE_PREFIX}\${version}\`)
     for (const path of urls) {
@@ -159,7 +175,14 @@ self.addEventListener('message', (event) => {
   if (event.data?.type === 'REFRESH_REMOTE' && !trainingActive) {
     event.waitUntil(refreshRemoteWebAssets())
   }
-  if (event.data?.type === 'RUNTIME_MODE') nativeRuntime = event.data.native === true
+  if (event.data?.type === 'RUNTIME_MODE') {
+    nativeRuntime = event.data.native === true
+    event.waitUntil(
+      caches.open(RUNTIME_MODE_CACHE).then((cache) =>
+        cache.put('./native', new Response(nativeRuntime ? '1' : '0')),
+      ),
+    )
+  }
 })
 
 async function activateCaches() {
@@ -213,7 +236,7 @@ async function trimCache(cacheName, maxEntries) {
 
 async function networkFirstNavigation(request) {
   const cached = await matchCached(request)
-  if (nativeRuntime && cached) return cached
+  if ((await isNativeRuntime()) && cached) return cached
   try {
     const network = await Promise.race([
       fetch(request),
