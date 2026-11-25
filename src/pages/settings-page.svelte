@@ -336,7 +336,7 @@
   async function sync(direction) {
     if (busy) return
     busy = true
-    setStatus('正在同步……')
+    setStatus('正在同步……', 'info', 0)
     try {
       const result = await syncData(direction, data, syncSelection)
       if (direction === 'download') {
