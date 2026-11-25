@@ -157,7 +157,7 @@ async function refreshRemoteWebAssets() {
     await notifyClients({ type: 'REMOTE_UPDATE_READY', version })
   } catch {
     // The APK's bundled cache remains the fallback when remote refresh fails.
-    await cleanupRemoteCaches()
+    await cleanupRemoteCaches(await getCurrentRemoteVersion())
     await notifyClients({ type: 'REMOTE_UPDATE_FAILED' })
   }
 }
@@ -203,7 +203,12 @@ async function activateCaches() {
 
   await Promise.all(
     keys
-      .filter((key) => key.startsWith('lianke-') && ![PRECACHE, RUNTIME, MEDIA].includes(key))
+      .filter(
+        (key) =>
+          key.startsWith('lianke-') &&
+          ![PRECACHE, RUNTIME, MEDIA, REMOTE_POINTER, RUNTIME_MODE_CACHE].includes(key) &&
+          !key.startsWith(REMOTE_CACHE_PREFIX),
+      )
       .map((key) => caches.delete(key)),
   )
 }
@@ -211,7 +216,7 @@ async function activateCaches() {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     activateCaches()
-      .then(() => cleanupRemoteCaches())
+      .then(async () => cleanupRemoteCaches(await getCurrentRemoteVersion()))
       .then(() => self.clients.claim())
       .then(() => refreshRemoteWebAssets()),
   )
