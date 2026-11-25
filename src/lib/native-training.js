@@ -100,12 +100,21 @@ export function nativeTrainingSnapshot(session) {
   if (!current) return null
   const endAt = timerEndAt(session)
   const startAt = timerStartAt(session)
+  const isCountdown =
+    ['prep', 'rest'].includes(session.phase) ||
+    (session.phase === 'work' && current.mode === 'time' && current.timerMode !== 'up')
+  const timerDirection = isCountdown
+    ? 'down'
+    : session.phase === 'work' && (current.mode === 'reps' || current.timerMode === 'up')
+      ? 'up'
+      : 'static'
   const challenge = challengeLevels.find((level) => level.name === current.name)
   return {
     planName: session.planName || '自由训练',
     exerciseName: current.name || '训练',
     exerciseIcon: challenge?.id || '',
     phase: session.phase,
+    timerDirection,
     paused: session.paused === true,
     currentSet: currentSetNumber(session),
     totalSets: totalSetsForExercise(session),

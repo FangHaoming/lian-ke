@@ -54,6 +54,7 @@ public class NativeTrainingPlugin extends Plugin {
         copyString(call, intent, "exerciseName");
         copyString(call, intent, "exerciseIcon");
         copyString(call, intent, "phase");
+        copyString(call, intent, "timerDirection");
         copyInt(call, intent, "currentSet");
         copyInt(call, intent, "totalSets");
         copyInt(call, intent, "currentItem");

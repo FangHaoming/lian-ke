@@ -172,6 +172,7 @@ public class TrainingForegroundService extends Service {
         String exerciseIcon = data.getStringExtra("exerciseIcon");
         String plan = data.getStringExtra("planName");
         String phase = data.getStringExtra("phase");
+        String timerDirection = data.getStringExtra("timerDirection");
         boolean paused = data.getBooleanExtra("paused", false);
         int currentSet = data.getIntExtra("currentSet", 1);
         int totalSets = data.getIntExtra("totalSets", 1);
@@ -181,9 +182,12 @@ public class TrainingForegroundService extends Service {
         int elapsed = data.getIntExtra("elapsedSeconds", 0);
         long timerEndAt = data.getLongExtra("timerEndAt", 0L);
         long timerStartAt = data.getLongExtra("timerStartAt", 0L);
-        if (!paused && timerEndAt > 0L) {
+        boolean countdown = "down".equals(timerDirection)
+            || "prep".equals(phase)
+            || "rest".equals(phase);
+        if (!paused && countdown && timerEndAt > 0L) {
             remaining = Math.max(0, (int) Math.ceil((timerEndAt - System.currentTimeMillis()) / 1000.0));
-        } else if (!paused && timerStartAt > 0L) {
+        } else if (!paused && !countdown && timerStartAt > 0L) {
             elapsed = Math.max(0, (int) ((System.currentTimeMillis() - timerStartAt) / 1000L));
         }
 
@@ -199,8 +203,6 @@ public class TrainingForegroundService extends Service {
 
         String phaseLabel = paused ? "已暂停" : phaseLabel(phase);
         String detail = "第 " + currentSet + "/" + totalSets + " 组 · " + phaseLabel;
-        boolean countdown = "prep".equals(phase) || "rest".equals(phase)
-            || timerEndAt > 0L;
         String timerLabel = formatSeconds(countdown ? remaining : elapsed);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_training_notification)

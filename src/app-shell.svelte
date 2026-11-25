@@ -712,5 +712,5 @@
       </button>
     </aside>
   {/if}
-  <GlobalToast />
+  {#if !authCallback}<GlobalToast />{/if}
 </div>
