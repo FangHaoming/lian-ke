@@ -53,7 +53,7 @@
     // GitHub Pages does not serve client-side routes such as /settings
     // directly. Return to the app entry and let the client router select the
     // settings tab from the hash instead of triggering a server-side 404.
-    window.location.assign(`${appPath()}#settings`)
+    window.location.assign(`${appPath()}?tab=settings`)
   }
 </script>
 

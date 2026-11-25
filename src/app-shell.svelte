@@ -22,6 +22,7 @@
       .replace(new RegExp(`^${basePath}`), '')
       .replace(/^\/+|\/+$/g, '')
     const hashPath = window.location.hash.replace(/^#\/?/, '').replace(/^\/+|\/+$/g, '')
+    const queryTab = new URLSearchParams(window.location.search).get('tab') || ''
     return (
       {
         challenges: 'challenges',
@@ -30,6 +31,13 @@
         stats: 'stats',
         settings: 'settings',
       }[pathname] ||
+      {
+        challenges: 'challenges',
+        weight: 'weight',
+        sleep: 'sleep',
+        stats: 'stats',
+        settings: 'settings',
+      }[queryTab] ||
       {
         challenges: 'challenges',
         weight: 'weight',
@@ -170,7 +178,8 @@
       .replace(new RegExp(`^${basePath}`), '')
       .replace(/^\/+|\/+$/g, '')
     const hashPath = window.location.hash.replace(/^#\/?/, '').replace(/^\/+|\/+$/g, '')
-    return routeTabs[pathname] || routeTabs[hashPath] || 'train'
+    const queryTab = new URLSearchParams(window.location.search).get('tab') || ''
+    return routeTabs[pathname] || routeTabs[hashPath] || (routes[queryTab] !== undefined ? queryTab : 'train')
   }
 
   function isAuthCallbackLocation() {
