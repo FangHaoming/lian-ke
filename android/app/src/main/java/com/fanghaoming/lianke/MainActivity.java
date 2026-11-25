@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.net.Uri;
+import org.json.JSONObject;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -44,8 +45,10 @@ public class MainActivity extends BridgeActivity {
         Handler handler = new Handler(Looper.getMainLooper());
         Runnable openCallback = () -> {
             if (getBridge() == null || getBridge().getWebView() == null) return;
-            getBridge().getWebView().loadUrl(
-                "https://localhost/supabase/callback?" + query
+            String callbackPath = "/supabase/callback?" + query;
+            getBridge().getWebView().evaluateJavascript(
+                "window.location.href=" + JSONObject.quote(callbackPath),
+                null
             );
         };
         handler.postDelayed(() -> {
