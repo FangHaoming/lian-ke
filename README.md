@@ -73,7 +73,7 @@ pnpm native:sync
 
 ### Supabase 一键连接（可选）
 
-设置页支持通过 Supabase OAuth 连接用户自己的项目，并自动完成云端设置。需要先在 Supabase 创建 OAuth App，将回调地址设置为 `https://fanghaoming.github.io/lian-ke/supabase/callback` 和 `lianke://oauth/supabase/callback`，并为 OAuth App 开启 Projects Read、Secrets Read、Database Write 和 Auth Config Write 权限。
+设置页支持通过 Supabase OAuth 连接用户自己的项目，并自动完成云端设置。需要先在 Supabase 创建 OAuth App，将回调地址设置为 `https://fanghaoming.github.io/lian-ke/supabase/callback` 和 `https://fanghaoming.github.io/lian-ke/supabase/callback?app=1`，并为 OAuth App 开启 Projects Read、Secrets Read、Database Write 和 Auth Config Write 权限。
 
 部署 `supabase/functions/supabase-oauth-token` Edge Function 后配置运行时 secrets：
 

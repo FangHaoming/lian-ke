@@ -15,7 +15,12 @@
 
   onMount(async () => {
     try {
-      if (new URLSearchParams(location.search).has('code')) {
+      const callbackParams = new URLSearchParams(location.search)
+      if (callbackParams.has('code') && callbackParams.get('app') === '1') {
+        window.location.assign(`lianke://oauth/supabase/callback?${callbackParams.toString()}`)
+        return
+      }
+      if (callbackParams.has('code')) {
         await consumeSupabaseManagementCallback()
         status = '云端连接成功'
         detail = '已完成连接，可以返回设置页继续设置同步。'

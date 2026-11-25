@@ -33,7 +33,12 @@ public class MainActivity extends BridgeActivity {
     private void dispatchOAuthCallback(android.content.Intent intent) {
         Uri data = intent == null ? null : intent.getData();
         if (data == null || !"lianke".equals(data.getScheme())) return;
-        String query = data.getQuery();
+        Uri.Builder callbackBuilder = data.buildUpon().clearQuery();
+        for (String name : data.getQueryParameterNames()) {
+            if ("app".equals(name)) continue;
+            callbackBuilder.appendQueryParameter(name, data.getQueryParameter(name));
+        }
+        String query = callbackBuilder.build().getQuery();
         if (query == null || query.isEmpty()) return;
         intent.setData(null);
         Handler handler = new Handler(Looper.getMainLooper());

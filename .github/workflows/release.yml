@@ -64,7 +64,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_SUPABASE_OAUTH_CLIENT_ID: ${{ secrets.VITE_SUPABASE_OAUTH_CLIENT_ID }}
           VITE_SUPABASE_OAUTH_TOKEN_URL: https://jagugsfdnwyaclrxpsum.supabase.co/functions/v1/supabase-oauth-token
-          VITE_SUPABASE_OAUTH_REDIRECT_URL: lianke://oauth/supabase/callback
+          VITE_SUPABASE_OAUTH_REDIRECT_URL: https://fanghaoming.github.io/lian-ke/supabase/callback?app=1
 
       - name: Prepare stable Android debug signing
         env:

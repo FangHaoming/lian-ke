@@ -16,7 +16,7 @@ const AUTH_REDIRECT_URL = import.meta.env?.VITE_AUTH_REDIRECT_URL || appURL('aut
 const MANAGEMENT_REDIRECT_URL =
   import.meta.env?.VITE_SUPABASE_OAUTH_REDIRECT_URL ||
   (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.()
-    ? 'lianke://oauth/supabase/callback'
+    ? 'https://fanghaoming.github.io/lian-ke/supabase/callback?app=1'
     : appURL('supabase/callback'))
 const SUPABASE_MANAGEMENT_API = 'https://api.supabase.com/v1'
 const SUPABASE_OAUTH_CLIENT_ID = import.meta.env?.VITE_SUPABASE_OAUTH_CLIENT_ID || ''
