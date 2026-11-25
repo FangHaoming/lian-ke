@@ -179,7 +179,9 @@
       .replace(/^\/+|\/+$/g, '')
     const hashPath = window.location.hash.replace(/^#\/?/, '').replace(/^\/+|\/+$/g, '')
     const queryTab = new URLSearchParams(window.location.search).get('tab') || ''
-    return routeTabs[pathname] || routeTabs[hashPath] || (routes[queryTab] !== undefined ? queryTab : 'train')
+    return routes[queryTab] !== undefined
+      ? queryTab
+      : routeTabs[pathname] || routeTabs[hashPath] || 'train'
   }
 
   function isAuthCallbackLocation() {
