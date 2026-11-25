@@ -21,6 +21,7 @@
     const pathname = window.location.pathname
       .replace(new RegExp(`^${basePath}`), '')
       .replace(/^\/+|\/+$/g, '')
+    const hashPath = window.location.hash.replace(/^#\/?/, '').replace(/^\/+|\/+$/g, '')
     return (
       {
         challenges: 'challenges',
@@ -28,7 +29,15 @@
         sleep: 'sleep',
         stats: 'stats',
         settings: 'settings',
-      }[pathname] || 'train'
+      }[pathname] ||
+      {
+        challenges: 'challenges',
+        weight: 'weight',
+        sleep: 'sleep',
+        stats: 'stats',
+        settings: 'settings',
+      }[hashPath] ||
+      'train'
     )
   }
 
