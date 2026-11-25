@@ -59,7 +59,7 @@ pnpm native:sync
 ```
 
 - Android：训练开始后启动前台服务，在锁屏和通知栏展示不可滑除的训练通知及系统 Chronometer。使用 `pnpm native:android` 打开 Android Studio；Android 13 以上首次训练会请求通知权限。
-- Android App 默认使用 APK 内置的 Web 资源，因此首次启动和断网时都可以打开；网页端使用 Service Worker 提供离线缓存和前端资源更新。当前 Android 原生资源包更新机制尚未启用，Android 端的 HTML、JavaScript 或 CSS 更新仍需要重新发布 APK。
+- Android App 首次启动使用 APK 内置的 Web 资源；原生环境也会注册 Service Worker，在后台从 GitHub Pages 更新 HTML、JavaScript 和 CSS，并在下次启动优先使用已完整缓存的资源。远程更新失败时继续使用 APK 内置资源。原生前台服务、权限、插件等变化仍需要重新发布 APK。
 
 网页端仍保持原有 PWA 行为；原生桥接只会在 Capacitor 环境中启用。
 

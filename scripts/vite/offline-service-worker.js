@@ -46,6 +46,8 @@ export function offlineServiceWorker() {
 const PRECACHE = \`lianke-precache-\${VERSION}\`
 const RUNTIME = \`lianke-runtime-\${VERSION}\`
 const MEDIA = 'lianke-media-v1'
+const REMOTE_BASE = 'https://fanghaoming.github.io/lian-ke/'
+const REMOTE_CACHE = 'lianke-remote-v1'
 const PRECACHE_URLS = ${JSON.stringify([...new Set(precacheURLs)], null, 2)}
 
 async function precacheApp() {
@@ -74,9 +76,34 @@ async function precacheApp() {
 }
 
 async function matchCached(request) {
+  const remoteCache = await caches.open(REMOTE_CACHE)
+  const remote = await remoteCache.match(request, { ignoreSearch: true })
+  if (remote) return remote
   const currentCache = await caches.open(PRECACHE)
   return (await currentCache.match(request, { ignoreSearch: true })) ||
     caches.match(request, { ignoreSearch: true })
+}
+
+async function refreshRemoteWebAssets() {
+  try {
+    const remoteWorker = await fetch(new URL('service-worker.js', REMOTE_BASE), {
+      cache: 'no-store',
+    })
+    if (!remoteWorker.ok) return
+    const source = await remoteWorker.text()
+    const match = source.match(/const PRECACHE_URLS = (\[[\\s\\S]*?\])/)
+    if (!match) return
+    const urls = JSON.parse(match[1]).filter((url) => /\.html(?:$|[?#])|\.js(?:$|[?#])|\.css(?:$|[?#])|\.json(?:$|[?#])/.test(url) || url === './' || url === './manifest.webmanifest')
+    const cache = await caches.open(REMOTE_CACHE)
+    for (const path of urls) {
+      const remoteURL = new URL(path, REMOTE_BASE)
+      const localURL = new URL(path, self.registration.scope)
+      const response = await fetch(remoteURL, { cache: 'no-store' })
+      if (response.ok) await cache.put(localURL, response.clone())
+    }
+  } catch {
+    // The APK's bundled cache remains the fallback when remote refresh fails.
+  }
 }
 
 self.addEventListener('install', (event) => {
@@ -111,7 +138,7 @@ async function activateCaches() {
 }
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(activateCaches().then(() => self.clients.claim()))
+  event.waitUntil(activateCaches().then(() => self.clients.claim()).then(() => refreshRemoteWebAssets()))
 })
 
 function navigationFallback(pathname) {
@@ -132,13 +159,15 @@ async function trimCache(cacheName, maxEntries) {
 }
 
 async function networkFirstNavigation(request) {
+  const cached = await matchCached(request)
   try {
-    return await Promise.race([
+    const network = await Promise.race([
       fetch(request),
       new Promise((_, reject) => setTimeout(() => reject(new Error('network timeout')), 3500)),
     ])
+    return network
   } catch {
-    return (await matchCached(navigationFallback(new URL(request.url).pathname))) || Response.error()
+    return cached || (await matchCached(navigationFallback(new URL(request.url).pathname))) || Response.error()
   }
 }
 
