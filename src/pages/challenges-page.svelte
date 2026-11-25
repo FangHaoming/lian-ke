@@ -828,17 +828,6 @@
           次作为上限目标。
         </p>
       {/if}
-      <div class="challenge-technique">
-        <h3>动作与计数</h3>
-        <p>{level.tip}</p>
-        <p class="muted small">
-          {level.mode === 'time'
-            ? '单组连续保持，中断后重新计时，不能累加多次保持时长。'
-            : '每组分别记录完整动作次数，不将不同组或不同次挑战的成绩相加。'}{level.unilateral
-            ? '左右两侧均须完成全部目标组数。'
-            : ''}
-        </p>
-      </div>
       <a class="challenge-source" href={sourceViewer(level.sourcePage)}>
         在线查看《囚徒健身》原书 · 第 {level.sourcePage} 页 ↗
       </a>
