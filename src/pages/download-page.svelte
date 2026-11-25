@@ -11,6 +11,7 @@
   let latestReleases = { stable: null, testing: null }
   let checking = false
   let currentVersion = packageJson.version
+  let isNativeApp = false
 
   onMount(() => {
     void loadCurrentVersion()
@@ -19,7 +20,10 @@
 
   async function loadCurrentVersion() {
     const info = await nativeAppInfo()
-    if (info?.version) currentVersion = info.version
+    if (info?.version) {
+      currentVersion = info.version
+      isNativeApp = true
+    }
   }
 
   async function checkForUpdate() {
@@ -59,7 +63,11 @@
   <section class="download-hero">
     <p class="download-eyebrow">ANDROID APP</p>
     <div class="download-version-row">
-      <p class="download-version">当前版本 v{currentVersion} · 最新正式版 v{stableVersion}</p>
+      {#if isNativeApp}
+        <p class="download-version">当前版本 v{currentVersion}</p>
+      {:else}
+        <p class="download-version">最新正式版 v{stableVersion}</p>
+      {/if}
       <button class="download-check" type="button" on:click={checkForUpdate} disabled={checking}>
         {checking ? '检查中…' : '检查更新'}
       </button>
