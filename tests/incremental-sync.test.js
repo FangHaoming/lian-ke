@@ -48,6 +48,92 @@ test('pending sync counts compare local data with the previous remote baseline',
   })
 })
 
+test('pending sync counts ignore remote baseline items deleted locally', () => {
+  const baseline = {
+    exerciseNames: ['俯卧撑'],
+    plans: [{ id: 'plan-1', name: '基础' }],
+    records: [{ id: 'record-1', results: [{ completed: true }] }],
+    weights: [{ recordedAt: '2026-11-13T08:00:00.000Z', kg: 70 }],
+    sleepRecords: [],
+    sounds: { set: 'triple' },
+    challenges: { version: 1, attempts: [] },
+  }
+
+  assert.deepEqual(
+    pendingSyncCounts(
+      {
+        exerciseNames: [],
+        plans: [],
+        records: [],
+        weights: [],
+        sleepRecords: [],
+        sounds: { set: 'triple' },
+        challenges: { version: 1, attempts: [] },
+      },
+      baseline,
+    ),
+    {
+      exerciseNames: 0,
+      plans: 0,
+      records: 0,
+      weights: 0,
+      sleep: 0,
+      sounds: 0,
+      challenges: 0,
+    },
+  )
+})
+
+test('pending sync counts treat equivalent training records with different ids as synced', () => {
+  const record = {
+    id: 'remote-record',
+    startedAt: '2026-11-13T08:00:00.000Z',
+    finishedAt: '2026-11-13T08:10:00.000Z',
+    results: [{ completed: true }],
+  }
+  assert.equal(
+    pendingSyncCounts({ records: [{ ...record, id: 'local-record' }] }, { records: [record] })
+      .records,
+    0,
+  )
+})
+
+test('pending sync counts ignore persisted training-set helper ids', () => {
+  const record = {
+    id: 'record-1',
+    startedAt: '2026-11-13T08:00:00.000Z',
+    finishedAt: '2026-11-13T08:10:00.000Z',
+    results: [{ sortOrder: 0, completed: true }],
+  }
+  assert.equal(
+    pendingSyncCounts(
+      { records: [{ ...record, results: [{ ...record.results[0], id: 'record-1:0' }] }] },
+      { records: [record] },
+    ).records,
+    0,
+  )
+})
+
+test('default sound settings do not create a pending sound item', () => {
+  assert.equal(
+    pendingSyncCounts(
+      { sounds: { set: 'triple', rest: 'double', finish: 'victory', vibrate: false } },
+      { sounds: {} },
+    ).sounds,
+    0,
+  )
+})
+
+test('clearing local data does not count remote custom sounds as pending', () => {
+  assert.equal(
+    pendingSyncCounts(
+      { sounds: { set: 'triple', rest: 'double', finish: 'victory', vibrate: false } },
+      { sounds: { set: 'alarm', rest: 'bell', finish: 'rising', vibrate: true } },
+    ).sounds,
+    0,
+  )
+})
+
 test('unfinished sleep records are excluded from pending sync', () => {
   assert.equal(
     pendingSyncCounts({ sleepRecords: [{ id: 'open', asleepAt: '2026-11-13T13:00:00.000Z' }] })

@@ -59,7 +59,7 @@ function syncSnapshot(data) {
     records: completedRecords(data.records || []),
     weights: dailyWeights(data.weights || []),
     sleepRecords: canonicalSleepRecords(data.sleepRecords),
-    sounds: data.sounds || {},
+    sounds: { ...defaults().sounds, ...(data.sounds || {}) },
     challenges: normalizeChallenges(data.challenges),
   }
 }
@@ -103,12 +103,43 @@ function stableJson(value) {
   return JSON.stringify(stableValue(value))
 }
 
-function changedItemCount(currentItems, baselineItems, keyOf) {
+function changedItemCount(currentItems, baselineItems, keyOf, normalize = (item) => item) {
   const current = new Map(currentItems.map((item) => [keyOf(item), item]))
   const baseline = new Map(baselineItems.map((item) => [keyOf(item), item]))
-  const keys = new Set([...current.keys(), ...baseline.keys()])
-  return [...keys].filter((key) => stableJson(current.get(key)) !== stableJson(baseline.get(key)))
-    .length
+  // A local deletion is not uploadable by the current sync protocol. Only
+  // count data that still exists locally and is new or changed compared with
+  // the last remote baseline.
+  return [...current.keys()].filter(
+    (key) => stableJson(normalize(current.get(key))) !== stableJson(normalize(baseline.get(key))),
+  ).length
+}
+
+function trainingRecordValue(record) {
+  if (!record) return null
+  const { id, results, ...value } = record
+  if (Array.isArray(results)) {
+    value.results = results
+      .map(({ id: resultId, recordId, ...result }) => result)
+      .sort(
+        (left, right) =>
+          Number(left.sortOrder ?? left.setIndex ?? 0) -
+          Number(right.sortOrder ?? right.setIndex ?? 0),
+      )
+  }
+  return value
+}
+
+function changedTrainingRecordCount(currentRecords, baselineRecords) {
+  const baselineByKey = new Map(
+    baselineRecords.map((record) => [trainingRecordKey(record), record]),
+  )
+  return currentRecords.filter((record) => {
+    const baseline = baselineByKey.get(trainingRecordKey(record))
+    return (
+      !baseline ||
+      stableJson(trainingRecordValue(record)) !== stableJson(trainingRecordValue(baseline))
+    )
+  }).length
 }
 
 export function loadSyncBaseline() {
@@ -153,6 +184,8 @@ export function pendingSyncCounts(data, baseline = loadSyncBaseline()) {
     weights: baseline.weights === undefined ? undefined : dailyWeights(baseline.weights),
     sleepRecords: canonicalSleepRecords(baseline.sleepRecords),
   }
+  const defaultSounds = defaults().sounds
+  const currentSoundsAreDefault = stableJson(current.sounds) === stableJson(defaultSounds)
   return {
     exerciseNames:
       baseline.exerciseNames === undefined
@@ -165,7 +198,7 @@ export function pendingSyncCounts(data, baseline = loadSyncBaseline()) {
     records:
       baseline.records === undefined
         ? current.records.length
-        : changedItemCount(current.records, baseline.records, (record) => record.id),
+        : changedTrainingRecordCount(current.records, baseline.records),
     weights:
       baseline.weights === undefined
         ? current.weights.length
@@ -176,8 +209,11 @@ export function pendingSyncCounts(data, baseline = loadSyncBaseline()) {
       baseline.sleepRecords === undefined
         ? current.sleepRecords.length
         : changedItemCount(current.sleepRecords, baseline.sleepRecords, (record) => record.id),
-    sounds:
-      baseline.sounds === undefined || stableJson(current.sounds) !== stableJson(baseline.sounds)
+    sounds: currentSoundsAreDefault
+      ? 0
+      : baseline.sounds === undefined ||
+          stableJson(current.sounds) !==
+            stableJson({ ...defaults().sounds, ...(baseline.sounds || {}) })
         ? 1
         : 0,
     challenges:
