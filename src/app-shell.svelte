@@ -531,6 +531,10 @@
     await openNativeExternalUrl(nativeUpdate.apkUrl)
     nativeUpdateOpening = false
   }
+
+  function dismissNativeUpdate() {
+    nativeUpdate = null
+  }
 </script>
 
 <svelte:head>
@@ -725,7 +729,6 @@
     <aside class="native-update-banner" aria-live="polite">
       <div>
         <strong>发现练刻新版本 v{nativeUpdate.latestVersion}</strong>
-        <small>当前版本 v{nativeUpdate.currentVersion}，下载 APK 后按系统提示更新。</small>
       </div>
       <button
         class="btn primary"
@@ -734,6 +737,14 @@
         disabled={nativeUpdateOpening}
       >
         {nativeUpdateOpening ? '正在打开…' : '立即更新'}
+      </button>
+      <button
+        class="native-update-dismiss"
+        type="button"
+        aria-label="关闭版本更新提示"
+        on:click={dismissNativeUpdate}
+      >
+        ×
       </button>
     </aside>
   {/if}
