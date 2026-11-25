@@ -4,6 +4,7 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.app.AlarmManager;
 import android.app.Service;
 import android.content.Intent;
 import android.graphics.Color;
@@ -21,12 +22,16 @@ import androidx.core.app.NotificationCompat;
 public class TrainingForegroundService extends Service {
     public static final String ACTION_UPDATE = "com.fanghaoming.lianke.training.UPDATE";
     public static final String ACTION_STOP = "com.fanghaoming.lianke.training.STOP";
+    public static final String ACTION_TIMER_FINISHED = "com.fanghaoming.lianke.training.TIMER_FINISHED";
     // Bump the channel id so installs that already created the old LOW/
     // silent channel receive the lock-screen-visible importance below.
     private static final String CHANNEL_ID = "active_training_v2";
-    private static final String ALERT_CHANNEL_ID = "training_alerts_v1";
+    // Use a new channel id so devices that previously created this channel
+    // with a lower importance can receive a heads-up banner.
+    private static final String ALERT_CHANNEL_ID = "training_alerts_v2";
     private static final int NOTIFICATION_ID = 4101;
     private static final int ALERT_NOTIFICATION_ID = 4102;
+    private static final int TIMER_ALARM_REQUEST_CODE = 4103;
     // Match the app's bright lime theme accent on the lock-screen progress bar.
     private static final int NOTIFICATION_COLOR = Color.rgb(183, 243, 106);
     private final Handler notificationHandler = new Handler(Looper.getMainLooper());
@@ -50,13 +55,27 @@ public class TrainingForegroundService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent == null || ACTION_STOP.equals(intent.getAction())) {
+        if (ACTION_STOP.equals(intent == null ? null : intent.getAction())) {
             notificationHandler.removeCallbacks(notificationTicker);
+            cancelTimerAlarm();
             latestUpdate = null;
             notifiedEndAt = 0L;
             stopForeground(STOP_FOREGROUND_REMOVE);
             stopSelf();
             return START_NOT_STICKY;
+        }
+        // START_STICKY may restart the service with a null intent. Keep the
+        // last countdown alive instead of treating that restart as a stop.
+        if (intent == null) {
+            if (latestUpdate == null) return START_NOT_STICKY;
+            startForeground(NOTIFICATION_ID, buildNotification(latestUpdate));
+            notificationHandler.removeCallbacks(notificationTicker);
+            notificationHandler.post(notificationTicker);
+            return START_STICKY;
+        }
+        if (ACTION_TIMER_FINISHED.equals(intent.getAction())) {
+            notifyCountdownFinishedIfNeeded(latestUpdate);
+            return START_STICKY;
         }
         // The web layer may advance to the next phase before the native
         // ticker gets its next second. Check the previous phase once more so
@@ -67,6 +86,7 @@ public class TrainingForegroundService extends Service {
         if (timerEndAt != notifiedEndAt && timerEndAt > 0L && timerEndAt > System.currentTimeMillis()) {
             notifiedEndAt = 0L;
         }
+        scheduleTimerAlarm(timerEndAt);
         startForeground(NOTIFICATION_ID, buildNotification(intent));
         notificationHandler.removeCallbacks(notificationTicker);
         notificationHandler.postDelayed(notificationTicker, 1000L);
@@ -74,6 +94,7 @@ public class TrainingForegroundService extends Service {
     }
 
     private void notifyCountdownFinishedIfNeeded(Intent data) {
+        if (data == null) return;
         if (data.getBooleanExtra("paused", false)) return;
         long timerEndAt = data.getLongExtra("timerEndAt", 0L);
         if (timerEndAt <= 0L || timerEndAt > System.currentTimeMillis() || timerEndAt == notifiedEndAt) return;
@@ -106,6 +127,47 @@ public class TrainingForegroundService extends Service {
             .setWhen(System.currentTimeMillis())
             .build();
         getSystemService(NotificationManager.class).notify(ALERT_NOTIFICATION_ID, notification);
+    }
+
+    private void scheduleTimerAlarm(long timerEndAt) {
+        cancelTimerAlarm();
+        if (timerEndAt <= System.currentTimeMillis()) return;
+
+        Intent alarmIntent = new Intent(this, TrainingForegroundService.class)
+            .setAction(ACTION_TIMER_FINISHED);
+        PendingIntent alarmPendingIntent = PendingIntent.getService(
+            this,
+            TIMER_ALARM_REQUEST_CODE,
+            alarmIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
+        if (alarmManager == null) return;
+        try {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP, timerEndAt, alarmPendingIntent
+            );
+        } catch (SecurityException ignored) {
+            // Devices that restrict exact alarms still get a Doze-compatible
+            // wakeup; the foreground-service ticker remains the fallback.
+            alarmManager.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP, timerEndAt, alarmPendingIntent
+            );
+        }
+    }
+
+    private void cancelTimerAlarm() {
+        Intent alarmIntent = new Intent(this, TrainingForegroundService.class)
+            .setAction(ACTION_TIMER_FINISHED);
+        PendingIntent alarmPendingIntent = PendingIntent.getService(
+            this,
+            TIMER_ALARM_REQUEST_CODE,
+            alarmIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
+        if (alarmManager != null) alarmManager.cancel(alarmPendingIntent);
+        alarmPendingIntent.cancel();
     }
 
     private Notification buildNotification(Intent data) {
@@ -216,6 +278,7 @@ public class TrainingForegroundService extends Service {
     @Override
     public void onDestroy() {
         notificationHandler.removeCallbacks(notificationTicker);
+        cancelTimerAlarm();
         latestUpdate = null;
         notifiedEndAt = 0L;
         stopForeground(STOP_FOREGROUND_REMOVE);
