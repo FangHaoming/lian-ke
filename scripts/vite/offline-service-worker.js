@@ -95,6 +95,19 @@ async function getCurrentRemoteCache() {
   return version ? caches.open(\`${REMOTE_CACHE_PREFIX}\${version}\`) : null
 }
 
+async function cleanupRemoteCaches(keepVersion = '') {
+  const keys = await caches.keys()
+  await Promise.all(
+    keys
+      .filter(
+        (key) =>
+          key.startsWith(REMOTE_CACHE_PREFIX) &&
+          key !== (keepVersion ? \`${REMOTE_CACHE_PREFIX}\${keepVersion}\` : ''),
+      )
+      .map((key) => caches.delete(key)),
+  )
+}
+
 async function notifyClients(message) {
   const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
   clients.forEach((client) => client.postMessage(message))
@@ -124,15 +137,11 @@ async function refreshRemoteWebAssets() {
     }
     const pointer = await caches.open(REMOTE_POINTER)
     await pointer.put('./current', new Response(version))
-    const keys = await caches.keys()
-    await Promise.all(
-      keys
-        .filter((key) => key.startsWith(REMOTE_CACHE_PREFIX) && key !== \`${REMOTE_CACHE_PREFIX}\${version}\`)
-        .map((key) => caches.delete(key)),
-    )
+    await cleanupRemoteCaches(version)
     await notifyClients({ type: 'REMOTE_UPDATE_READY', version })
   } catch {
     // The APK's bundled cache remains the fallback when remote refresh fails.
+    await cleanupRemoteCaches()
     await notifyClients({ type: 'REMOTE_UPDATE_FAILED' })
   }
 }
@@ -177,7 +186,12 @@ async function activateCaches() {
 }
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(activateCaches().then(() => self.clients.claim()).then(() => refreshRemoteWebAssets()))
+  event.waitUntil(
+    activateCaches()
+      .then(() => cleanupRemoteCaches())
+      .then(() => self.clients.claim())
+      .then(() => refreshRemoteWebAssets()),
+  )
 })
 
 function navigationFallback(pathname) {
