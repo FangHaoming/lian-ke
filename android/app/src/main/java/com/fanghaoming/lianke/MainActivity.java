@@ -3,6 +3,7 @@ package com.fanghaoming.lianke;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.net.Uri;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -18,6 +19,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(NativeTrainingPlugin.class);
         super.onCreate(savedInstanceState);
         dispatchTrainingNavigation(getIntent());
+        dispatchOAuthCallback(getIntent());
     }
 
     @Override
@@ -25,6 +27,24 @@ public class MainActivity extends BridgeActivity {
         super.onNewIntent(intent);
         setIntent(intent);
         dispatchTrainingNavigation(intent);
+        dispatchOAuthCallback(intent);
+    }
+
+    private void dispatchOAuthCallback(android.content.Intent intent) {
+        Uri data = intent == null ? null : intent.getData();
+        if (data == null || !"lianke".equals(data.getScheme())) return;
+        String query = data.getQuery();
+        if (query == null || query.isEmpty()) return;
+        intent.setData(null);
+        Handler handler = new Handler(Looper.getMainLooper());
+        Runnable openCallback = () -> {
+            if (getBridge() == null || getBridge().getWebView() == null) return;
+            getBridge().getWebView().loadUrl(
+                "https://fanghaoming.github.io/lian-ke/supabase/callback?" + query
+            );
+        };
+        handler.postDelayed(openCallback, 350L);
+        handler.postDelayed(openCallback, 1200L);
     }
 
     private void dispatchTrainingNavigation(android.content.Intent intent) {
