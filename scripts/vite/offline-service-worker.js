@@ -92,7 +92,7 @@ async function getCurrentRemoteCache() {
   const response = await pointer.match('./current')
   if (!response) return null
   const version = (await response.text()).trim()
-  return version ? caches.open(\`${REMOTE_CACHE_PREFIX}\${version}\`) : null
+  return version ? caches.open(\`\${REMOTE_CACHE_PREFIX}\${version}\`) : null
 }
 
 async function cleanupRemoteCaches(keepVersion = '') {
@@ -102,7 +102,7 @@ async function cleanupRemoteCaches(keepVersion = '') {
       .filter(
         (key) =>
           key.startsWith(REMOTE_CACHE_PREFIX) &&
-          key !== (keepVersion ? \`${REMOTE_CACHE_PREFIX}\${keepVersion}\` : ''),
+          key !== (keepVersion ? \`\${REMOTE_CACHE_PREFIX}\${keepVersion}\` : ''),
       )
       .map((key) => caches.delete(key)),
   )
@@ -127,7 +127,7 @@ async function refreshRemoteWebAssets() {
     if (!versionMatch || !match) return
     const version = versionMatch[1]
     const urls = JSON.parse(match[1]).filter((url) => /\.html(?:$|[?#])|\.js(?:$|[?#])|\.css(?:$|[?#])|\.json(?:$|[?#])/.test(url) || url === './' || url === './manifest.webmanifest')
-    const cache = await caches.open(\`${REMOTE_CACHE_PREFIX}\${version}\`)
+    const cache = await caches.open(\`\${REMOTE_CACHE_PREFIX}\${version}\`)
     for (const path of urls) {
       const remoteURL = new URL(path, REMOTE_BASE)
       const localURL = new URL(path, self.registration.scope)
