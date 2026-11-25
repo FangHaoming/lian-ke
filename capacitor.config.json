@@ -2,6 +2,10 @@
   "appId": "com.fanghaoming.lianke",
   "appName": "练刻",
   "webDir": "dist",
+  "server": {
+    "url": "https://fanghaoming.github.io/lian-ke/",
+    "cleartext": false
+  },
   "android": {
     "allowMixedContent": false
   }

@@ -1,7 +1,7 @@
 {
   "name": "lian-ke",
   "private": true,
-  "version": "1.0.9",
+  "version": "1.0.10-rc.1",
   "type": "module",
   "engines": {
     "node": ">=22 <23"

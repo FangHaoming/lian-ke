@@ -1,6 +1,5 @@
-import { appPath } from './config.js'
+import { appURL } from './config.js'
 import { showToast } from './toast.js'
-import { Capacitor } from '@capacitor/core'
 
 function showConnectionStatus(online) {
   showToast(online ? '网络已恢复' : '网络已断开，已缓存页面仍可访问', {
@@ -10,7 +9,7 @@ function showConnectionStatus(online) {
 }
 
 export function setupOfflineSupport() {
-  if (Capacitor.isNativePlatform() || !import.meta.env.PROD || !('serviceWorker' in navigator))
+  if (!import.meta.env.PROD || !('serviceWorker' in navigator))
     return () => {}
 
   let isReloading = false
@@ -33,8 +32,8 @@ export function setupOfflineSupport() {
   if (!navigator.onLine) showConnectionStatus(false)
 
   navigator.serviceWorker
-    .register(appPath('service-worker.js'), {
-      scope: appPath(''),
+    .register(appURL('service-worker.js'), {
+      scope: appURL(''),
       updateViaCache: 'none',
     })
     .then((registration) => {
