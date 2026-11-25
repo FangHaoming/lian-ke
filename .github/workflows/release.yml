@@ -51,6 +51,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_SUPABASE_OAUTH_CLIENT_ID: ${{ secrets.VITE_SUPABASE_OAUTH_CLIENT_ID }}
           VITE_SUPABASE_OAUTH_TOKEN_URL: https://jagugsfdnwyaclrxpsum.supabase.co/functions/v1/supabase-oauth-token
+          VITE_SUPABASE_OAUTH_REDIRECT_URL: https://fanghaoming.github.io/lian-ke/supabase/callback
 
       - name: Package web release
         run: tar -czf "lianke-web-${GITHUB_REF_NAME}.tar.gz" -C dist .
@@ -63,6 +64,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_SUPABASE_OAUTH_CLIENT_ID: ${{ secrets.VITE_SUPABASE_OAUTH_CLIENT_ID }}
           VITE_SUPABASE_OAUTH_TOKEN_URL: https://jagugsfdnwyaclrxpsum.supabase.co/functions/v1/supabase-oauth-token
+          VITE_SUPABASE_OAUTH_REDIRECT_URL: https://fanghaoming.github.io/lian-ke/supabase/callback
 
       - name: Prepare stable Android debug signing
         env:

@@ -14,7 +14,8 @@ const SYNC_SELECTION_KEY = 'lianke_sync_selection'
 const SYNC_BASELINE_KEY = 'lianke_sync_baseline'
 const AUTH_REDIRECT_URL = import.meta.env?.VITE_AUTH_REDIRECT_URL || appURL('auth/callback')
 const MANAGEMENT_REDIRECT_URL =
-  import.meta.env?.VITE_SUPABASE_OAUTH_REDIRECT_URL || appURL('supabase/callback')
+  import.meta.env?.VITE_SUPABASE_OAUTH_REDIRECT_URL ||
+  'https://fanghaoming.github.io/lian-ke/supabase/callback'
 const SUPABASE_MANAGEMENT_API = 'https://api.supabase.com/v1'
 const SUPABASE_OAUTH_CLIENT_ID = import.meta.env?.VITE_SUPABASE_OAUTH_CLIENT_ID || ''
 const SUPABASE_OAUTH_TOKEN_URL = import.meta.env?.VITE_SUPABASE_OAUTH_TOKEN_URL || ''
