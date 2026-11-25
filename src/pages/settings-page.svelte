@@ -54,10 +54,10 @@
   const DATA_SCHEMA_VERSION = 2
   let syncSelection = loadSyncSelection()
   let syncBaseline = loadSyncBaseline()
-  function setStatus(message, type = 'info') {
+  function setStatus(message, type = 'info', duration = 2800) {
     status = message
     statusType = type
-    showToast(message, { type })
+    showToast(message, { type, duration })
   }
   function deletePasswordMessage(error) {
     const message = String(error?.message || '').toLowerCase()
@@ -111,12 +111,14 @@
   }
   async function connectManagedSupabase() {
     try {
+      setStatus('正在打开云端连接……', 'info', 0)
       await connectSupabase()
     } catch (error) {
       setStatus(error.message, 'error')
     }
   }
   async function loadManagedProjects({ autoInitialize = false } = {}) {
+    if (!autoInitialize) setStatus('正在刷新数据空间……', 'info', 0)
     try {
       managementProjects = await listSupabaseProjects()
       localStorage.setItem(PROJECTS_KEY, JSON.stringify(managementProjects))
@@ -148,6 +150,7 @@
   async function initializeManagedProject() {
     if (!selectedProjectRef) return
     busy = true
+    setStatus('正在设置云端同步，请稍候……', 'info', 0)
     try {
       localStorage.setItem(SELECTED_PROJECT_KEY, selectedProjectRef)
       await configureSupabaseAuth(selectedProjectRef)
