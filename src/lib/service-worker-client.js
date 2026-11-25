@@ -1,5 +1,6 @@
 import { appURL } from './config.js'
 import { showToast } from './toast.js'
+import { Capacitor } from '@capacitor/core'
 
 function showConnectionStatus(online) {
   showToast(online ? '网络已恢复' : '网络已断开，已缓存页面仍可访问', {
@@ -18,8 +19,15 @@ export function setupOfflineSupport() {
   let trainingActive = Boolean(window.__liankeTrainingActive)
   const isTrainingActive = () => Boolean(window.__liankeTrainingActive)
   const activateWaitingWorker = (registration) => {
-    if (!registration?.waiting || isTrainingActive()) return
+    // Native WebView updates are intentionally staged for the next app launch.
+    // Activating a waiting worker here would fire controllerchange and reload
+    // the current screen unexpectedly.
+    if (Capacitor.isNativePlatform() || !registration?.waiting || isTrainingActive()) return
     registration.waiting.postMessage({ type: 'SKIP_WAITING' })
+  }
+  const showResourceUpdateToast = () => {
+    if (Capacitor.isNativePlatform()) return
+    showToast('页面内容已更新，正在应用', { type: 'success', duration: 5000 })
   }
   const handleTrainingState = () => {
     trainingActive = isTrainingActive()
@@ -61,7 +69,7 @@ export function setupOfflineSupport() {
       registration.update().catch(() => {})
       if (registration.waiting && navigator.serviceWorker.controller) {
         if (!isTrainingActive()) {
-          showToast('新版本已准备好，正在更新', { type: 'success', duration: 5000 })
+          showResourceUpdateToast()
           activateWaitingWorker(registration)
         }
       }
@@ -71,7 +79,7 @@ export function setupOfflineSupport() {
         worker.addEventListener('statechange', () => {
           if (worker.state === 'installed' && navigator.serviceWorker.controller) {
             if (!isTrainingActive()) {
-              showToast('新版本已准备好，正在更新', { type: 'success', duration: 5000 })
+              showResourceUpdateToast()
               activateWaitingWorker(registration)
             }
           }
