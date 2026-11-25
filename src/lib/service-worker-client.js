@@ -43,6 +43,16 @@ export function setupOfflineSupport() {
     })
     if (!trainingActive) activateWaitingWorker(activeRegistration)
   }
+  const handleWorkerMessage = (event) => {
+    if (!Capacitor.isNativePlatform()) return
+    if (event.data?.type === 'REMOTE_UPDATE_START') {
+      showToast('正在下载应用资源更新…', { type: 'info', duration: 3000 })
+    } else if (event.data?.type === 'REMOTE_UPDATE_READY') {
+      showToast('资源更新已准备好，下次启动时应用', { type: 'success', duration: 5000 })
+    } else if (event.data?.type === 'REMOTE_UPDATE_FAILED') {
+      showToast('资源更新失败，继续使用当前版本', { type: 'info', duration: 4500 })
+    }
+  }
   const handleOnline = () => showConnectionStatus(true)
   const handleOffline = () => showConnectionStatus(false)
   const handleControllerChange = () => {
@@ -57,6 +67,7 @@ export function setupOfflineSupport() {
   window.addEventListener('online', handleOnline)
   window.addEventListener('offline', handleOffline)
   navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange)
+  navigator.serviceWorker.addEventListener('message', handleWorkerMessage)
   window.addEventListener('lianke-training-state', handleTrainingState)
 
   if (!navigator.onLine) showConnectionStatus(false)
@@ -68,6 +79,10 @@ export function setupOfflineSupport() {
     })
     .then((registration) => {
       activeRegistration = registration
+      navigator.serviceWorker.controller?.postMessage({
+        type: 'RUNTIME_MODE',
+        native: Capacitor.isNativePlatform(),
+      })
       navigator.serviceWorker.controller?.postMessage({ type: 'TRAINING_STATE', active: trainingActive })
       if (!trainingActive) {
         navigator.serviceWorker.controller?.postMessage({ type: 'REFRESH_REMOTE' })
@@ -104,6 +119,7 @@ export function setupOfflineSupport() {
     window.removeEventListener('online', handleOnline)
     window.removeEventListener('offline', handleOffline)
     navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange)
+    navigator.serviceWorker.removeEventListener('message', handleWorkerMessage)
     window.removeEventListener('lianke-training-state', handleTrainingState)
   }
 }

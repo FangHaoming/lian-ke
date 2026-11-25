@@ -47,8 +47,10 @@ const PRECACHE = \`lianke-precache-\${VERSION}\`
 const RUNTIME = \`lianke-runtime-\${VERSION}\`
 const MEDIA = 'lianke-media-v1'
 const REMOTE_BASE = 'https://fanghaoming.github.io/lian-ke/'
-const REMOTE_CACHE = 'lianke-remote-v1'
+const REMOTE_CACHE_PREFIX = 'lianke-remote-'
+const REMOTE_POINTER = 'lianke-remote-pointer-v1'
 let trainingActive = false
+let nativeRuntime = false
 const PRECACHE_URLS = ${JSON.stringify([...new Set(precacheURLs)], null, 2)}
 
 async function precacheApp() {
@@ -77,34 +79,61 @@ async function precacheApp() {
 }
 
 async function matchCached(request) {
-  const remoteCache = await caches.open(REMOTE_CACHE)
-  const remote = await remoteCache.match(request, { ignoreSearch: true })
+  const remoteCache = await getCurrentRemoteCache()
+  const remote = remoteCache && (await remoteCache.match(request, { ignoreSearch: true }))
   if (remote) return remote
   const currentCache = await caches.open(PRECACHE)
   return (await currentCache.match(request, { ignoreSearch: true })) ||
     caches.match(request, { ignoreSearch: true })
 }
 
+async function getCurrentRemoteCache() {
+  const pointer = await caches.open(REMOTE_POINTER)
+  const response = await pointer.match('./current')
+  if (!response) return null
+  const version = (await response.text()).trim()
+  return version ? caches.open(\`${REMOTE_CACHE_PREFIX}\${version}\`) : null
+}
+
+async function notifyClients(message) {
+  const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+  clients.forEach((client) => client.postMessage(message))
+}
+
 async function refreshRemoteWebAssets() {
   if (trainingActive) return
+  await notifyClients({ type: 'REMOTE_UPDATE_START' })
   try {
     const remoteWorker = await fetch(new URL('service-worker.js', REMOTE_BASE), {
       cache: 'no-store',
     })
     if (!remoteWorker.ok) return
     const source = await remoteWorker.text()
+    const versionMatch = source.match(/const VERSION = ["']([^"']+)["']/)
     const match = source.match(/const PRECACHE_URLS = (\[[\\s\\S]*?\])/)
-    if (!match) return
+    if (!versionMatch || !match) return
+    const version = versionMatch[1]
     const urls = JSON.parse(match[1]).filter((url) => /\.html(?:$|[?#])|\.js(?:$|[?#])|\.css(?:$|[?#])|\.json(?:$|[?#])/.test(url) || url === './' || url === './manifest.webmanifest')
-    const cache = await caches.open(REMOTE_CACHE)
+    const cache = await caches.open(\`${REMOTE_CACHE_PREFIX}\${version}\`)
     for (const path of urls) {
       const remoteURL = new URL(path, REMOTE_BASE)
       const localURL = new URL(path, self.registration.scope)
       const response = await fetch(remoteURL, { cache: 'no-store' })
       if (response.ok) await cache.put(localURL, response.clone())
+      else throw new Error(\`remote asset failed: \${remoteURL}\`)
     }
+    const pointer = await caches.open(REMOTE_POINTER)
+    await pointer.put('./current', new Response(version))
+    const keys = await caches.keys()
+    await Promise.all(
+      keys
+        .filter((key) => key.startsWith(REMOTE_CACHE_PREFIX) && key !== \`${REMOTE_CACHE_PREFIX}\${version}\`)
+        .map((key) => caches.delete(key)),
+    )
+    await notifyClients({ type: 'REMOTE_UPDATE_READY', version })
   } catch {
     // The APK's bundled cache remains the fallback when remote refresh fails.
+    await notifyClients({ type: 'REMOTE_UPDATE_FAILED' })
   }
 }
 
@@ -121,6 +150,7 @@ self.addEventListener('message', (event) => {
   if (event.data?.type === 'REFRESH_REMOTE' && !trainingActive) {
     event.waitUntil(refreshRemoteWebAssets())
   }
+  if (event.data?.type === 'RUNTIME_MODE') nativeRuntime = event.data.native === true
 })
 
 async function activateCaches() {
@@ -169,6 +199,7 @@ async function trimCache(cacheName, maxEntries) {
 
 async function networkFirstNavigation(request) {
   const cached = await matchCached(request)
+  if (nativeRuntime && cached) return cached
   try {
     const network = await Promise.race([
       fetch(request),
