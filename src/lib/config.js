@@ -1,6 +1,6 @@
 export const baseURL = 'https://fanghaoming.github.io/lian-ke/'
 
-function isNativeRuntime() {
+export function isNativeRuntime() {
   return typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.())
 }
 

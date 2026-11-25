@@ -175,7 +175,7 @@
     const pathname = window.location.pathname
       .replace(new RegExp(`^${basePath}`), '')
       .replace(/^\/+|\/+$/g, '')
-    return pathname === 'source'
+    return pathname === 'source' || window.location.hash.replace(/^#\/?/, '').split(/[?&]/, 1)[0] === 'source'
   }
 
   function isChallengeShareLocation() {
@@ -193,15 +193,15 @@
   }
 
   function sourcePageFromLocation() {
-    const value = Number.parseInt(
-      new URLSearchParams(window.location.search).get('page') || '1',
-      10,
-    )
+    const hash = window.location.hash.replace(/^#\/?source\??/, '')
+    const params = new URLSearchParams(window.location.search || hash)
+    const value = Number.parseInt(params.get('page') || '1', 10)
     return Number.isFinite(value) && value > 0 ? value : 1
   }
 
   function sourceActionFromLocation() {
-    return new URLSearchParams(window.location.search).get('action')?.trim() || ''
+    const hash = window.location.hash.replace(/^#\/?source\??/, '')
+    return new URLSearchParams(window.location.search || hash).get('action')?.trim() || ''
   }
 
   function restoreGithubPagesRoute() {

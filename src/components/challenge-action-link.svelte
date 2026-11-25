@@ -1,6 +1,6 @@
 <script>
   import { challengeRoutes } from '../lib/challenge-catalog.js'
-  import { appPath } from '../lib/config.js'
+  import { appPath, isNativeRuntime } from '../lib/config.js'
 
   export let name = ''
   export let returnPath = appPath()
@@ -9,9 +9,11 @@
     .flatMap((route) => route.levels.map((level) => ({ level })))
     .find((entry) => entry.level.name === name.trim())
   $: href = target
-    ? appPath(
-        `source/?page=${encodeURIComponent(target.level.sourcePage)}&action=${encodeURIComponent(target.level.name)}&return=${encodeURIComponent(returnPath)}`,
-      )
+    ? isNativeRuntime()
+      ? `${appPath()}#source?page=${encodeURIComponent(target.level.sourcePage)}&action=${encodeURIComponent(target.level.name)}&return=${encodeURIComponent(returnPath)}`
+      : appPath(
+          `source/?page=${encodeURIComponent(target.level.sourcePage)}&action=${encodeURIComponent(target.level.name)}&return=${encodeURIComponent(returnPath)}`,
+        )
     : ''
 </script>
 

@@ -16,7 +16,7 @@
   } from '../lib/challenge-model.js'
   import { date } from '../lib/workout-model.js'
   import { requestConfirm } from '../lib/confirm-dialog.js'
-  import { appPath } from '../lib/config.js'
+  import { appPath, isNativeRuntime } from '../lib/config.js'
   import ChallengeShareDialog from '../components/challenge-share-dialog.svelte'
   import ExerciseIcon from '../components/exercise-icon.svelte'
 
@@ -136,7 +136,7 @@
       action: action || '',
       return: returnTo,
     })
-    return `${appPath('source/')}?${params}`
+    return isNativeRuntime() ? `${appPath()}#source?${params}` : `${appPath('source/')}?${params}`
   }
   $: dirty = false
   $: if (typeof window !== 'undefined' && routeId && levelId) {
