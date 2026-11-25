@@ -174,9 +174,10 @@
   }
 
   function weatherSnapshot() {
+    const hasTemperature = Number.isFinite(weather.temperature)
     return {
-      weather: `${weather.icon} ${weather.label}`,
-      temperature: weather.temperature,
+      weather: hasTemperature ? `${weather.icon} ${weather.label}` : '',
+      temperature: hasTemperature ? weather.temperature : null,
     }
   }
 
@@ -385,12 +386,24 @@
     <div class="sleep-history-row">
       <div class="sleep-history-times">
         <div>
-          <span class="muted small">入睡</span>
+          <span class="muted small">
+            入睡{#if record.asleepWeather && Number.isFinite(record.asleepTemperature)}
+              <span class="sleep-history-weather">
+                {record.asleepWeather} · {record.asleepTemperature}°C
+              </span>
+            {/if}
+          </span>
           <b>{formatDateTime(record.asleepAt)}</b>
         </div>
         <span class="sleep-arrow" aria-hidden="true">→</span>
         <div>
-          <span class="muted small">醒来</span>
+          <span class="muted small">
+            醒来{#if record.wakeWeather && Number.isFinite(record.wakeTemperature)}
+              <span class="sleep-history-weather">
+                {record.wakeWeather} · {record.wakeTemperature}°C
+              </span>
+            {/if}
+          </span>
           <b>{formatDateTime(record.wakeAt)}</b>
         </div>
       </div>
@@ -407,14 +420,6 @@
           </button>
         {/if}
         {#if record.note}<span class="muted small">{record.note}</span>{/if}
-        {#if record.asleepWeather}<span class="muted small">
-            入睡 {record.asleepWeather}{#if record.asleepTemperature !== undefined}
-              · {record.asleepTemperature}°C{/if}
-          </span>{/if}
-        {#if record.wakeWeather}<span class="muted small">
-            醒来 {record.wakeWeather}{#if record.wakeTemperature !== undefined}
-              · {record.wakeTemperature}°C{/if}
-          </span>{/if}
       </div>
     </div>
   {:else}<div class="empty">暂无睡眠记录，先记录入睡时间吧。</div>{/each}

@@ -46,7 +46,7 @@ export function setupOfflineSupport() {
   const handleWorkerMessage = (event) => {
     if (!Capacitor.isNativePlatform()) return
     if (event.data?.type === 'REMOTE_UPDATE_START') {
-      showToast('正在下载应用资源更新…', { type: 'info', duration: 3000 })
+      showToast('正在下载应用资源更新…', { type: 'info', duration: 0 })
     } else if (event.data?.type === 'REMOTE_UPDATE_READY') {
       showToast('资源更新已准备好，下次启动时应用', { type: 'success', duration: 5000 })
     } else if (event.data?.type === 'REMOTE_UPDATE_FAILED') {
