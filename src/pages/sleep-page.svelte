@@ -108,45 +108,66 @@
 
   function loadCurrentWeather() {
     if (weatherRequest) return weatherRequest
-    if (!navigator.geolocation) {
-      weather = { icon: '☁️', label: '暂时无法获取天气', temperature: null }
-      return Promise.resolve(false)
-    }
+    weatherRequest = (async () => {
+      let coordinates = null
 
-    weatherRequest = new Promise((resolve) => {
-      navigator.geolocation.getCurrentPosition(
-        async ({ coords }) => {
-          try {
-            const params = new URLSearchParams({
-              latitude: String(coords.latitude),
-              longitude: String(coords.longitude),
-              current: 'weather_code,is_day,temperature_2m',
-              timezone: 'auto',
-            })
-            const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
-            if (!response.ok) throw new Error('weather request failed')
-            const result = await response.json()
-            const current = result.current || {}
-            const info = weatherInfo(Number(current.weather_code), Number(current.is_day) === 1)
-            const temperature = Number(current.temperature_2m)
-            weather = {
-              icon: info.icon,
-              label: info.label,
-              temperature: Number.isFinite(temperature) ? temperature : null,
+      if (navigator.geolocation) {
+        coordinates = await new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            ({ coords }) => resolve({ latitude: coords.latitude, longitude: coords.longitude }),
+            () => resolve(null),
+            { enableHighAccuracy: false, maximumAge: 10 * 60 * 1000, timeout: 8000 },
+          )
+        })
+      }
+
+      // Some embedded browsers do not expose or allow geolocation. Fall back to
+      // an approximate IP location so the page can still show local weather.
+      if (!coordinates) {
+        try {
+          const response = await fetch('https://ipapi.co/json/')
+          if (response.ok) {
+            const location = await response.json()
+            const latitude = Number(location.latitude)
+            const longitude = Number(location.longitude)
+            if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+              coordinates = { latitude, longitude }
             }
-            resolve(true)
-          } catch {
-            weather = { icon: '☁️', label: '暂时无法获取天气', temperature: null }
-            resolve(false)
           }
-        },
-        () => {
-          weather = { icon: '☁️', label: '开启定位后显示天气', temperature: null }
-          resolve(false)
-        },
-        { enableHighAccuracy: false, maximumAge: 10 * 60 * 1000, timeout: 8000 },
-      )
-    }).finally(() => {
+        } catch {
+          // Continue to the unavailable state below.
+        }
+      }
+
+      if (!coordinates) {
+        weather = { icon: '☁️', label: '暂时无法获取天气', temperature: null }
+        return false
+      }
+
+      try {
+        const params = new URLSearchParams({
+          latitude: String(coordinates.latitude),
+          longitude: String(coordinates.longitude),
+          current: 'weather_code,is_day,temperature_2m',
+          timezone: 'auto',
+        })
+        const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
+        if (!response.ok) throw new Error('weather request failed')
+        const result = await response.json()
+        const current = result.current || {}
+        const info = weatherInfo(Number(current.weather_code), Number(current.is_day) === 1)
+        const temperature = Number(current.temperature_2m)
+        weather = {
+          icon: info.icon,
+          label: info.label,
+          temperature: Number.isFinite(temperature) ? temperature : null,
+        }
+        return Number.isFinite(temperature)
+      } catch {
+        weather = { icon: '☁️', label: '暂时无法获取天气', temperature: null }
+        return false
+      }
+    })().finally(() => {
       weatherRequest = null
     })
     return weatherRequest
@@ -280,7 +301,10 @@
           <span>{openRecord ? '记录醒来' : '记录入睡'}</span>
         </button>
         {#if hasCurrentWeather}
-          <div class="sleep-current-weather" aria-label={`当前天气：${weather.label}，${weather.temperature}°C`}>
+          <div
+            class="sleep-current-weather"
+            aria-label={`当前天气：${weather.label}，${weather.temperature}°C`}
+          >
             <span class="sleep-weather-icon" aria-hidden="true">{weather.icon}</span>
             <span class="sleep-weather-temperature">{weather.temperature}°C</span>
             <span class="muted small">{weather.label}</span>
