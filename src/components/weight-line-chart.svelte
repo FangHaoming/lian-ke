@@ -23,6 +23,13 @@
     return new Date(value).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
   }
 
+  function formatFullDate(value) {
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return '日期未知'
+    const weekday = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'][date.getDay()]
+    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${weekday}`
+  }
+
   function renderChart() {
     if (disposed || !chart || !Array.isArray(points)) return
 
@@ -46,7 +53,7 @@
             const item = items?.[0]
             const point = points[item?.dataIndex]
             if (!item || !point) return ''
-            return `<b>${item.axisValue}</b>${point.period ? ` <span style="color:#aebfc7">${escape(point.period)}</span>` : ''}<br/><span style="color:#b7f36a">●</span> 体重：<b>${Number(point.kg).toFixed(2)} kg</b>${point.note ? `<br/><span style="color:#aebfc7">${escape(point.note)}</span>` : ''}`
+            return `<b>${formatFullDate(point.recordedAt)}</b>${point.period ? ` <span style="color:#aebfc7">${escape(point.period)}</span>` : ''}<br/><span style="color:#b7f36a">●</span> 体重：<b>${Number(point.kg).toFixed(2)} kg</b>${point.note ? `<br/><span style="color:#aebfc7">${escape(point.note)}</span>` : ''}`
           },
         },
         xAxis: {

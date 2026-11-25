@@ -24,6 +24,13 @@
     return `${hours} 小时 ${String(rest).padStart(2, '0')} 分钟`
   }
 
+  function formatFullDate(value) {
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return '日期未知'
+    const weekday = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'][date.getDay()]
+    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${weekday}`
+  }
+
   function renderChart() {
     if (disposed || !chart || !Array.isArray(points)) return
     const values = points.map((point) => Number(point.minutes) || 0)
@@ -45,7 +52,7 @@
             const item = items?.[0]
             const point = points[item?.dataIndex]
             if (!item || !point) return ''
-            return `<b>${item.axisValue}</b>${point.period ? ` <span style="color:#aebfc7">${point.period}</span>` : ''}<br/><span style="color:#67b7d5">●</span> 睡眠：<b>${formatDuration(point.minutes)}</b>`
+            return `<b>${formatFullDate(point.recordedAt)}</b>${point.period ? ` <span style="color:#aebfc7">${point.period}</span>` : ''}<br/><span style="color:#67b7d5">●</span> 睡眠：<b>${formatDuration(point.minutes)}</b>`
           },
         },
         xAxis: {
