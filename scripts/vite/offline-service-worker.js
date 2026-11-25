@@ -6,6 +6,7 @@ export function offlineServiceWorker() {
     ? 'https://fanghaoming.github.io/lian-ke/app-assets/'
     : 'https://fanghaoming.github.io/lian-ke/'
   const cacheSchema = 'offline-cache-v2'
+  const buildIdentity = process.env.VITE_BUILD_ID || process.env.GITHUB_SHA || 'local'
   const entryHTMLURLs = [
     './',
     './index.html',
@@ -28,6 +29,7 @@ export function offlineServiceWorker() {
         .map(([fileName]) => fileName)
       const versionHash = createHash('sha256')
       versionHash.update(cacheSchema)
+      versionHash.update(buildIdentity)
       for (const fileName of buildFiles.sort()) {
         const output = bundle[fileName]
         versionHash.update(fileName)
