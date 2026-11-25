@@ -213,6 +213,11 @@ public class NativeTrainingPlugin extends Plugin {
         File stagingRoot = new File(base, "staging");
         File[] leftovers = stagingRoot.listFiles();
         if (leftovers != null) for (File leftover : leftovers) deleteRecursively(leftover);
+        getActivity().runOnUiThread(() -> {
+            if (getBridge() != null && getBridge().getWebView() != null) {
+                getBridge().getWebView().reload();
+            }
+        });
         call.resolve();
     }
 

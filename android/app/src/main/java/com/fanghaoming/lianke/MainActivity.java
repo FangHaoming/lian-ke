@@ -28,6 +28,9 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(NativeTrainingPlugin.class);
         super.onCreate(savedInstanceState);
         installVersionedAssetClient();
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            getBridge().getWebView().reload();
+        }
         dispatchTrainingNavigation(getIntent());
         dispatchOAuthCallback(getIntent());
     }
