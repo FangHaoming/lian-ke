@@ -55,6 +55,9 @@ export function setupOfflineSupport() {
     .then((registration) => {
       activeRegistration = registration
       navigator.serviceWorker.controller?.postMessage({ type: 'TRAINING_STATE', active: trainingActive })
+      if (!trainingActive) {
+        navigator.serviceWorker.controller?.postMessage({ type: 'REFRESH_REMOTE' })
+      }
       registration.update().catch(() => {})
       if (registration.waiting && navigator.serviceWorker.controller) {
         if (!isTrainingActive()) {

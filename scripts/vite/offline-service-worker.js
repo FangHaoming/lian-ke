@@ -118,6 +118,9 @@ self.addEventListener('message', (event) => {
     trainingActive = event.data.active === true
     if (!trainingActive) event.waitUntil(refreshRemoteWebAssets())
   }
+  if (event.data?.type === 'REFRESH_REMOTE' && !trainingActive) {
+    event.waitUntil(refreshRemoteWebAssets())
+  }
 })
 
 async function activateCaches() {
