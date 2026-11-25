@@ -8,8 +8,6 @@ import android.app.AlarmManager;
 import android.app.Service;
 import android.content.Intent;
 import android.graphics.Color;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.Handler;
@@ -102,7 +100,6 @@ public class TrainingForegroundService extends Service {
         if (MainActivity.isAppVisible()) return;
 
         String exercise = data.getStringExtra("exerciseName");
-        String exerciseIcon = data.getStringExtra("exerciseIcon");
         String phase = data.getStringExtra("phase");
         String message = "rest".equals(phase)
             ? "休息结束，继续训练"
@@ -209,7 +206,6 @@ public class TrainingForegroundService extends Service {
             .setSmallIcon(R.drawable.ic_training_notification)
             .setColor(NOTIFICATION_COLOR)
             .setContentTitle(exercise == null || exercise.isEmpty() ? "练刻 · 训练中" : exercise)
-            .setLargeIcon(loadExerciseIcon(exerciseIcon))
             .setContentText(detail + " · " + timerLabel)
             .setSubText(plan)
             .setContentIntent(contentIntent)
@@ -226,20 +222,6 @@ public class TrainingForegroundService extends Service {
         // foreground notification is refreshed.
         builder.setShowWhen(false);
         return builder.build();
-    }
-
-    private Bitmap loadExerciseIcon(String iconId) {
-        String assetName = iconId == null ? "" : iconId.replaceFirst("^cc-", "");
-        if (!assetName.isEmpty()) {
-            try (java.io.InputStream stream = getAssets().open("public/action-icons/" + assetName + ".png")) {
-                Bitmap icon = BitmapFactory.decodeStream(stream);
-                if (icon != null) return icon;
-            } catch (Exception ignored) {
-                // Custom actions and builds without synced action assets use
-                // the app logo below.
-            }
-        }
-        return BitmapFactory.decodeResource(getResources(), R.drawable.fit_log_icon);
     }
 
     private String phaseLabel(String phase) {
@@ -260,7 +242,7 @@ public class TrainingForegroundService extends Service {
             "进行中的训练",
             NotificationManager.IMPORTANCE_DEFAULT
         );
-        channel.setDescription("在锁屏和通知栏显示当前动作与训练计时");
+        channel.setDescription("在锁屏和通知栏显示训练计时");
         channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
         channel.setSound(null, null);
         getSystemService(NotificationManager.class).createNotificationChannel(channel);
