@@ -193,7 +193,7 @@ public class NativeTrainingPlugin extends Plugin {
                 getActivity().runOnUiThread(() -> {
                     if (getBridge() != null) {
                         getBridge().getWebView().clearCache(true);
-                        getBridge().setServerBasePath(new File(base, "versions/" + version).getAbsolutePath());
+                        getBridge().setServerBasePath(new File(base, "current").getAbsolutePath());
                     }
                 });
             }

@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets;
 
 /** Filesystem transaction shared by the Android plugin and local JVM tests. */
 public final class AssetStore {
-    public static final String DIRECTORY_NAME = "lianke-assets-v4";
+    public static final String DIRECTORY_NAME = "lianke-assets";
     private final File base;
     public AssetStore(File base) { this.base = base; }
 
@@ -38,8 +38,42 @@ public final class AssetStore {
     public File startupDirectory() throws IOException {
         String version = version();
         if (version.isEmpty()) return null;
-        File root = new File(base, "versions/" + version);
+        File root = new File(base, "current");
         return complete(root) ? root : null;
+    }
+
+    public synchronized void prepareForAppVersion(String appVersion) throws IOException {
+        checkVersion(appVersion);
+        File marker = new File(base, "app-version");
+        String previous = "";
+        if (marker.isFile()) {
+            try (InputStream in = new FileInputStream(marker)) {
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                byte[] buffer = new byte[128];
+                int count;
+                while ((count = in.read(buffer)) != -1) out.write(buffer, 0, count);
+                previous = new String(out.toByteArray(), StandardCharsets.UTF_8).trim();
+            }
+        }
+        if (!appVersion.equals(previous)) {
+            deleteTree(new File(base, "current"));
+            deleteTree(new File(base, "staging"));
+            try (FileOutputStream out = new FileOutputStream(marker)) {
+                out.write(appVersion.getBytes(StandardCharsets.UTF_8));
+                out.getFD().sync();
+            }
+            File markerVersion = new File(base, "current-version");
+            if (markerVersion.exists() && !markerVersion.delete()) throw new IOException("Cannot reset current version");
+        }
+    }
+
+    private void deleteTree(File file) throws IOException {
+        if (!file.exists()) return;
+        if (file.isDirectory()) {
+            File[] children = file.listFiles();
+            if (children != null) for (File child : children) deleteTree(child);
+        }
+        if (!file.delete()) throw new IOException("Cannot delete " + file);
     }
 
     private boolean complete(File root) {
@@ -85,11 +119,16 @@ public final class AssetStore {
                 out.writeUTF(path); out.writeLong(file.length()); out.writeUTF(digest(file));
             }
         }
-        File target = new File(base, "versions/" + version);
-        if (!target.getParentFile().isDirectory() && !target.getParentFile().mkdirs()) throw new IOException("Cannot create versions");
-        if (target.exists()) {
-            if (!complete(target)) throw new IOException("Existing version is incomplete");
-        } else if (!staging.renameTo(target)) throw new IOException("Cannot publish assets");
+        File target = new File(base, "current");
+        File backup = new File(base, "current-previous");
+        if (backup.exists()) deleteTree(backup);
+        if (target.exists() && !target.renameTo(backup)) throw new IOException("Cannot stage current assets");
+        if (!target.getParentFile().isDirectory() && !target.getParentFile().mkdirs()) throw new IOException("Cannot create asset directory");
+        if (!staging.renameTo(target)) {
+            if (backup.exists()) backup.renameTo(target);
+            throw new IOException("Cannot publish assets");
+        }
+        if (backup.exists()) deleteTree(backup);
         File pending = new File(base, "pending-version");
         try (FileOutputStream out = new FileOutputStream(pending)) {
             out.write(version.getBytes(StandardCharsets.UTF_8));

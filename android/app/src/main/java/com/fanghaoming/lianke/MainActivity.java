@@ -22,7 +22,10 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(NativeTrainingPlugin.class);
         File selectedAssets = null;
         try {
-            selectedAssets = new AssetStore(new File(getFilesDir(), AssetStore.DIRECTORY_NAME)).startupDirectory();
+            AssetStore store = new AssetStore(new File(getFilesDir(), AssetStore.DIRECTORY_NAME));
+            String appVersion = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            store.prepareForAppVersion(appVersion == null ? "unknown" : appVersion);
+            selectedAssets = store.startupDirectory();
             if (selectedAssets != null) bridgeBuilder.setServerPath(
                 new com.getcapacitor.ServerPath(com.getcapacitor.ServerPath.PathType.BASE_PATH, selectedAssets.getAbsolutePath()));
         } catch (java.io.IOException ignored) {}
