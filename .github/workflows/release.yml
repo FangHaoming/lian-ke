@@ -146,10 +146,13 @@ jobs:
             --ks-key-alias "$ANDROID_DEBUG_KEY_ALIAS" \
             --key-pass "env:ANDROID_DEBUG_KEY_PASSWORD" \
             --min-sdk-version 21 \
+            --max-sdk-version 23 \
             --v1-signing-enabled true \
             --v2-signing-enabled true \
             --v3-signing-enabled false \
+            --out "lianke-android-${GITHUB_REF_NAME}.signed.apk" \
             "lianke-android-${GITHUB_REF_NAME}.apk"
+          mv "lianke-android-${GITHUB_REF_NAME}.signed.apk" "lianke-android-${GITHUB_REF_NAME}.apk"
 
       - name: Verify APK signature
         run: |
