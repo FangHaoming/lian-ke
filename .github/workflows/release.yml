@@ -42,6 +42,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify native resource updates before packaging
+        run: pnpm test:native-assets
+
       - name: Build web release
         run: pnpm build
         env:

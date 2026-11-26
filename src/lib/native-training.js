@@ -50,20 +50,25 @@ export async function updateNativeWebAssets() {
     const precache = source.match(/const PRECACHE_URLS = (\[[\s\S]*?\])/)?.[1]
     if (!version || !precache) throw new Error('资源清单格式无效')
     const current = await NativeTraining.getAssetVersion()
-    const sameVersion = current?.version === version
-    showToast(
-      sameVersion
-        ? `正在校验应用资源（${version}）`
-        : `发现应用资源更新：${current?.version || '内置'} → ${version}`,
-      {
-        type: 'info',
-        duration: 3500,
-      },
-    )
-    const paths = JSON.parse(precache).filter((path) =>
-      /\.html(?:$|[?#])|\.js(?:$|[?#])|\.css(?:$|[?#])|\.json(?:$|[?#])/.test(path) ||
-      path === './' || path === './manifest.webmanifest',
-    )
+    if (current?.version === version) return { updated: false, version }
+    showToast(`发现应用资源更新：${current?.version || '内置'} → ${version}`, {
+      type: 'info',
+      duration: 3500,
+    })
+    const paths = JSON.parse(precache)
+    if (
+      !Array.isArray(paths) ||
+      paths.length === 0 ||
+      paths.some(
+        (path) =>
+          typeof path !== 'string' ||
+          !path.startsWith('./') ||
+          path.includes('..') ||
+          /[?#]/.test(path),
+      )
+    ) {
+      throw new Error('资源清单路径无效')
+    }
     for (const path of paths) {
       const relativePath = path.replace(/^\.\//, '') || 'index.html'
       await NativeTraining.downloadAsset({
@@ -72,12 +77,16 @@ export async function updateNativeWebAssets() {
         url: `${new URL(relativePath, 'https://fanghaoming.github.io/lian-ke/app-assets/').toString()}?v=${encodeURIComponent(version)}`,
       })
     }
-    await NativeTraining.activateAssetVersion({ version, reload: !sameVersion })
-    showToast(sameVersion ? '应用资源已重新校验并应用' : '应用资源已下载，下次启动时应用', {
+    await NativeTraining.activateAssetVersion({
+      version,
+      paths: [...new Set(paths.map((path) => path.replace(/^\.\//, '') || 'index.html'))],
+      reload: false,
+    })
+    showToast('应用资源已下载，完全退出并重新启动后生效', {
       type: 'success',
       duration: 4500,
     })
-    return { updated: !sameVersion, refreshed: sameVersion, version }
+    return { updated: true, version }
   } catch (error) {
     showToast('应用资源检查/下载失败，继续使用当前版本', { type: 'info', duration: 4500 })
     console.warn('Native web asset update failed', error)

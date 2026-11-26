@@ -4,14 +4,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.net.Uri;
-import android.webkit.MimeTypeMap;
-import android.webkit.WebResourceRequest;
-import android.webkit.WebResourceResponse;
-import android.webkit.WebView;
-import com.getcapacitor.BridgeWebViewClient;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
 import org.json.JSONObject;
 import com.getcapacitor.BridgeActivity;
 
@@ -26,43 +19,14 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(NativeTrainingPlugin.class);
+        try {
+            File current = new AssetStore(new File(getFilesDir(), "lianke-assets")).startupDirectory();
+            if (current != null) bridgeBuilder.setServerPath(
+                new com.getcapacitor.ServerPath(com.getcapacitor.ServerPath.PathType.BASE_PATH, current.getAbsolutePath()));
+        } catch (java.io.IOException ignored) {}
         super.onCreate(savedInstanceState);
-        installVersionedAssetClient();
-        if (getBridge() != null && getBridge().getWebView() != null) {
-            getBridge().getWebView().reload();
-        }
         dispatchTrainingNavigation(getIntent());
         dispatchOAuthCallback(getIntent());
-    }
-
-    private void installVersionedAssetClient() {
-        if (getBridge() == null || getBridge().getWebView() == null) return;
-        getBridge().setWebViewClient(new BridgeWebViewClient(getBridge()) {
-            @Override
-            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                WebResourceResponse updated = serveUpdatedAsset(request);
-                return updated == null ? super.shouldInterceptRequest(view, request) : updated;
-            }
-        });
-    }
-
-    private WebResourceResponse serveUpdatedAsset(WebResourceRequest request) {
-        String path = request.getUrl().getPath();
-        if (path == null || path.contains("..") || path.startsWith("/" + "lianke-assets")) return null;
-        if ("/".equals(path)) path = "/index.html";
-        File root = new File(getFilesDir(), "lianke-assets/current");
-        File asset = new File(root, path.replaceFirst("^/+", ""));
-        try {
-            String rootPath = root.getCanonicalPath();
-            String assetPath = asset.getCanonicalPath();
-            if (!assetPath.startsWith(rootPath + File.separator) || !asset.isFile()) return null;
-            String extension = MimeTypeMap.getFileExtensionFromUrl(asset.getName()).toLowerCase();
-            String mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
-            if (mime == null) mime = "application/octet-stream";
-            return new WebResourceResponse(mime, null, new FileInputStream(asset));
-        } catch (IOException ignored) {
-            return null;
-        }
     }
 
     @Override
