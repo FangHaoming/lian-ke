@@ -129,6 +129,15 @@ jobs:
           ANDROID_DEBUG_KEY_ALIAS: ${{ secrets.ANDROID_DEBUG_KEY_ALIAS }}
           ANDROID_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEY_PASSWORD }}
         run: |
+          jarsigner \
+            -keystore android/lianke-debug.keystore \
+            -storetype PKCS12 \
+            -storepass "$ANDROID_DEBUG_KEYSTORE_PASSWORD" \
+            -keypass "$ANDROID_DEBUG_KEY_PASSWORD" \
+            -sigalg SHA256withRSA \
+            -digestalg SHA-256 \
+            "lianke-android-${GITHUB_REF_NAME}.apk" \
+            "$ANDROID_DEBUG_KEY_ALIAS"
           apksigner_path="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
           "$apksigner_path" sign \
             --ks android/lianke-debug.keystore \
