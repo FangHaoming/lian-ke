@@ -2,7 +2,7 @@
   import { onMount } from 'svelte'
   import { fetchLatestAppReleases } from '../lib/native-update.js'
   import { showToast } from '../lib/toast.js'
-  import { nativeAppInfo } from '../lib/native-training.js'
+  import { nativeAppInfo, nativeTrainingAvailable, updateNativeWebAssets } from '../lib/native-training.js'
   import packageJson from '../../package.json'
 
   const appVersion = `v${packageJson.version}`
@@ -12,6 +12,8 @@
   let checking = false
   let currentVersion = packageJson.version
   let isNativeApp = false
+  let assetUpdateBusy = false
+  let assetUpdateProgress = { completed: 0, total: 0, percent: 0 }
 
   onMount(() => {
     void loadCurrentVersion()
@@ -44,6 +46,17 @@
       showToast('检查失败，请稍后重试', { type: 'error' })
     } finally {
       checking = false
+    }
+  }
+
+  async function updateWebAssetsManually() {
+    if (assetUpdateBusy) return
+    assetUpdateBusy = true
+    assetUpdateProgress = { completed: 0, total: 0, percent: 0 }
+    try {
+      await updateNativeWebAssets({ onProgress: (progress) => (assetUpdateProgress = progress) })
+    } finally {
+      assetUpdateBusy = false
     }
   }
 
@@ -89,6 +102,13 @@
         <span>↓</span>
       </a>
     </div>
+    {#if nativeTrainingAvailable()}
+      <button class="download-manual-update" type="button" on:click={updateWebAssetsManually} disabled={assetUpdateBusy}>
+        {assetUpdateBusy
+          ? `更新 Web 资源 ${assetUpdateProgress.percent}% (${assetUpdateProgress.completed}/${assetUpdateProgress.total})`
+          : '手动更新 Web 资源'}
+      </button>
+    {/if}
     <p class="download-note">
       点击按钮会直接下载当前版本 APK。首次安装时，请允许浏览器或系统安装未知来源应用。
     </p>
