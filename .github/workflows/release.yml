@@ -125,7 +125,12 @@ jobs:
 
       - name: Verify APK signature
         run: |
-          apksigner verify --verbose "lianke-android-${GITHUB_REF_NAME}.apk"
+          apksigner_path="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$apksigner_path" || {
+            echo "Unable to locate apksigner under $ANDROID_HOME/build-tools"
+            exit 1
+          }
+          "$apksigner_path" verify --verbose "lianke-android-${GITHUB_REF_NAME}.apk"
           unzip -l "lianke-android-${GITHUB_REF_NAME}.apk" | grep -E 'META-INF/.*\.(RSA|DSA|EC)$'
 
       - name: Create GitHub Release
