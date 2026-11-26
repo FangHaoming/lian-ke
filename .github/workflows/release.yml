@@ -146,6 +146,18 @@ jobs:
             -digestalg SHA-256 \
             "lianke-android-${GITHUB_REF_NAME}.apk" \
             "$ANDROID_DEBUG_KEY_ALIAS"
+          apksigner_path="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          "$apksigner_path" sign \
+            --ks android/lianke-debug.keystore \
+            --ks-type PKCS12 \
+            --ks-pass "env:ANDROID_DEBUG_KEYSTORE_PASSWORD" \
+            --ks-key-alias "$ANDROID_DEBUG_KEY_ALIAS" \
+            --key-pass "env:ANDROID_DEBUG_KEY_PASSWORD" \
+            --min-sdk-version 21 \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled false \
+            "lianke-android-${GITHUB_REF_NAME}.apk"
 
       - name: Verify APK signature
         run: |
@@ -157,6 +169,7 @@ jobs:
           "$apksigner_path" verify --verbose "lianke-android-${GITHUB_REF_NAME}.apk"
           "$apksigner_path" verify --verbose "lianke-android-${GITHUB_REF_NAME}.apk" | tee /tmp/apksigner-output.txt
           grep -q 'Verified using v1 scheme (JAR signing): true' /tmp/apksigner-output.txt
+          grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/apksigner-output.txt
           unzip -l "lianke-android-${GITHUB_REF_NAME}.apk" | grep -E 'META-INF/.*\.(RSA|DSA|EC)$'
 
       - name: Create GitHub Release
