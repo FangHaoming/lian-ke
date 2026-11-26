@@ -56,6 +56,7 @@
   let syncSelection = loadSyncSelection()
   let syncBaseline = loadSyncBaseline()
   let nativeAssetUpdateBusy = false
+  let nativeAssetUpdateProgress = { completed: 0, total: 0, percent: 0 }
   function setStatus(message, type = 'info', duration = 2800) {
     status = message
     statusType = type
@@ -122,8 +123,9 @@
   async function updateNativeAssetsManually() {
     if (nativeAssetUpdateBusy) return
     nativeAssetUpdateBusy = true
+    nativeAssetUpdateProgress = { completed: 0, total: 0, percent: 0 }
     try {
-      await updateNativeWebAssets()
+      await updateNativeWebAssets({ onProgress: (progress) => (nativeAssetUpdateProgress = progress) })
     } finally {
       nativeAssetUpdateBusy = false
     }
@@ -475,7 +477,9 @@
         disabled={nativeAssetUpdateBusy}
         on:click={updateNativeAssetsManually}
       >
-        {nativeAssetUpdateBusy ? '更新中…' : '手动更新 Web 资源'}
+        {nativeAssetUpdateBusy
+          ? `更新中 ${nativeAssetUpdateProgress.percent}% (${nativeAssetUpdateProgress.completed}/${nativeAssetUpdateProgress.total})`
+          : '手动更新 Web 资源'}
       </button>
     {/if}
     {#if !managementSession}

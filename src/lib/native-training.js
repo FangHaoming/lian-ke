@@ -41,7 +41,7 @@ export async function nativeAppInfo() {
   }
 }
 
-export async function updateNativeWebAssets() {
+export async function updateNativeWebAssets({ onProgress } = {}) {
   if (!nativeTrainingAvailable()) return { updated: false }
   if (nativeAssetUpdateInFlight) return { updated: false, skipped: true }
   nativeAssetUpdateInFlight = true
@@ -77,13 +77,16 @@ export async function updateNativeWebAssets() {
     ) {
       throw new Error('资源清单路径无效')
     }
-    for (const path of paths) {
+    onProgress?.({ completed: 0, total: paths.length, percent: 0 })
+    for (const [index, path] of paths.entries()) {
       const relativePath = path.replace(/^\.\//, '') || 'index.html'
       await NativeTraining.downloadAsset({
         version,
         path: relativePath,
         url: `${new URL(relativePath, 'https://fanghaoming.github.io/lian-ke/app-assets/').toString()}?v=${encodeURIComponent(version)}`,
       })
+      const completed = index + 1
+      onProgress?.({ completed, total: paths.length, percent: Math.round((completed / paths.length) * 100) })
     }
     await NativeTraining.activateAssetVersion({
       version,
