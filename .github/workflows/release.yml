@@ -131,6 +131,8 @@ jobs:
             exit 1
           }
           "$apksigner_path" verify --verbose "lianke-android-${GITHUB_REF_NAME}.apk"
+          "$apksigner_path" verify --verbose "lianke-android-${GITHUB_REF_NAME}.apk" | grep -q 'Verified using v1 scheme (JAR signing): true'
+          "$apksigner_path" verify --verbose "lianke-android-${GITHUB_REF_NAME}.apk" | grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true'
           unzip -l "lianke-android-${GITHUB_REF_NAME}.apk" | grep -E 'META-INF/.*\.(RSA|DSA|EC)$'
 
       - name: Create GitHub Release
