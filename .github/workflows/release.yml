@@ -110,7 +110,11 @@ jobs:
             -keystore android/lianke-debug.keystore \
             -storetype PKCS12 \
             -storepass "$ANDROID_DEBUG_KEYSTORE_PASSWORD" \
-            -alias "$ANDROID_DEBUG_KEY_ALIAS" >/dev/null
+            -alias "$ANDROID_DEBUG_KEY_ALIAS" | tee /tmp/keystore-details.txt
+          grep -Eq 'Subject Public Key Algorithm:.*RSA|Public key algorithm:.*RSA' /tmp/keystore-details.txt || {
+            echo "The release keystore must contain an RSA key for v1 APK signing"
+            exit 1
+          }
 
       - name: Build installable Android APK
         working-directory: android
