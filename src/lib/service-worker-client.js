@@ -1,7 +1,6 @@
 import { appURL } from './config.js'
 import { showToast } from './toast.js'
 import { Capacitor } from '@capacitor/core'
-import { updateNativeWebAssets } from './native-training.js'
 
 function showConnectionStatus(online) {
   showToast(online ? '网络已恢复' : '网络已断开，已缓存页面仍可访问', {
@@ -12,9 +11,9 @@ function showConnectionStatus(online) {
 
 export function setupOfflineSupport() {
   if (Capacitor.isNativePlatform()) {
-    // NativeTraining owns the versioned APK assets. An older WebView service
-    // worker can otherwise serve a stale remote bundle after OAuth returns.
-    const cleanupKey = 'lianke-native-service-worker-cleaned-v1'
+    // APKs use only their bundled resources. Remove any service worker/cache
+    // left by older builds, but never check or activate remote app assets.
+    const cleanupKey = 'lianke-native-service-worker-cleaned-v2'
     if (!sessionStorage.getItem(cleanupKey)) {
       sessionStorage.setItem(cleanupKey, '1')
       void Promise.all([
@@ -25,14 +24,7 @@ export function setupOfflineSupport() {
       ]).then(() => window.location.reload())
       return () => {}
     }
-    const checkNativeAssets = () => {
-      if (document.visibilityState === 'hidden') return
-      showToast('正在检查远端应用资源…', { type: 'info', duration: 2200 })
-      void updateNativeWebAssets()
-    }
-    setTimeout(checkNativeAssets, 0)
-    document.addEventListener('visibilitychange', checkNativeAssets)
-    return () => document.removeEventListener('visibilitychange', checkNativeAssets)
+    return () => {}
   }
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return () => {}
 
