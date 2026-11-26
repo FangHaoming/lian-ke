@@ -28,7 +28,7 @@ public class MainActivity extends BridgeActivity {
             selectedAssets = store.startupDirectory();
             if (selectedAssets != null) bridgeBuilder.setServerPath(
                 new com.getcapacitor.ServerPath(com.getcapacitor.ServerPath.PathType.BASE_PATH, selectedAssets.getAbsolutePath()));
-        } catch (java.io.IOException ignored) {}
+        } catch (Exception ignored) {}
         super.onCreate(savedInstanceState);
         if (getBridge() != null && getBridge().getWebView() != null) {
             getBridge().getWebView().clearCache(true);
