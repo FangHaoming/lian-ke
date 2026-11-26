@@ -123,6 +123,23 @@ jobs:
       - name: Rename Android artifact
         run: cp android/app/build/outputs/apk/debug/app-debug.apk "lianke-android-${GITHUB_REF_NAME}.apk"
 
+      - name: Apply compatibility APK signatures
+        env:
+          ANDROID_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
+          ANDROID_DEBUG_KEY_ALIAS: ${{ secrets.ANDROID_DEBUG_KEY_ALIAS }}
+          ANDROID_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEY_PASSWORD }}
+        run: |
+          apksigner_path="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          "$apksigner_path" sign \
+            --ks android/lianke-debug.keystore \
+            --ks-type PKCS12 \
+            --ks-pass "env:ANDROID_DEBUG_KEYSTORE_PASSWORD" \
+            --ks-key-alias "$ANDROID_DEBUG_KEY_ALIAS" \
+            --key-pass "env:ANDROID_DEBUG_KEY_PASSWORD" \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            "lianke-android-${GITHUB_REF_NAME}.apk"
+
       - name: Verify APK signature
         run: |
           apksigner_path="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
@@ -131,8 +148,9 @@ jobs:
             exit 1
           }
           "$apksigner_path" verify --verbose "lianke-android-${GITHUB_REF_NAME}.apk"
-          "$apksigner_path" verify --verbose "lianke-android-${GITHUB_REF_NAME}.apk" | grep -q 'Verified using v1 scheme (JAR signing): true'
-          "$apksigner_path" verify --verbose "lianke-android-${GITHUB_REF_NAME}.apk" | grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true'
+          "$apksigner_path" verify --verbose "lianke-android-${GITHUB_REF_NAME}.apk" | tee /tmp/apksigner-output.txt
+          grep -q 'Verified using v1 scheme (JAR signing): true' /tmp/apksigner-output.txt
+          grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/apksigner-output.txt
           unzip -l "lianke-android-${GITHUB_REF_NAME}.apk" | grep -E 'META-INF/.*\.(RSA|DSA|EC)$'
 
       - name: Create GitHub Release
