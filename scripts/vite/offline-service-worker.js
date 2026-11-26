@@ -49,6 +49,7 @@ export function offlineServiceWorker() {
         type: 'asset',
         fileName: 'service-worker.js',
         source: `const VERSION = ${JSON.stringify(version)}
+const BUILD_ID = ${JSON.stringify(buildIdentity)}
 const PRECACHE = \`lianke-precache-\${VERSION}\`
 const RUNTIME = \`lianke-runtime-\${VERSION}\`
 const MEDIA = 'lianke-media-v1'

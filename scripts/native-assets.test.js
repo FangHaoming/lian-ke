@@ -8,10 +8,14 @@ import { join, dirname } from 'node:path'
 import { execFileSync } from 'node:child_process'
 
 const source = readFileSync(new URL('../src/lib/native-training.js', import.meta.url), 'utf8')
-const updateSource = source
+const testSource = source.replace(
+  "const BUNDLED_BUILD_ID = import.meta.env.VITE_BUILD_ID || 'local'",
+  "const BUNDLED_BUILD_ID = 'local'",
+)
+const updateSource = testSource
   .slice(
-    source.indexOf('export async function updateNativeWebAssets'),
-    source.indexOf('export function openNativeExternalUrl'),
+    testSource.indexOf('export async function updateNativeWebAssets'),
+    testSource.indexOf('export function openNativeExternalUrl'),
   )
   .replace('export ', '')
 
@@ -23,7 +27,7 @@ function harness(version, failDownload = false, overrides = {}) {
     fetch: async () => ({
       ok: true,
       text: async () =>
-        'const VERSION = "new"\nconst PRECACHE_URLS = ["./index.html","./assets/app.js","./assets/app.css"]',
+        'const VERSION = "new"\nconst BUILD_ID = "local"\nconst PRECACHE_URLS = ["./index.html","./assets/app.js","./assets/app.css"]',
     }),
     NativeTraining: {
       getAssetVersion: async () => ({ version }),
@@ -47,7 +51,7 @@ function harness(version, failDownload = false, overrides = {}) {
     toasts,
     context,
     run: runInNewContext(
-      `let nativeAssetUpdateInFlight = false; ${updateSource}; updateNativeWebAssets`,
+      `const BUNDLED_BUILD_ID = 'local'; let nativeAssetUpdateInFlight = false; ${updateSource}; updateNativeWebAssets`,
       context,
     ),
   }
@@ -57,6 +61,16 @@ test('same version neither downloads nor activates again', async () => {
   const h = harness('new')
   assert.equal((await h.run()).updated, false)
   assert.equal(h.calls.length, 0)
+})
+test('same version with a stale bundled build is re-downloaded', async () => {
+  const h = harness('new')
+  h.context.fetch = async () => ({
+    ok: true,
+    text: async () =>
+      'const VERSION = "new"\nconst BUILD_ID = "remote"\nconst PRECACHE_URLS = ["./index.html","./assets/app.js","./assets/app.css"]',
+  })
+  assert.equal((await h.run()).updated, true)
+  assert.equal(h.calls.filter(([type]) => type === 'download').length, 3)
 })
 test('new version downloads all assets before activation and requests one reload', async () => {
   const h = harness('old')
