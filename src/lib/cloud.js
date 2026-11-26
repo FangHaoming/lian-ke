@@ -19,9 +19,6 @@ const MANAGEMENT_REDIRECT_URL =
     ? 'https://fanghaoming.github.io/lian-ke/supabase/callback?app=1'
     : appURL('supabase/callback'))
 const SUPABASE_MANAGEMENT_API = 'https://api.supabase.com/v1'
-// OAuth client IDs and the token-function URL are public runtime configuration.
-// Keep a fallback so a native build cannot lose remote connection support when
-// a CI secret is omitted from the build environment.
 const SUPABASE_OAUTH_CLIENT_ID =
   import.meta.env?.VITE_SUPABASE_OAUTH_CLIENT_ID || '43538f19-2028-4b91-9f27-d0e0ce4b0b6f'
 const SUPABASE_OAUTH_TOKEN_URL =
