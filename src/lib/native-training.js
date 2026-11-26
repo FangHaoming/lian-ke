@@ -53,7 +53,10 @@ export async function updateNativeWebAssets() {
     const precache = source.match(/const PRECACHE_URLS = (\[[\s\S]*?\])/)?.[1]
     if (!version || !precache) throw new Error('资源清单格式无效')
     const current = await NativeTraining.getAssetVersion()
-    if (current?.version === version) return { updated: false, version }
+    if (current?.version === version) {
+      showToast(`应用资源已是最新（${version}）`, { type: 'success', duration: 2600 })
+      return { updated: false, version }
+    }
     showToast(`发现应用资源更新：${current?.version || '内置'} → ${version}`, {
       type: 'info',
       duration: 3500,

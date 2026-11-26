@@ -14,9 +14,10 @@ export function setupOfflineSupport() {
   if (Capacitor.isNativePlatform()) {
     const checkNativeAssets = () => {
       if (document.visibilityState === 'hidden') return
+      showToast('正在检查远端应用资源…', { type: 'info', duration: 2200 })
       void updateNativeWebAssets()
     }
-    checkNativeAssets()
+    setTimeout(checkNativeAssets, 0)
     document.addEventListener('visibilitychange', checkNativeAssets)
     return () => document.removeEventListener('visibilitychange', checkNativeAssets)
   }
