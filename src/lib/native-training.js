@@ -6,6 +6,7 @@ const NativeTraining = registerPlugin('NativeTraining')
 
 let lastPayload = ''
 let updateQueue = Promise.resolve()
+let nativeAssetUpdateInFlight = false
 let permissionRequested = false
 let nativeScreenAwake
 
@@ -41,6 +42,8 @@ export async function nativeAppInfo() {
 
 export async function updateNativeWebAssets() {
   if (!nativeTrainingAvailable()) return { updated: false }
+  if (nativeAssetUpdateInFlight) return { updated: false, skipped: true }
+  nativeAssetUpdateInFlight = true
   try {
     const workerURL = `https://fanghaoming.github.io/lian-ke/app-assets/service-worker.js?check=${Date.now()}`
     const response = await fetch(workerURL, { cache: 'no-store' })
@@ -80,7 +83,7 @@ export async function updateNativeWebAssets() {
     await NativeTraining.activateAssetVersion({
       version,
       paths: [...new Set(paths.map((path) => path.replace(/^\.\//, '') || 'index.html'))],
-      reload: false,
+      reload: true,
     })
     showToast('应用资源已下载，完全退出并重新启动后生效', {
       type: 'success',
@@ -91,6 +94,8 @@ export async function updateNativeWebAssets() {
     showToast('应用资源检查/下载失败，继续使用当前版本', { type: 'info', duration: 4500 })
     console.warn('Native web asset update failed', error)
     return { updated: false, error }
+  } finally {
+    nativeAssetUpdateInFlight = false
   }
 }
 

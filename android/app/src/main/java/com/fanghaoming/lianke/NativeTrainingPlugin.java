@@ -187,7 +187,15 @@ public class NativeTrainingPlugin extends Plugin {
             if (values == null) throw new java.io.IOException("Missing asset list");
             String[] paths = new String[values.length()];
             for (int i = 0; i < paths.length; i++) paths[i] = values.getString(i);
-            new AssetStore(new File(getContext().getFilesDir(), "lianke-assets")).activate(version, paths);
+            File base = new File(getContext().getFilesDir(), "lianke-assets");
+            new AssetStore(base).activate(version, paths);
+            if (call.getBoolean("reload", false)) {
+                getActivity().runOnUiThread(() -> {
+                    if (getBridge() != null) {
+                        getBridge().setServerBasePath(new File(base, "versions/" + version).getAbsolutePath());
+                    }
+                });
+            }
             call.resolve();
         } catch (Exception error) {
             call.reject("Unable to activate asset version", error);

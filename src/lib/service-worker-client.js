@@ -12,11 +12,15 @@ function showConnectionStatus(online) {
 
 export function setupOfflineSupport() {
   if (Capacitor.isNativePlatform()) {
-    void updateNativeWebAssets()
-    return () => {}
+    const checkNativeAssets = () => {
+      if (document.visibilityState === 'hidden') return
+      void updateNativeWebAssets()
+    }
+    checkNativeAssets()
+    document.addEventListener('visibilitychange', checkNativeAssets)
+    return () => document.removeEventListener('visibilitychange', checkNativeAssets)
   }
-  if (!import.meta.env.PROD || !('serviceWorker' in navigator))
-    return () => {}
+  if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return () => {}
 
   let isReloading = false
   let hadController = Boolean(navigator.serviceWorker.controller)
@@ -88,7 +92,10 @@ export function setupOfflineSupport() {
         type: 'RUNTIME_MODE',
         native: Capacitor.isNativePlatform(),
       })
-      navigator.serviceWorker.controller?.postMessage({ type: 'TRAINING_STATE', active: trainingActive })
+      navigator.serviceWorker.controller?.postMessage({
+        type: 'TRAINING_STATE',
+        active: trainingActive,
+      })
       if (!trainingActive) {
         navigator.serviceWorker.controller?.postMessage({ type: 'REFRESH_REMOTE' })
       }

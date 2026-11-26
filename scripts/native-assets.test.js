@@ -46,7 +46,10 @@ function harness(version, failDownload = false, overrides = {}) {
     calls,
     toasts,
     context,
-    run: runInNewContext(`${updateSource}; updateNativeWebAssets`, context),
+    run: runInNewContext(
+      `let nativeAssetUpdateInFlight = false; ${updateSource}; updateNativeWebAssets`,
+      context,
+    ),
   }
 }
 
@@ -55,14 +58,14 @@ test('same version neither downloads nor activates again', async () => {
   assert.equal((await h.run()).updated, false)
   assert.equal(h.calls.length, 0)
 })
-test('new version downloads all assets before activation without reload', async () => {
+test('new version downloads all assets before activation and requests one reload', async () => {
   const h = harness('old')
   assert.equal((await h.run()).updated, true)
   assert.deepEqual(
     h.calls.map(([type]) => type),
     ['download', 'download', 'download', 'activate'],
   )
-  assert.equal(h.calls.at(-1)[1].reload, false)
+  assert.equal(h.calls.at(-1)[1].reload, true)
 })
 test('failed download leaves the active version unchanged', async () => {
   const h = harness('old', true)
@@ -123,7 +126,7 @@ test(
           writeFileSync(file, path.endsWith('.css') ? css : 'updated document or script')
         },
         activateAssetVersion: async ({ version, paths, reload }) => {
-          assert.equal(reload, false)
+          assert.equal(reload, true)
           java('activate', root, version, ...paths)
         },
       })
