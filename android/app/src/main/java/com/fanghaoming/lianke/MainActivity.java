@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.net.Uri;
+import android.webkit.WebSettings;
 import java.io.File;
 import org.json.JSONObject;
 import com.getcapacitor.BridgeActivity;
@@ -19,12 +20,18 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(NativeTrainingPlugin.class);
+        File selectedAssets = null;
         try {
-            File current = new AssetStore(new File(getFilesDir(), "lianke-assets")).startupDirectory();
-            if (current != null) bridgeBuilder.setServerPath(
-                new com.getcapacitor.ServerPath(com.getcapacitor.ServerPath.PathType.BASE_PATH, current.getAbsolutePath()));
+            selectedAssets = new AssetStore(new File(getFilesDir(), "lianke-assets")).startupDirectory();
+            if (selectedAssets != null) bridgeBuilder.setServerPath(
+                new com.getcapacitor.ServerPath(com.getcapacitor.ServerPath.PathType.BASE_PATH, selectedAssets.getAbsolutePath()));
         } catch (java.io.IOException ignored) {}
         super.onCreate(savedInstanceState);
+        if (selectedAssets != null && getBridge() != null && getBridge().getWebView() != null) {
+            getBridge().getWebView().clearCache(true);
+            getBridge().getWebView().getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
+            getBridge().getWebView().reload();
+        }
         dispatchTrainingNavigation(getIntent());
         dispatchOAuthCallback(getIntent());
     }
