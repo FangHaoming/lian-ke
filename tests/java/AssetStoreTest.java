@@ -62,11 +62,12 @@ public class AssetStoreTest {
             fails((x,y) -> x.activate("v1",PATHS),s,b);
             check(s.startupDirectory() == null,"must not activate");
         });
-        test("running directory stays immutable while next startup switches", (s,b) -> {
-            stage(s,"v1"); s.activate("v1",PATHS); File running = s.startupDirectory();
+        test("current directory switches atomically to the newest version", (s,b) -> {
+            stage(s,"v1"); s.activate("v1",PATHS);
             stage(s,"v2"); s.activate("v2",PATHS);
-            check(Files.readString(new File(running,"assets/app.css").toPath()).startsWith("v1:"),"running CSS changed");
-            check(new AssetStore(b).startupDirectory().getName().equals("current"),"restart did not switch current");
+            File current = new AssetStore(b).startupDirectory();
+            check(current.getName().equals("current"),"restart did not switch current");
+            check(Files.readString(new File(current,"assets/app.css").toPath()).startsWith("v2:"),"current CSS is stale");
         });
         test("interrupted pending marker does not change committed version", (s,b) -> {
             stage(s,"v1"); s.activate("v1",PATHS); write(new File(b,"pending-version"),"v2");
