@@ -74,7 +74,7 @@ jobs:
           ANDROID_DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
           ANDROID_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
           ANDROID_DEBUG_KEY_ALIAS: ${{ secrets.ANDROID_DEBUG_KEY_ALIAS }}
-          ANDROID_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEY_PASSWORD }}
+          ANDROID_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
         run: |
           test -n "$ANDROID_DEBUG_KEYSTORE_BASE64" || {
             echo "Missing ANDROID_DEBUG_KEYSTORE_BASE64 repository secret"
@@ -113,7 +113,7 @@ jobs:
           ANDROID_DEBUG_KEYSTORE_PATH: ${{ github.workspace }}/android/lianke-debug.keystore
           ANDROID_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
           ANDROID_DEBUG_KEY_ALIAS: ${{ secrets.ANDROID_DEBUG_KEY_ALIAS }}
-          ANDROID_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEY_PASSWORD }}
+          ANDROID_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
 
       - name: Rename Android artifact
         run: cp android/app/build/outputs/apk/debug/app-debug.apk "lianke-android-${GITHUB_REF_NAME}.apk"
