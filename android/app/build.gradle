@@ -4,7 +4,6 @@ def stableDebugKeystorePath = System.getenv('ANDROID_DEBUG_KEYSTORE_PATH')
 def stableDebugKeystorePassword = System.getenv('ANDROID_DEBUG_KEYSTORE_PASSWORD')
 def stableDebugKeyAlias = System.getenv('ANDROID_DEBUG_KEY_ALIAS')
 def stableDebugKeyPassword = System.getenv('ANDROID_DEBUG_KEY_PASSWORD')
-def useStableDebugSigning = System.getenv('ANDROID_DEBUG_SIGN') != 'false'
 
 android {
     namespace = "com.fanghaoming.lianke"
@@ -13,8 +12,8 @@ android {
         applicationId "com.fanghaoming.lianke"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 71
-        versionName "1.0.11-rc.39"
+        versionCode 72
+        versionName "1.0.11-rc.40"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -30,21 +29,14 @@ android {
                 storePassword stableDebugKeystorePassword
                 keyAlias stableDebugKeyAlias
                 keyPassword stableDebugKeyPassword
-                enableV1Signing true
-                enableV2Signing true
             }
         }
     }
     buildTypes {
         debug {
-            if (useStableDebugSigning && stableDebugKeystorePath && stableDebugKeystorePassword && stableDebugKeyAlias && stableDebugKeyPassword) {
+            if (stableDebugKeystorePath && stableDebugKeystorePassword && stableDebugKeyAlias && stableDebugKeyPassword) {
                 signingConfig signingConfigs.liankeDebug
             }
-        }
-        unsigned {
-            initWith debug
-            matchingFallbacks = ['debug']
-            signingConfig null
         }
         release {
             minifyEnabled false

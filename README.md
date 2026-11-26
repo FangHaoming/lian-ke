@@ -108,4 +108,3 @@ ANDROID_DEBUG_KEY_PASSWORD
 ```
 
 其中 `ANDROID_DEBUG_KEYSTORE_BASE64` 是同一份 PKCS12 keystore 的 Base64 内容。以后所有 APK 都使用这份签名，Android 才能识别为同一个应用并保留本地数据。
-发布前还会校验该 keystore 包含 RSA 私钥，以确保 APK 同时支持 v1 和 v2 签名。

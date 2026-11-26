@@ -75,7 +75,6 @@ jobs:
           ANDROID_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
           ANDROID_DEBUG_KEY_ALIAS: ${{ secrets.ANDROID_DEBUG_KEY_ALIAS }}
           ANDROID_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEY_PASSWORD }}
-          ANDROID_DEBUG_SIGN: false
         run: |
           test -n "$ANDROID_DEBUG_KEYSTORE_BASE64" || {
             echo "Missing ANDROID_DEBUG_KEYSTORE_BASE64 repository secret"
@@ -106,71 +105,18 @@ jobs:
           with open('android/lianke-debug.keystore', 'wb') as keystore:
               keystore.write(base64.b64decode(value, validate=False))
           PY
-          keytool -list -v \
-            -keystore android/lianke-debug.keystore \
-            -storetype PKCS12 \
-            -storepass "$ANDROID_DEBUG_KEYSTORE_PASSWORD" \
-            -alias "$ANDROID_DEBUG_KEY_ALIAS" | tee /tmp/keystore-details.txt
-          grep -Eq 'Subject Public Key Algorithm:.*RSA|Public key algorithm:.*RSA' /tmp/keystore-details.txt || {
-            echo "The release keystore must contain an RSA key for v1 APK signing"
-            exit 1
-          }
 
       - name: Build installable Android APK
         working-directory: android
-        run: ./gradlew assembleUnsigned --no-daemon
+        run: ./gradlew assembleDebug --no-daemon
         env:
           ANDROID_DEBUG_KEYSTORE_PATH: ${{ github.workspace }}/android/lianke-debug.keystore
           ANDROID_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
           ANDROID_DEBUG_KEY_ALIAS: ${{ secrets.ANDROID_DEBUG_KEY_ALIAS }}
-          ANDROID_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
+          ANDROID_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEY_PASSWORD }}
 
       - name: Rename Android artifact
-        run: |
-          apk_path="$(find android/app/build/outputs/apk -type f -name '*.apk' | sort | head -n 1)"
-          test -n "$apk_path" || {
-            echo "No APK found under android/app/build/outputs/apk"
-            find android/app/build/outputs -maxdepth 4 -type f -print
-            exit 1
-          }
-          cp "$apk_path" "lianke-android-${GITHUB_REF_NAME}.apk"
-
-      - name: Apply compatibility APK signatures
-        env:
-          ANDROID_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
-          ANDROID_DEBUG_KEY_ALIAS: ${{ secrets.ANDROID_DEBUG_KEY_ALIAS }}
-          ANDROID_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
-        run: |
-          zipalign_path="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n 1)"
-          "$zipalign_path" -f -p 4 \
-            "lianke-android-${GITHUB_REF_NAME}.apk" \
-            "lianke-android-${GITHUB_REF_NAME}.aligned.apk"
-          mv "lianke-android-${GITHUB_REF_NAME}.aligned.apk" "lianke-android-${GITHUB_REF_NAME}.apk"
-          apksigner_path="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          "$apksigner_path" sign \
-            --ks android/lianke-debug.keystore \
-            --ks-type PKCS12 \
-            --ks-pass "env:ANDROID_DEBUG_KEYSTORE_PASSWORD" \
-            --ks-key-alias "$ANDROID_DEBUG_KEY_ALIAS" \
-            --key-pass "env:ANDROID_DEBUG_KEY_PASSWORD" \
-            --min-sdk-version 1 \
-            --max-sdk-version 23 \
-            --v1-signing-enabled true \
-            --v2-signing-enabled true \
-            --v3-signing-enabled false \
-            "lianke-android-${GITHUB_REF_NAME}.apk"
-
-      - name: Verify APK signature
-        run: |
-          apksigner_path="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          test -x "$apksigner_path" || {
-            echo "Unable to locate apksigner under $ANDROID_HOME/build-tools"
-            exit 1
-          }
-          "$apksigner_path" verify --verbose "lianke-android-${GITHUB_REF_NAME}.apk"
-          "$apksigner_path" verify --verbose "lianke-android-${GITHUB_REF_NAME}.apk" | tee /tmp/apksigner-output.txt
-          grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/apksigner-output.txt
-          unzip -l "lianke-android-${GITHUB_REF_NAME}.apk" | grep -E 'META-INF/.*\.(RSA|DSA|EC)$'
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk "lianke-android-${GITHUB_REF_NAME}.apk"
 
       - name: Create GitHub Release
         env:
