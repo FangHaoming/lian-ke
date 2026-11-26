@@ -1,4 +1,20 @@
 import { createHash } from 'node:crypto'
+import { readdirSync, statSync } from 'node:fs'
+import { join, relative } from 'node:path'
+
+function publicAssetPaths() {
+  const root = join(process.cwd(), 'public')
+  const paths = []
+  const visit = (directory) => {
+    for (const entry of readdirSync(directory)) {
+      const absolute = join(directory, entry)
+      if (statSync(absolute).isDirectory()) visit(absolute)
+      else paths.push(`./${relative(root, absolute).split('\\').join('/')}`)
+    }
+  }
+  visit(root)
+  return paths
+}
 
 export function offlineServiceWorker() {
   const nativeBuild = process.env.CAPACITOR_BUILD === '1'
@@ -39,10 +55,7 @@ export function offlineServiceWorker() {
       const precacheURLs = [
         ...entryHTMLURLs,
         ...buildFiles.map((fileName) => `./${fileName}`),
-        './fit-log-icon.png',
-        './icon-192.png',
-        './icon-512.png',
-        './manifest.webmanifest',
+        ...publicAssetPaths(),
       ]
 
       this.emitFile({
