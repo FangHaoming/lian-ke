@@ -5,6 +5,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.net.Uri;
 import android.webkit.WebSettings;
+import java.io.File;
 import org.json.JSONObject;
 import com.getcapacitor.BridgeActivity;
 
@@ -19,10 +20,17 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(NativeTrainingPlugin.class);
+        File selectedAssets = null;
+        try {
+            selectedAssets = new AssetStore(new File(getFilesDir(), AssetStore.DIRECTORY_NAME)).startupDirectory();
+            if (selectedAssets != null) bridgeBuilder.setServerPath(
+                new com.getcapacitor.ServerPath(com.getcapacitor.ServerPath.PathType.BASE_PATH, selectedAssets.getAbsolutePath()));
+        } catch (java.io.IOException ignored) {}
         super.onCreate(savedInstanceState);
         if (getBridge() != null && getBridge().getWebView() != null) {
             getBridge().getWebView().clearCache(true);
             getBridge().getWebView().getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
+            if (selectedAssets != null) getBridge().getWebView().reload();
         }
         dispatchTrainingNavigation(getIntent());
         dispatchOAuthCallback(getIntent());

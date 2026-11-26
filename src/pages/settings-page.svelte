@@ -13,6 +13,7 @@
   import { requestConfirm } from '../lib/confirm-dialog.js'
   import { soundOptions } from '../lib/select-options.js'
   import { showToast } from '../lib/toast.js'
+  import { nativeTrainingAvailable, updateNativeWebAssets } from '../lib/native-training.js'
   import {
     cloudConfig,
     cloudSession,
@@ -54,6 +55,7 @@
   const DATA_SCHEMA_VERSION = 2
   let syncSelection = loadSyncSelection()
   let syncBaseline = loadSyncBaseline()
+  let nativeAssetUpdateBusy = false
   function setStatus(message, type = 'info', duration = 2800) {
     status = message
     statusType = type
@@ -115,6 +117,15 @@
       await connectSupabase()
     } catch (error) {
       setStatus(error.message, 'error')
+    }
+  }
+  async function updateNativeAssetsManually() {
+    if (nativeAssetUpdateBusy) return
+    nativeAssetUpdateBusy = true
+    try {
+      await updateNativeWebAssets()
+    } finally {
+      nativeAssetUpdateBusy = false
     }
   }
   async function loadManagedProjects({ autoInitialize = false } = {}) {
@@ -457,6 +468,16 @@
       {/if}
     </div>
     <p class="muted small">连接后可在不同设备间同步训练数据，设置过程会自动完成。</p>
+    {#if nativeTrainingAvailable()}
+      <button
+        class="btn"
+        type="button"
+        disabled={nativeAssetUpdateBusy}
+        on:click={updateNativeAssetsManually}
+      >
+        {nativeAssetUpdateBusy ? '更新中…' : '手动更新 Web 资源'}
+      </button>
+    {/if}
     {#if !managementSession}
       <button class="btn primary" type="button" on:click={connectManagedSupabase}>连接云端</button>
     {:else}

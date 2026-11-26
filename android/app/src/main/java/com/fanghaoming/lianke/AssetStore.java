@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets;
 
 /** Filesystem transaction shared by the Android plugin and local JVM tests. */
 public final class AssetStore {
-    public static final String DIRECTORY_NAME = "lianke-assets-v3";
+    public static final String DIRECTORY_NAME = "lianke-assets-v4";
     private final File base;
     public AssetStore(File base) { this.base = base; }
 
