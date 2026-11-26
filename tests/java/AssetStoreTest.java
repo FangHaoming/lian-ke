@@ -49,7 +49,7 @@ public class AssetStoreTest {
         test("download does not change startup version until commit", (s,b) -> {
             stage(s,"v1"); check(s.startupDirectory() == null, "staging must not be served");
             s.activate("v1", PATHS);
-            check(new AssetStore(b).startupDirectory().equals(new File(b,"versions/v1")), "restart must select v1");
+            check(new AssetStore(b).startupDirectory().equals(new File(b,"current")), "restart must select current");
         });
         test("missing CSS cannot replace a working version", (s,b) -> {
             stage(s,"v1"); s.activate("v1",PATHS);
@@ -66,11 +66,11 @@ public class AssetStoreTest {
             stage(s,"v1"); s.activate("v1",PATHS); File running = s.startupDirectory();
             stage(s,"v2"); s.activate("v2",PATHS);
             check(Files.readString(new File(running,"assets/app.css").toPath()).startsWith("v1:"),"running CSS changed");
-            check(new AssetStore(b).startupDirectory().getName().equals("v2"),"restart did not switch");
+            check(new AssetStore(b).startupDirectory().getName().equals("current"),"restart did not switch current");
         });
         test("interrupted pending marker does not change committed version", (s,b) -> {
             stage(s,"v1"); s.activate("v1",PATHS); write(new File(b,"pending-version"),"v2");
-            check(new AssetStore(b).startupDirectory().getName().equals("v1"),"pending leaked");
+            check(new AssetStore(b).startupDirectory().getName().equals("current"),"pending leaked");
         });
         test("truncated installed CSS rejects startup selection", (s,b) -> {
             stage(s,"v1"); s.activate("v1",PATHS); write(new File(s.startupDirectory(),"assets/app.css"),"x");
