@@ -12,6 +12,19 @@ function showConnectionStatus(online) {
 
 export function setupOfflineSupport() {
   if (Capacitor.isNativePlatform()) {
+    // NativeTraining owns the versioned APK assets. An older WebView service
+    // worker can otherwise serve a stale remote bundle after OAuth returns.
+    const cleanupKey = 'lianke-native-service-worker-cleaned-v1'
+    if (!sessionStorage.getItem(cleanupKey)) {
+      sessionStorage.setItem(cleanupKey, '1')
+      void Promise.all([
+        navigator.serviceWorker?.getRegistrations?.().then((registrations) =>
+          Promise.all(registrations.map((registration) => registration.unregister())),
+        ),
+        caches?.keys?.().then((keys) => Promise.all(keys.map((key) => caches.delete(key)))),
+      ]).then(() => window.location.reload())
+      return () => {}
+    }
     const checkNativeAssets = () => {
       if (document.visibilityState === 'hidden') return
       showToast('正在检查远端应用资源…', { type: 'info', duration: 2200 })
