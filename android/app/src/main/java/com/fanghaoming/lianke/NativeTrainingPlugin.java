@@ -147,7 +147,7 @@ public class NativeTrainingPlugin extends Plugin {
         }
         new Thread(() -> {
             try {
-                File target = new AssetStore(new File(getContext().getFilesDir(), "lianke-assets"))
+                File target = new AssetStore(new File(getContext().getFilesDir(), AssetStore.DIRECTORY_NAME))
                     .stagingFile(version, path);
                 File parent = target.getParentFile();
                 if (parent != null && !parent.exists() && !parent.mkdirs()) {
@@ -187,7 +187,7 @@ public class NativeTrainingPlugin extends Plugin {
             if (values == null) throw new java.io.IOException("Missing asset list");
             String[] paths = new String[values.length()];
             for (int i = 0; i < paths.length; i++) paths[i] = values.getString(i);
-            File base = new File(getContext().getFilesDir(), "lianke-assets");
+            File base = new File(getContext().getFilesDir(), AssetStore.DIRECTORY_NAME);
             new AssetStore(base).activate(version, paths);
             if (call.getBoolean("reload", false)) {
                 getActivity().runOnUiThread(() -> {
@@ -206,7 +206,7 @@ public class NativeTrainingPlugin extends Plugin {
     @PluginMethod
     public void getAssetVersion(PluginCall call) {
         try {
-            AssetStore store = new AssetStore(new File(getContext().getFilesDir(), "lianke-assets"));
+            AssetStore store = new AssetStore(new File(getContext().getFilesDir(), AssetStore.DIRECTORY_NAME));
             JSObject result = new JSObject();
             result.put("version", store.startupDirectory() == null ? "" : store.version());
             call.resolve(result);
