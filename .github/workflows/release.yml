@@ -148,7 +148,8 @@ jobs:
             --ks-pass "env:ANDROID_DEBUG_KEYSTORE_PASSWORD" \
             --ks-key-alias "$ANDROID_DEBUG_KEY_ALIAS" \
             --key-pass "env:ANDROID_DEBUG_KEY_PASSWORD" \
-            --min-sdk-version 21 \
+            --min-sdk-version 1 \
+            --max-sdk-version 23 \
             --v1-signing-enabled true \
             --v2-signing-enabled true \
             --v3-signing-enabled false \
