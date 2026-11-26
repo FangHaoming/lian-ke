@@ -141,6 +141,11 @@ jobs:
           ANDROID_DEBUG_KEY_ALIAS: ${{ secrets.ANDROID_DEBUG_KEY_ALIAS }}
           ANDROID_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
         run: |
+          zipalign_path="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n 1)"
+          "$zipalign_path" -f -p 4 \
+            "lianke-android-${GITHUB_REF_NAME}.apk" \
+            "lianke-android-${GITHUB_REF_NAME}.aligned.apk"
+          mv "lianke-android-${GITHUB_REF_NAME}.aligned.apk" "lianke-android-${GITHUB_REF_NAME}.apk"
           apksigner_path="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
           "$apksigner_path" sign \
             --ks android/lianke-debug.keystore \
