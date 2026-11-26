@@ -106,8 +106,11 @@
       <button class="download-manual-update" type="button" on:click={updateWebAssetsManually} disabled={assetUpdateBusy}>
         {assetUpdateBusy
           ? `更新 Web 资源 ${assetUpdateProgress.percent}% (${assetUpdateProgress.completed}/${assetUpdateProgress.total})`
-          : '手动更新 Web 资源'}
+          : '更新界面内容'}
       </button>
+      <p class="download-manual-update-note">
+        仅更新页面界面、文字和图片，不包含 App 原生功能、权限或安装包版本。
+      </p>
     {/if}
     <p class="download-note">
       点击按钮会直接下载当前版本 APK。首次安装时，请允许浏览器或系统安装未知来源应用。
@@ -283,6 +286,21 @@
     color: #758b96;
     font-size: 11px;
     line-height: 1.7;
+  }
+  .download-manual-update {
+    margin-top: 18px;
+    min-height: 40px;
+    padding: 0 16px;
+    border: 1px solid #3b5968;
+    border-radius: 999px;
+    background: #172630;
+    color: #cbdde2;
+    font-weight: 700;
+  }
+  .download-manual-update-note {
+    margin: 8px 0 0;
+    color: #8299a3;
+    font-size: 12px;
   }
   .download-features {
     display: grid;
