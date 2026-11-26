@@ -114,7 +114,7 @@ jobs:
 
       - name: Build installable Android APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleUnsigned --no-daemon
         env:
           ANDROID_DEBUG_KEYSTORE_PATH: ${{ github.workspace }}/android/lianke-debug.keystore
           ANDROID_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
@@ -122,7 +122,7 @@ jobs:
           ANDROID_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEY_PASSWORD }}
 
       - name: Rename Android artifact
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk "lianke-android-${GITHUB_REF_NAME}.apk"
+        run: cp android/app/build/outputs/apk/unsigned/app-unsigned.apk "lianke-android-${GITHUB_REF_NAME}.apk"
 
       - name: Apply compatibility APK signatures
         env:
