@@ -182,6 +182,7 @@ public class NativeTrainingPlugin extends Plugin {
     @PluginMethod
     public void activateAssetVersion(PluginCall call) {
         String version = call.getString("version", "");
+        boolean reload = call.getBoolean("reload", true);
         if (version.isEmpty() || version.contains("..") || version.contains("/")) {
             call.reject("Invalid asset version");
             return;
@@ -213,11 +214,13 @@ public class NativeTrainingPlugin extends Plugin {
         File stagingRoot = new File(base, "staging");
         File[] leftovers = stagingRoot.listFiles();
         if (leftovers != null) for (File leftover : leftovers) deleteRecursively(leftover);
-        getActivity().runOnUiThread(() -> {
-            if (getBridge() != null && getBridge().getWebView() != null) {
-                getBridge().getWebView().reload();
-            }
-        });
+        if (reload) {
+            getActivity().runOnUiThread(() -> {
+                if (getBridge() != null && getBridge().getWebView() != null) {
+                    getBridge().getWebView().reload();
+                }
+            });
+        }
         call.resolve();
     }
 

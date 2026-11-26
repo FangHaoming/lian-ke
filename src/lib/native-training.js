@@ -72,7 +72,7 @@ export async function updateNativeWebAssets() {
         url: `${new URL(relativePath, 'https://fanghaoming.github.io/lian-ke/app-assets/').toString()}?v=${encodeURIComponent(version)}`,
       })
     }
-    await NativeTraining.activateAssetVersion({ version })
+    await NativeTraining.activateAssetVersion({ version, reload: !sameVersion })
     showToast(sameVersion ? '应用资源已重新校验并应用' : '应用资源已下载，下次启动时应用', {
       type: 'success',
       duration: 4500,
