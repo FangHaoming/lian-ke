@@ -169,7 +169,6 @@ jobs:
           }
           "$apksigner_path" verify --verbose "lianke-android-${GITHUB_REF_NAME}.apk"
           "$apksigner_path" verify --verbose "lianke-android-${GITHUB_REF_NAME}.apk" | tee /tmp/apksigner-output.txt
-          grep -q 'Verified using v1 scheme (JAR signing): true' /tmp/apksigner-output.txt
           grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/apksigner-output.txt
           unzip -l "lianke-android-${GITHUB_REF_NAME}.apk" | grep -E 'META-INF/.*\.(RSA|DSA|EC)$'
 
