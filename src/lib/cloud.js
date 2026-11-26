@@ -19,8 +19,11 @@ const MANAGEMENT_REDIRECT_URL =
     ? 'https://fanghaoming.github.io/lian-ke/supabase/callback?app=1'
     : appURL('supabase/callback'))
 const SUPABASE_MANAGEMENT_API = 'https://api.supabase.com/v1'
-const SUPABASE_OAUTH_CLIENT_ID = import.meta.env?.VITE_SUPABASE_OAUTH_CLIENT_ID || ''
-const SUPABASE_OAUTH_TOKEN_URL = import.meta.env?.VITE_SUPABASE_OAUTH_TOKEN_URL || ''
+const SUPABASE_OAUTH_CLIENT_ID =
+  import.meta.env?.VITE_SUPABASE_OAUTH_CLIENT_ID || '43538f19-2028-4b91-9f27-d0e0ce4b0b6f'
+const SUPABASE_OAUTH_TOKEN_URL =
+  import.meta.env?.VITE_SUPABASE_OAUTH_TOKEN_URL ||
+  'https://jagugsfdnwyaclrxpsum.supabase.co/functions/v1/supabase-oauth-token'
 const MANAGEMENT_SESSION_KEY = 'lianke_supabase_management_session'
 const MANAGEMENT_OAUTH_STATE_KEY = 'lianke_supabase_management_oauth_state'
 const defaultSyncSelection = {
