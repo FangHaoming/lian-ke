@@ -5,7 +5,7 @@ export function offlineServiceWorker() {
   const remoteBase = nativeBuild
     ? 'https://fanghaoming.github.io/lian-ke/app-assets/'
     : 'https://fanghaoming.github.io/lian-ke/'
-  const cacheSchema = 'offline-cache-v2'
+  const cacheSchema = 'offline-cache-v3'
   const buildIdentity = process.env.VITE_BUILD_ID || process.env.GITHUB_SHA || 'local'
   const entryHTMLURLs = [
     './',
@@ -55,8 +55,8 @@ const RUNTIME = \`lianke-runtime-\${VERSION}\`
 const MEDIA = 'lianke-media-v1'
 const REMOTE_BASE = ${JSON.stringify(remoteBase)}
 const REMOTE_CACHE_PREFIX = 'lianke-remote-'
-const REMOTE_POINTER = 'lianke-remote-pointer-v1'
-const RUNTIME_MODE_CACHE = 'lianke-runtime-mode-v1'
+const REMOTE_POINTER = 'lianke-remote-pointer-v2'
+const RUNTIME_MODE_CACHE = 'lianke-runtime-mode-v2'
 let trainingActive = false
 let nativeRuntime = false
 const REMOTE_CACHE_TIMEOUT = 350
