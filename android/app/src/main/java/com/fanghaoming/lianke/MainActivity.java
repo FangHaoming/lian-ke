@@ -27,10 +27,10 @@ public class MainActivity extends BridgeActivity {
                 new com.getcapacitor.ServerPath(com.getcapacitor.ServerPath.PathType.BASE_PATH, selectedAssets.getAbsolutePath()));
         } catch (java.io.IOException ignored) {}
         super.onCreate(savedInstanceState);
-        if (selectedAssets != null && getBridge() != null && getBridge().getWebView() != null) {
+        if (getBridge() != null && getBridge().getWebView() != null) {
             getBridge().getWebView().clearCache(true);
             getBridge().getWebView().getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
-            getBridge().getWebView().reload();
+            if (selectedAssets != null) getBridge().getWebView().reload();
         }
         dispatchTrainingNavigation(getIntent());
         dispatchOAuthCallback(getIntent());
