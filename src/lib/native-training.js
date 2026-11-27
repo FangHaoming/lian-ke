@@ -59,8 +59,9 @@ export async function updateNativeWebAssets({ onProgress, signal } = {}) {
     const version = source.match(/const VERSION = ["']([^"']+)["']/)?.[1]
     const remoteBuildId = source.match(/const BUILD_ID = ["']([^"']+)["']/)?.[1]
     const precache = source.match(/const PRECACHE_URLS = (\[[\s\S]*?\])/)?.[1]
+    const assetList = source.match(/const ASSET_URLS = (\[[\s\S]*?\])/)?.[1]
     const hashSource = source.match(/const ASSET_HASHES = (\{[\s\S]*?\})/)?.[1]
-    if (!version || !precache) throw new Error('资源清单格式无效')
+    if (!version || (!precache && !assetList)) throw new Error('资源清单格式无效')
     const current = isNative ? await NativeTraining.getAssetVersion() : null
     if (isNative && current?.version === version && BUNDLED_BUILD_ID === remoteBuildId) {
       showToast(`应用资源已是最新（${version}）`, { type: 'success', duration: 2600 })
@@ -70,7 +71,7 @@ export async function updateNativeWebAssets({ onProgress, signal } = {}) {
       type: 'info',
       duration: 3500,
     })
-    const paths = JSON.parse(precache)
+    const paths = JSON.parse(assetList || precache)
     const remoteHashes = hashSource ? JSON.parse(hashSource) : null
     if (
       !Array.isArray(paths) ||

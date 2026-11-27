@@ -57,13 +57,17 @@ export function offlineServiceWorker() {
         versionHash.update(output.type === 'chunk' ? output.code : output.source)
       }
       const version = versionHash.digest('hex').slice(0, 12)
-      const precacheURLs = [
+      const assetURLs = [
         ...entryHTMLURLs,
         ...buildFiles.map((fileName) => `./${fileName}`),
         ...publicAssetPaths(),
       ]
+      const precacheURLs = [
+        ...entryHTMLURLs,
+        ...buildFiles.map((fileName) => `./${fileName}`),
+      ]
       const assetHashes = Object.fromEntries(
-        [...new Set(precacheURLs)].map((path) => {
+        [...new Set(assetURLs)].map((path) => {
           const fileName = path === './' ? 'index.html' : path.replace(/^\.\//, '')
           const source = bundle[fileName]
           if (source) {
@@ -93,6 +97,7 @@ let trainingActive = false
 let nativeRuntime = false
 const REMOTE_CACHE_TIMEOUT = 350
 const PRECACHE_URLS = ${JSON.stringify([...new Set(precacheURLs)], null, 2)}
+const ASSET_URLS = ${JSON.stringify([...new Set(assetURLs)], null, 2)}
 const ASSET_HASHES = ${JSON.stringify(assetHashes, null, 2)}
 const REQUIRED_URLS = ${JSON.stringify(requiredURLs, null, 2)}
 
