@@ -2,6 +2,31 @@ import { nativeAppInfo } from './native-training.js'
 
 const RELEASES_URL = 'https://api.github.com/repos/FangHaoming/lian-ke/releases?per_page=20'
 
+const buildTimeRelease = (version, apkUrl, releaseUrl) => {
+  if (!version || !apkUrl) return null
+  return {
+    latestVersion: version,
+    apkUrl,
+    releaseUrl: releaseUrl || '',
+    releaseName: version,
+  }
+}
+
+export function buildTimeAppReleases() {
+  return {
+    stable: buildTimeRelease(
+      import.meta.env.VITE_RELEASE_STABLE_VERSION,
+      import.meta.env.VITE_RELEASE_STABLE_APK_URL,
+      import.meta.env.VITE_RELEASE_STABLE_URL,
+    ),
+    testing: buildTimeRelease(
+      import.meta.env.VITE_RELEASE_TESTING_VERSION,
+      import.meta.env.VITE_RELEASE_TESTING_APK_URL,
+      import.meta.env.VITE_RELEASE_TESTING_URL,
+    ),
+  }
+}
+
 function versionParts(value) {
   const match = String(value || '')
     .trim()

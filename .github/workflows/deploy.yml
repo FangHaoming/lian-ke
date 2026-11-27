@@ -27,6 +27,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Fetch latest release metadata
+        run: node scripts/fetch-release-info.mjs >> "$GITHUB_ENV"
       - run: pnpm build
         env:
           VITE_BUILD_ID: ${{ github.run_id }}

@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte'
-  import { fetchLatestAppReleases } from '../lib/native-update.js'
+  import { buildTimeAppReleases, fetchLatestAppReleases } from '../lib/native-update.js'
   import { showToast } from '../lib/toast.js'
   import { nativeAppInfo, nativeTrainingAvailable, updateNativeWebAssets } from '../lib/native-training.js'
   import packageJson from '../../package.json'
@@ -8,7 +8,7 @@
   const appVersion = `v${packageJson.version}`
   const apkURL = `https://github.com/FangHaoming/lian-ke/releases/latest/download/lianke-android-${appVersion}.apk`
   const releaseURL = 'https://github.com/FangHaoming/lian-ke/releases'
-  let latestReleases = { stable: null, testing: null }
+  let latestReleases = buildTimeAppReleases()
   let checking = false
   let currentVersion = packageJson.version
   let isNativeApp = false
@@ -74,8 +74,8 @@
   $: testingRelease = latestReleases.testing
   $: stableApkURL = stableRelease?.apkUrl || apkURL
   $: testingApkURL = testingRelease?.apkUrl || apkURL
-  $: stableVersion = stableRelease?.latestVersion || packageJson.version
-  $: testingVersion = testingRelease?.latestVersion || packageJson.version
+  $: stableVersion = stableRelease?.latestVersion || '暂不可用'
+  $: testingVersion = testingRelease?.latestVersion || '暂不可用'
 </script>
 
 <svelte:head>
