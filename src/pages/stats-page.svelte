@@ -3,7 +3,11 @@
   import { date, dayKey, fmt, num } from '../lib/workout-model.js'
   import ExerciseNameSelect from '../components/exercise-name-select.svelte'
   import DailyLineChart from '../components/daily-line-chart.svelte'
+  import { buildAgentAccessPrompt, cloudSession } from '../lib/cloud.js'
+  import { showToast } from '../lib/toast.js'
   export let data
+  let session = cloudSession()
+  let agentBusy = false
   $: records = data.records
   $: sets = records.flatMap((record) => record.results.filter((result) => result.completed))
   $: days = new Set(
@@ -82,6 +86,58 @@
       })()
     : []
   $: hasChartData = chartPoints.some((item) => item.sets || item.minutes)
+  async function copyAgentAccessPrompt() {
+    agentBusy = true
+    try {
+      const prompt = await buildAgentAccessPrompt()
+      await copyText(prompt)
+      showToast('Agent 授权提示词已复制，请仅粘贴到你信任的 Agent。', {
+        type: 'success',
+        duration: 4200,
+      })
+    } catch (error) {
+      showToast(error.message || '复制授权提示词失败', { type: 'error' })
+    } finally {
+      agentBusy = false
+    }
+  }
+  async function copyText(value) {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value)
+      return
+    }
+    const textarea = document.createElement('textarea')
+    textarea.value = value
+    textarea.setAttribute('readonly', '')
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    const copied = document.execCommand('copy')
+    textarea.remove()
+    if (!copied) throw Error('当前浏览器不支持复制，请改用下载文件')
+  }
+  async function downloadAgentAccessPrompt() {
+    agentBusy = true
+    try {
+      const prompt = await buildAgentAccessPrompt()
+      const blob = new Blob([prompt], { type: 'text/plain;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `lianke-agent-yearly-report-${new Date().getFullYear()}.txt`
+      link.click()
+      URL.revokeObjectURL(url)
+      showToast('原始提示词已下载，请将 .txt 文件交给 Agent。', {
+        type: 'success',
+        duration: 4200,
+      })
+    } catch (error) {
+      showToast(error.message || '下载授权提示词失败', { type: 'error' })
+    } finally {
+      agentBusy = false
+    }
+  }
   function targetText(result) {
     if (result.mode === 'time') return String(result.targetSeconds ?? 0) + ' 秒'
     if (result.mode === 'reps') return String(result.targetReps ?? 0) + ' 次'
@@ -116,6 +172,34 @@
   <h1>数据分析</h1>
   <p class="muted">根据实际训练计时统计，不包含组间休息。</p>
 </div>
+{#if session?.access_token}
+  <section class="panel cloud-agent-export">
+    <div class="cloud-sync-heading">
+      <div>
+        <h3>交给 Agent 生成年度报告</h3>
+        <p class="muted small">
+          复制当前用户的 Supabase 只读访问信息和查询提示词，让 Agent 直接分页读取完整数据。
+        </p>
+      </div>
+    </div>
+    <div class="cloud-agent-warning">
+      内容包含当前登录账号的 Access Token，只粘贴到你信任的 Agent；不要公开发布或发送给陌生服务。
+    </div>
+    <div class="cloud-agent-actions">
+      <button
+        type="button"
+        class="btn primary"
+        disabled={agentBusy}
+        on:click={copyAgentAccessPrompt}
+      >
+        复制 Agent 授权提示词
+      </button>
+      <button type="button" class="btn" disabled={agentBusy} on:click={downloadAgentAccessPrompt}>
+        下载原始提示词
+      </button>
+    </div>
+  </section>
+{/if}
 <div class="grid">
   <div class="metric">
     <span class="muted">训练次数</span>

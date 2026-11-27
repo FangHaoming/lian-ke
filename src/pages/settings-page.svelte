@@ -466,18 +466,18 @@
       <div class="row supabase-project-actions">
         {#if managementProjects.length || managementProjectsLoadError}
           {#if managementProjects.length}
-          <label class="supabase-project-picker">
-            <span>数据空间</span>
-            <Select
-              label="数据空间"
-              options={managementProjects.map((project) => ({
-                value: project.ref,
-                label: project.name || project.ref,
-              }))}
-              value={selectedProjectRef}
-              on:change={handleProjectChange}
-            />
-          </label>
+            <label class="supabase-project-picker">
+              <span>数据空间</span>
+              <Select
+                label="数据空间"
+                options={managementProjects.map((project) => ({
+                  value: project.ref,
+                  label: project.name || project.ref,
+                }))}
+                value={selectedProjectRef}
+                on:change={handleProjectChange}
+              />
+            </label>
           {:else}
             <span class="muted small">数据空间加载失败，请重试。</span>
           {/if}
