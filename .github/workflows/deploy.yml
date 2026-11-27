@@ -58,11 +58,30 @@ jobs:
             exit 1
           }
       - name: Build native app assets for remote updates
+        env:
+          VITE_BUILD_ID: ${{ github.run_id }}
+          VITE_BASE_PATH: /lian-ke/
+          VITE_AUTH_REDIRECT_URL: https://fanghaoming.github.io/lian-ke/auth/callback
+          VITE_SUPABASE_OAUTH_CLIENT_ID: ${{ secrets.VITE_SUPABASE_OAUTH_CLIENT_ID }}
+          VITE_SUPABASE_OAUTH_TOKEN_URL: ${{ secrets.VITE_SUPABASE_OAUTH_TOKEN_URL }}
         run: |
           mv dist dist-web
-          VITE_BUILD_ID=${GITHUB_RUN_ID} CAPACITOR_BUILD=1 pnpm build
+          CAPACITOR_BUILD=1 pnpm build
           mv dist dist-web/app-assets
           mv dist-web dist
+      - name: Verify native app asset OAuth configuration
+        env:
+          VITE_SUPABASE_OAUTH_CLIENT_ID: ${{ secrets.VITE_SUPABASE_OAUTH_CLIENT_ID }}
+          VITE_SUPABASE_OAUTH_TOKEN_URL: ${{ secrets.VITE_SUPABASE_OAUTH_TOKEN_URL }}
+        run: |
+          grep -R -l -F "$VITE_SUPABASE_OAUTH_CLIENT_ID" dist/app-assets >/dev/null || {
+            echo "VITE_SUPABASE_OAUTH_CLIENT_ID was not embedded in dist/app-assets"
+            exit 1
+          }
+          grep -R -l -F "$VITE_SUPABASE_OAUTH_TOKEN_URL" dist/app-assets >/dev/null || {
+            echo "VITE_SUPABASE_OAUTH_TOKEN_URL was not embedded in dist/app-assets"
+            exit 1
+          }
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
