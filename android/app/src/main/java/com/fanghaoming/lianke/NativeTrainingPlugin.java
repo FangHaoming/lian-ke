@@ -149,9 +149,20 @@ public class NativeTrainingPlugin extends Plugin {
             try {
                 File target = new AssetStore(new File(getContext().getFilesDir(), AssetStore.DIRECTORY_NAME))
                     .stagingFile(version, path);
+                File base = new File(getContext().getFilesDir(), AssetStore.DIRECTORY_NAME);
+                File current = new File(base, "current/" + path);
                 File parent = target.getParentFile();
                 if (parent != null && !parent.exists() && !parent.mkdirs()) {
                     call.reject("Unable to create asset directory");
+                    return;
+                }
+                if (isReusableMediaPath(path) && current.isFile() && current.length() > 0) {
+                    try (InputStream input = new java.io.FileInputStream(current); FileOutputStream output = new FileOutputStream(target)) {
+                        byte[] buffer = new byte[8192];
+                        int count;
+                        while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+                    }
+                    call.resolve();
                     return;
                 }
                 HttpURLConnection connection = (HttpURLConnection) new URL(urlValue).openConnection();
@@ -197,6 +208,32 @@ public class NativeTrainingPlugin extends Plugin {
                     }
                 });
             }
+
+    private boolean isReusableMediaPath(String path) {
+        return path.startsWith("convict-conditioning-pages/");
+    }
+
+    @PluginMethod
+    public void getAssetDigests(PluginCall call) {
+        try {
+            com.getcapacitor.JSArray values = call.getArray("paths");
+            org.json.JSONObject result = new org.json.JSONObject();
+            File current = new File(getContext().getFilesDir(), AssetStore.DIRECTORY_NAME + "/current");
+            if (values != null) for (int i = 0; i < values.length(); i++) {
+                String path = values.getString(i).replaceFirst("^\\./", "");
+                File file = new File(current, path);
+                if (file.isFile() && file.length() > 0) result.put(path, AssetStore.fileDigest(file));
+            }
+            JSObject response = new JSObject();
+            for (java.util.Iterator<String> it = result.keys(); it.hasNext();) {
+                String key = it.next();
+                response.put(key, result.getString(key));
+            }
+            call.resolve(response);
+        } catch (Exception error) {
+            call.reject("Unable to read asset digests", error);
+        }
+    }
             call.resolve();
         } catch (Exception error) {
             call.reject("Unable to activate asset version", error);

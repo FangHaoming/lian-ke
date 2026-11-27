@@ -91,7 +91,7 @@ public final class AssetStore {
         } catch (IOException error) { return false; }
     }
 
-    private String digest(File file) throws IOException {
+    public static String fileDigest(File file) throws IOException {
         try (InputStream input = new FileInputStream(file)) {
             java.security.MessageDigest hash = java.security.MessageDigest.getInstance("SHA-256");
             byte[] buffer = new byte[8192];
@@ -102,6 +102,8 @@ public final class AssetStore {
             return value.toString();
         } catch (java.security.NoSuchAlgorithmException error) { throw new IOException(error); }
     }
+
+    private String digest(File file) throws IOException { return fileDigest(file); }
 
     public synchronized void activate(String version, String[] paths) throws IOException {
         checkVersion(version);

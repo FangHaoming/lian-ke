@@ -4,6 +4,7 @@ import { showToast } from './toast.js'
 
 const NativeTraining = registerPlugin('NativeTraining')
 const BUNDLED_BUILD_ID = import.meta.env.VITE_BUILD_ID || 'local'
+const REUSABLE_MEDIA_PREFIXES = ['convict-conditioning-pages/']
 
 let lastPayload = ''
 let updateQueue = Promise.resolve()
@@ -13,6 +14,10 @@ let nativeScreenAwake
 
 export function nativeTrainingAvailable() {
   return Capacitor.isNativePlatform()
+}
+
+function isReusableMediaPath(path) {
+  return REUSABLE_MEDIA_PREFIXES.some((prefix) => path.startsWith(prefix))
 }
 
 export function nativeVibrate() {
@@ -41,11 +46,12 @@ export async function nativeAppInfo() {
   }
 }
 
-export async function updateNativeWebAssets({ onProgress } = {}) {
-  if (!nativeTrainingAvailable()) return { updated: false }
+export async function updateNativeWebAssets({ onProgress, signal } = {}) {
+  const isNative = nativeTrainingAvailable()
   if (nativeAssetUpdateInFlight) return { updated: false, skipped: true }
   nativeAssetUpdateInFlight = true
   try {
+    if (signal?.aborted) throw new DOMException('更新已取消', 'AbortError')
     const workerURL = `https://fanghaoming.github.io/lian-ke/app-assets/service-worker.js?check=${Date.now()}`
     const response = await fetch(workerURL, { cache: 'no-store' })
     if (!response.ok) throw new Error(`资源清单请求失败 HTTP ${response.status}`)
@@ -53,9 +59,10 @@ export async function updateNativeWebAssets({ onProgress } = {}) {
     const version = source.match(/const VERSION = ["']([^"']+)["']/)?.[1]
     const remoteBuildId = source.match(/const BUILD_ID = ["']([^"']+)["']/)?.[1]
     const precache = source.match(/const PRECACHE_URLS = (\[[\s\S]*?\])/)?.[1]
+    const hashSource = source.match(/const ASSET_HASHES = (\{[\s\S]*?\})/)?.[1]
     if (!version || !precache) throw new Error('资源清单格式无效')
-    const current = await NativeTraining.getAssetVersion()
-    if (current?.version === version && BUNDLED_BUILD_ID === remoteBuildId) {
+    const current = isNative ? await NativeTraining.getAssetVersion() : null
+    if (isNative && current?.version === version && BUNDLED_BUILD_ID === remoteBuildId) {
       showToast(`应用资源已是最新（${version}）`, { type: 'success', duration: 2600 })
       return { updated: false, version }
     }
@@ -64,6 +71,7 @@ export async function updateNativeWebAssets({ onProgress } = {}) {
       duration: 3500,
     })
     const paths = JSON.parse(precache)
+    const remoteHashes = hashSource ? JSON.parse(hashSource) : null
     if (
       !Array.isArray(paths) ||
       paths.length === 0 ||
@@ -77,36 +85,86 @@ export async function updateNativeWebAssets({ onProgress } = {}) {
     ) {
       throw new Error('资源清单路径无效')
     }
-    onProgress?.({ completed: 0, total: paths.length, percent: 0 })
-    const concurrency = 6
+    let updatePaths = isNative ? paths : paths.filter((path) => !isReusableMediaPath(path.replace(/^\.\//, '')))
+    if (isNative && remoteHashes && NativeTraining.getAssetDigests) {
+      const localHashes = await NativeTraining.getAssetDigests({ paths })
+      updatePaths = paths.filter((path) => {
+        const normalized = path.replace(/^\.\//, '') || 'index.html'
+        return localHashes?.[normalized] !== remoteHashes[path]
+      })
+    }
+    onProgress?.({ completed: 0, total: updatePaths.length, percent: 0 })
+    // Browsers usually cap connections per origin around 6; native requests
+    // use independent HttpURLConnection threads, so they can safely use more.
+    const concurrency = isNative ? 12 : 6
+    const maxAttempts = 3
     let nextIndex = 0
     let completed = 0
-    const downloadOne = async () => {
-      while (true) {
-        const index = nextIndex++
-        if (index >= paths.length) return
-        const relativePath = paths[index].replace(/^\.\//, '') || 'index.html'
-        await NativeTraining.downloadAsset({
-          version,
-          path: relativePath,
-          url: `${new URL(relativePath, 'https://fanghaoming.github.io/lian-ke/app-assets/').toString()}?v=${encodeURIComponent(version)}`,
-        })
-        completed += 1
-        onProgress?.({ completed, total: paths.length, percent: Math.round((completed / paths.length) * 100) })
+    const waitBeforeRetry = (attempt) => new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        signal?.removeEventListener('abort', cancel)
+        resolve()
+      }, 300 * 2 ** attempt)
+      if (!signal) return
+      const cancel = () => {
+        clearTimeout(timeout)
+        signal.removeEventListener('abort', cancel)
+        reject(new DOMException('更新已取消', 'AbortError'))
+      }
+      if (signal.aborted) {
+        cancel()
+        return
+      }
+      signal.addEventListener('abort', cancel, { once: true })
+    })
+    const downloadAsset = async (relativePath, url) => {
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        if (signal?.aborted) throw new DOMException('更新已取消', 'AbortError')
+        try {
+          if (isNative) {
+            await NativeTraining.downloadAsset({ version, path: relativePath, url })
+          } else {
+            const assetResponse = await fetch(url, { cache: 'no-store', signal })
+            if (!assetResponse.ok) throw new Error(`资源下载失败 HTTP ${assetResponse.status}: ${relativePath}`)
+            await assetResponse.arrayBuffer()
+          }
+          return
+        } catch (error) {
+          if (error?.name === 'AbortError' || attempt === maxAttempts - 1) throw error
+          await waitBeforeRetry(attempt)
+        }
       }
     }
-    await Promise.all(Array.from({ length: Math.min(concurrency, paths.length) }, downloadOne))
-    await NativeTraining.activateAssetVersion({
-      version,
-      paths: [...new Set(paths.map((path) => path.replace(/^\.\//, '') || 'index.html'))],
-      reload: true,
-    })
-    showToast('应用资源已下载，完全退出并重新启动后生效', {
+    const downloadOne = async () => {
+      while (true) {
+        if (signal?.aborted) throw new DOMException('更新已取消', 'AbortError')
+        const index = nextIndex++
+        if (index >= updatePaths.length) return
+        const relativePath = updatePaths[index].replace(/^\.\//, '') || 'index.html'
+        const url = `${new URL(relativePath, 'https://fanghaoming.github.io/lian-ke/app-assets/').toString()}?v=${encodeURIComponent(version)}`
+        await downloadAsset(relativePath, url)
+        completed += 1
+        onProgress?.({ completed, total: updatePaths.length, percent: Math.round((completed / updatePaths.length) * 100) })
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(concurrency, updatePaths.length) }, downloadOne))
+    if (isNative) {
+      await NativeTraining.activateAssetVersion({
+        version,
+        paths: [...new Set(paths.map((path) => path.replace(/^\.\//, '') || 'index.html'))],
+        reload: true,
+      })
+    }
+    showToast(isNative ? '应用资源已下载，完全退出并重新启动后生效' : '界面内容检查完成', {
       type: 'success',
       duration: 4500,
     })
     return { updated: true, version }
   } catch (error) {
+    if (error?.name === 'AbortError') {
+      showToast('已取消更新界面内容', { type: 'info', duration: 2600 })
+      return { updated: false, cancelled: true }
+    }
     showToast('应用资源检查/下载失败，继续使用当前版本', { type: 'info', duration: 4500 })
     console.warn('Native web asset update failed', error)
     return { updated: false, error }

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
-import { readdirSync, statSync } from 'node:fs'
+import { createHash as createFileHash } from 'node:crypto'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 function publicAssetPaths() {
@@ -14,6 +15,10 @@ function publicAssetPaths() {
   }
   visit(root)
   return paths
+}
+
+function sha256File(file) {
+  return createFileHash('sha256').update(readFileSync(file)).digest('hex')
 }
 
 export function offlineServiceWorker() {
@@ -57,6 +62,16 @@ export function offlineServiceWorker() {
         ...buildFiles.map((fileName) => `./${fileName}`),
         ...publicAssetPaths(),
       ]
+      const assetHashes = Object.fromEntries(
+        [...new Set(precacheURLs)].map((path) => {
+          const fileName = path === './' ? 'index.html' : path.replace(/^\.\//, '')
+          const source = bundle[fileName]
+          if (source) {
+            return [path, createHash('sha256').update(source.type === 'chunk' ? source.code : source.source).digest('hex')]
+          }
+          return [path, sha256File(join(process.cwd(), 'public', fileName))]
+        }),
+      )
 
       this.emitFile({
         type: 'asset',
@@ -74,6 +89,24 @@ let trainingActive = false
 let nativeRuntime = false
 const REMOTE_CACHE_TIMEOUT = 350
 const PRECACHE_URLS = ${JSON.stringify([...new Set(precacheURLs)], null, 2)}
+const ASSET_HASHES = ${JSON.stringify(assetHashes, null, 2)}
+
+async function responseHash(response) {
+  const bytes = await response.clone().arrayBuffer()
+  const digest = await crypto.subtle.digest('SHA-256', bytes)
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+async function findMatchingCachedResponse(request, expectedHash) {
+  if (!expectedHash) return null
+  const cachesToCheck = await caches.keys()
+  for (const key of cachesToCheck.filter((value) => value.startsWith('lianke-precache-'))) {
+    const cache = await caches.open(key)
+    const cached = await cache.match(request, { ignoreSearch: true })
+    if (cached && await responseHash(cached) === expectedHash) return cached
+  }
+  return null
+}
 
 async function precacheApp() {
   const cache = await caches.open(PRECACHE)
@@ -83,6 +116,12 @@ async function precacheApp() {
       const request = new Request(url, { cache: 'reload' })
       const cached = await cache.match(request, { ignoreSearch: true })
       if (cached) return
+
+      const reusable = await findMatchingCachedResponse(request, ASSET_HASHES[url])
+      if (reusable) {
+        await cache.put(request, reusable.clone())
+        return
+      }
 
       try {
         const response = await fetch(request)

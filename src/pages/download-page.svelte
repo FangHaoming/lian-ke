@@ -14,6 +14,7 @@
   let isNativeApp = false
   let assetUpdateBusy = false
   let assetUpdateProgress = { completed: 0, total: 0, percent: 0 }
+  let assetUpdateController
 
   onMount(() => {
     void loadCurrentVersion()
@@ -52,12 +53,21 @@
   async function updateWebAssetsManually() {
     if (assetUpdateBusy) return
     assetUpdateBusy = true
+    assetUpdateController = new AbortController()
     assetUpdateProgress = { completed: 0, total: 0, percent: 0 }
     try {
-      await updateNativeWebAssets({ onProgress: (progress) => (assetUpdateProgress = progress) })
+      await updateNativeWebAssets({
+        signal: assetUpdateController.signal,
+        onProgress: (progress) => (assetUpdateProgress = progress),
+      })
     } finally {
       assetUpdateBusy = false
+      assetUpdateController = undefined
     }
+  }
+
+  function cancelWebAssetUpdate() {
+    assetUpdateController?.abort()
   }
 
   $: stableRelease = latestReleases.stable
@@ -118,15 +128,15 @@
             <span style={`width:${assetUpdateProgress.percent}%`}></span>
           </div>
           <small>{assetUpdateProgress.completed} / {assetUpdateProgress.total} 个资源已完成</small>
+          <button class="download-update-cancel" type="button" on:click={cancelWebAssetUpdate}>
+            取消更新
+          </button>
         </div>
       {/if}
       <p class="download-manual-update-note">
         仅更新页面界面、文字和图片，不包含 App 原生功能、权限或安装包版本。
       </p>
     {/if}
-    <p class="download-note">
-      点击按钮会直接下载当前版本 APK。首次安装时，请允许浏览器或系统安装未知来源应用。
-    </p>
   </section>
 
   <section class="download-features" aria-label="App 功能">
@@ -292,13 +302,6 @@
     border-color: #9bcf64;
     color: #eff9e8;
   }
-  .download-note {
-    max-width: 550px;
-    margin: 17px 0 0;
-    color: #758b96;
-    font-size: 11px;
-    line-height: 1.7;
-  }
   .download-manual-update {
     margin-top: 18px;
     min-height: 40px;
@@ -350,6 +353,20 @@
   .download-update-progress small {
     color: #8299a3;
     font-size: 11px;
+  }
+  .download-update-cancel {
+    display: block;
+    margin-top: 12px;
+    padding: 6px 12px;
+    border: 1px solid #506875;
+    border-radius: 999px;
+    background: transparent;
+    color: #cbdde2;
+    font-size: 12px;
+  }
+  .download-update-cancel:hover {
+    border-color: #b7f36a;
+    color: #b7f36a;
   }
   .download-features {
     display: grid;
