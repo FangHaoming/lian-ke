@@ -93,6 +93,12 @@ public final class AssetStore {
 
     public static String fileDigest(File file) throws IOException {
         try (InputStream input = new FileInputStream(file)) {
+            return inputDigest(input);
+        }
+    }
+
+    public static String inputDigest(InputStream input) throws IOException {
+        try {
             java.security.MessageDigest hash = java.security.MessageDigest.getInstance("SHA-256");
             byte[] buffer = new byte[8192];
             int count;

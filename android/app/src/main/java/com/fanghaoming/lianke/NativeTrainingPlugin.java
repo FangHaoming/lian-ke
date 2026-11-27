@@ -240,7 +240,15 @@ public class NativeTrainingPlugin extends Plugin {
             if (values != null) for (int i = 0; i < values.length(); i++) {
                 String path = values.getString(i).replaceFirst("^\\./", "");
                 File file = new File(current, path);
-                if (file.isFile() && file.length() > 0) result.put(path, AssetStore.fileDigest(file));
+                if (file.isFile() && file.length() > 0) {
+                    result.put(path, AssetStore.fileDigest(file));
+                } else {
+                    try (InputStream bundled = getContext().getAssets().open("public/" + path)) {
+                        result.put(path, AssetStore.inputDigest(bundled));
+                    } catch (java.io.IOException ignored) {
+                        // Missing assets are downloaded from the remote manifest.
+                    }
+                }
             }
             JSObject response = new JSObject();
             for (java.util.Iterator<String> it = result.keys(); it.hasNext();) {
