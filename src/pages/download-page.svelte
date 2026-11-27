@@ -111,7 +111,7 @@
       {#if assetUpdateBusy}
         <div class="download-update-progress" aria-live="polite">
           <div class="download-update-progress-row">
-            <span>正在并发下载界面资源</span>
+            <span>正在更新界面内容</span>
             <strong>{assetUpdateProgress.percent}%</strong>
           </div>
           <div class="download-update-progress-track">
