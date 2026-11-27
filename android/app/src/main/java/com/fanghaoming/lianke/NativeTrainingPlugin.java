@@ -260,6 +260,41 @@ public class NativeTrainingPlugin extends Plugin {
             call.reject("Unable to read asset digests", error);
         }
     }
+
+    @PluginMethod
+    public void reuseAsset(PluginCall call) {
+        String version = call.getString("version", "");
+        String path = call.getString("path", "").replaceFirst("^\\./", "");
+        if (version.isEmpty() || path.isEmpty() || path.contains("..")) {
+            call.reject("Invalid asset reuse request");
+            return;
+        }
+        try {
+            AssetStore store = new AssetStore(new File(getContext().getFilesDir(), AssetStore.DIRECTORY_NAME));
+            File target = store.stagingFile(version, path);
+            File source = new File(getContext().getFilesDir(), AssetStore.DIRECTORY_NAME + "/current/" + path);
+            File parent = target.getParentFile();
+            if (parent != null && !parent.exists() && !parent.mkdirs()) throw new java.io.IOException("Unable to create asset directory");
+            if (source.isFile() && source.length() > 0) {
+                try (InputStream input = new java.io.FileInputStream(source); FileOutputStream output = new FileOutputStream(target)) {
+                    copy(input, output);
+                }
+            } else {
+                try (InputStream input = getContext().getAssets().open("public/" + path); FileOutputStream output = new FileOutputStream(target)) {
+                    copy(input, output);
+                }
+            }
+            call.resolve();
+        } catch (Exception error) {
+            call.reject("Unable to reuse asset", error);
+        }
+    }
+
+    private void copy(InputStream input, FileOutputStream output) throws java.io.IOException {
+        byte[] buffer = new byte[8192];
+        int count;
+        while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+    }
     private void copyString(PluginCall call, Intent intent, String key) {
         intent.putExtra(key, call.getString(key, ""));
     }

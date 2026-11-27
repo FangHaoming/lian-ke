@@ -88,12 +88,17 @@ export async function updateNativeWebAssets({ onProgress, signal } = {}) {
       throw new Error('资源清单路径无效')
     }
     let updatePaths = isNative ? paths : paths.filter((path) => !isReusableMediaPath(path.replace(/^\.\//, '')))
+    let reusePaths = []
     if (isNative && remoteHashes && NativeTraining.getAssetDigests) {
       const localHashes = await NativeTraining.getAssetDigests({ paths })
-      updatePaths = paths.filter((path) => {
+      reusePaths = paths.filter((path) => {
         const normalized = path.replace(/^\.\//, '') || 'index.html'
-        return localHashes?.[normalized] !== remoteHashes[path]
+        return localHashes?.[normalized] === remoteHashes[path]
       })
+      updatePaths = paths.filter((path) => !reusePaths.includes(path))
+    }
+    if (isNative && reusePaths.length > 0) {
+      await Promise.all(reusePaths.map((path) => NativeTraining.reuseAsset({ version, path })))
     }
     onProgress?.({ completed: 0, total: updatePaths.length, percent: 0 })
     // Browsers usually cap connections per origin around 6; native requests
