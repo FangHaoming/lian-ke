@@ -1,6 +1,6 @@
 import { nativeAppInfo } from './native-training.js'
 
-const RELEASES_URL = 'https://api.github.com/repos/FangHaoming/lian-ke/releases?per_page=20'
+const RELEASES_URL = 'https://api.github.com/repos/FangHaoming/lian-ke/releases?per_page=100'
 
 const buildTimeRelease = (version, apkUrl, releaseUrl) => {
   if (!version || !apkUrl) return null

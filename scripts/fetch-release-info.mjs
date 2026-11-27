@@ -1,4 +1,4 @@
-const response = await fetch('https://api.github.com/repos/FangHaoming/lian-ke/releases?per_page=20', {
+const response = await fetch('https://api.github.com/repos/FangHaoming/lian-ke/releases?per_page=100', {
   headers: { Accept: 'application/vnd.github+json' },
 })
 if (!response.ok) throw new Error(`GitHub Releases request failed: HTTP ${response.status}`)
