@@ -209,6 +209,24 @@ public class NativeTrainingPlugin extends Plugin {
                 });
             }
 
+            call.resolve();
+        } catch (Exception error) {
+            call.reject("Unable to activate asset version", error);
+        }
+    }
+
+    @PluginMethod
+    public void getAssetVersion(PluginCall call) {
+        try {
+            AssetStore store = new AssetStore(new File(getContext().getFilesDir(), AssetStore.DIRECTORY_NAME));
+            JSObject result = new JSObject();
+            result.put("version", store.startupDirectory() == null ? "" : store.version());
+            call.resolve(result);
+        } catch (Exception error) {
+            call.reject("Unable to read asset version", error);
+        }
+    }
+
     private boolean isReusableMediaPath(String path) {
         return path.startsWith("convict-conditioning-pages/");
     }
@@ -232,23 +250,6 @@ public class NativeTrainingPlugin extends Plugin {
             call.resolve(response);
         } catch (Exception error) {
             call.reject("Unable to read asset digests", error);
-        }
-    }
-            call.resolve();
-        } catch (Exception error) {
-            call.reject("Unable to activate asset version", error);
-        }
-    }
-
-    @PluginMethod
-    public void getAssetVersion(PluginCall call) {
-        try {
-            AssetStore store = new AssetStore(new File(getContext().getFilesDir(), AssetStore.DIRECTORY_NAME));
-            JSObject result = new JSObject();
-            result.put("version", store.startupDirectory() == null ? "" : store.version());
-            call.resolve(result);
-        } catch (Exception error) {
-            call.reject("Unable to read asset version", error);
         }
     }
     private void copyString(PluginCall call, Intent intent, String key) {
