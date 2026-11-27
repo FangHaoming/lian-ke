@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { createHash as createFileHash } from 'node:crypto'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 function publicAssetPaths() {
@@ -69,7 +69,10 @@ export function offlineServiceWorker() {
           if (source) {
             return [path, createHash('sha256').update(source.type === 'chunk' ? source.code : source.source).digest('hex')]
           }
-          return [path, sha256File(join(process.cwd(), 'public', fileName))]
+          const sourceFile = existsSync(join(process.cwd(), fileName))
+            ? join(process.cwd(), fileName)
+            : join(process.cwd(), 'public', fileName)
+          return [path, sha256File(sourceFile)]
         }),
       )
 
