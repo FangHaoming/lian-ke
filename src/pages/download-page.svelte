@@ -166,18 +166,15 @@
 
   <section class="download-features" aria-label="App 功能">
     <article>
-      <span>◷</span>
-      <h2>锁屏训练</h2>
+      <div class="download-feature-heading"><span>◷</span><h2>锁屏训练</h2></div>
       <p>训练计时通过系统通知持续显示，不需要一直亮着 App 页面。</p>
     </article>
     <article>
-      <span>▣</span>
-      <h2>离线可用</h2>
+      <div class="download-feature-heading"><span>▣</span><h2>离线可用</h2></div>
       <p>打开过的训练内容会保存在设备上，网络不稳定时也能继续记录。</p>
     </article>
     <article>
-      <span>↗</span>
-      <h2>持续更新</h2>
+      <div class="download-feature-heading"><span>↗</span><h2>持续更新</h2></div>
       <p>每次发布都会在 GitHub Release 提供最新安装包和版本说明。</p>
     </article>
   </section>
@@ -404,12 +401,19 @@
     border-radius: 16px;
     background: #121d24;
   }
-  .download-features article > span {
+  .download-feature-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .download-feature-heading span {
     color: #b7f36a;
     font-size: 22px;
+    line-height: 1;
   }
   .download-features h2 {
-    margin: 15px 0 8px;
+    margin: 0;
     font-size: 15px;
   }
   .download-features p {
