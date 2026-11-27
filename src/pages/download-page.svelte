@@ -6,6 +6,7 @@
   import packageJson from '../../package.json'
 
   const appVersion = `v${packageJson.version}`
+  const RELEASE_CACHE_KEY = 'lianke-download-release-cache-v1'
   const apkURL = `https://github.com/FangHaoming/lian-ke/releases/latest/download/lianke-android-${appVersion}.apk`
   const releaseURL = 'https://github.com/FangHaoming/lian-ke/releases'
   let latestReleases = buildTimeAppReleases()
@@ -18,8 +19,31 @@
 
   onMount(() => {
     void loadCurrentVersion()
-    void checkForUpdate()
+    const cached = readCachedReleases()
+    if (cached) {
+      latestReleases = cached
+    } else {
+      void checkForUpdate()
+    }
   })
+
+  function readCachedReleases() {
+    try {
+      const value = JSON.parse(localStorage.getItem(RELEASE_CACHE_KEY) || 'null')
+      if (value?.stable || value?.testing) return value
+    } catch {
+      // Ignore malformed or unavailable local storage.
+    }
+    return null
+  }
+
+  function saveCachedReleases(releases) {
+    try {
+      localStorage.setItem(RELEASE_CACHE_KEY, JSON.stringify(releases))
+    } catch {
+      // The page can continue using the in-memory result.
+    }
+  }
 
   async function loadCurrentVersion() {
     const info = await nativeAppInfo()
@@ -34,6 +58,7 @@
     checking = true
     try {
       latestReleases = await fetchLatestAppReleases()
+      saveCachedReleases(latestReleases)
       if (latestReleases.stable || latestReleases.testing) {
         const versions = [
           latestReleases.stable && `正式版 v${latestReleases.stable.latestVersion}`,
