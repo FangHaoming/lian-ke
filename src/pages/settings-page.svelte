@@ -48,6 +48,7 @@
   let managementSession = supabaseManagementSession()
   let managementProjects = []
   let selectedProjectRef = ''
+  let managementProjectsLoadError = false
   const PROJECTS_KEY = 'lianke_supabase_projects'
   const SELECTED_PROJECT_KEY = 'lianke_supabase_selected_project'
   const INITIALIZED_PROJECT_KEY = 'lianke_supabase_initialized_project'
@@ -121,6 +122,7 @@
     if (!autoInitialize) setStatus('正在刷新数据空间……', 'info', 0)
     try {
       managementProjects = await listSupabaseProjects()
+      managementProjectsLoadError = false
       localStorage.setItem(PROJECTS_KEY, JSON.stringify(managementProjects))
       const savedProjectRef = localStorage.getItem(SELECTED_PROJECT_KEY)
       selectedProjectRef =
@@ -144,6 +146,7 @@
         await initializeManagedProject()
       }
     } catch (error) {
+      managementProjectsLoadError = true
       setStatus(error.message, 'error')
     }
   }
@@ -461,7 +464,8 @@
       <button class="btn primary" type="button" on:click={connectManagedSupabase}>连接云端</button>
     {:else}
       <div class="row supabase-project-actions">
-        {#if managementProjects.length}
+        {#if managementProjects.length || managementProjectsLoadError}
+          {#if managementProjects.length}
           <label class="supabase-project-picker">
             <span>数据空间</span>
             <Select
@@ -474,17 +478,22 @@
               on:change={handleProjectChange}
             />
           </label>
+          {:else}
+            <span class="muted small">数据空间加载失败，请重试。</span>
+          {/if}
           <button class="btn" type="button" disabled={busy} on:click={() => loadManagedProjects()}>
             刷新数据空间
           </button>
-          <button
-            class="btn primary"
-            type="button"
-            disabled={busy}
-            on:click={initializeManagedProject}
-          >
-            重新设置同步
-          </button>
+          {#if managementProjects.length}
+            <button
+              class="btn primary"
+              type="button"
+              disabled={busy}
+              on:click={initializeManagedProject}
+            >
+              重新设置同步
+            </button>
+          {/if}
         {/if}
       </div>
     {/if}
