@@ -96,6 +96,9 @@ public class TrainingForegroundService extends Service {
         if (data.getBooleanExtra("paused", false)) return;
         long timerEndAt = data.getLongExtra("timerEndAt", 0L);
         if (timerEndAt <= 0L || timerEndAt > System.currentTimeMillis() || timerEndAt == notifiedEndAt) return;
+        // Mark the timer before checking visibility. A timer that ends while
+        // the app is visible should stay silent and must not become a stale
+        // heads-up notification after the user switches to another app.
         notifiedEndAt = timerEndAt;
         if (MainActivity.isAppVisible()) return;
 
