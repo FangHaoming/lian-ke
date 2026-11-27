@@ -512,7 +512,7 @@
       <span class="muted small">已登录账号</span>
       <strong>{session.user.email}</strong>
     </div>
-    <div class="cloud-auth-actions">
+    <div class="cloud-auth-actions cloud-account-actions">
       <button
         type="button"
         class="btn cloud-sign-out"
