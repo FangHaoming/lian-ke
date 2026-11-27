@@ -75,6 +75,7 @@ export function offlineServiceWorker() {
           return [path, sha256File(sourceFile)]
         }),
       )
+      const requiredURLs = [...new Set([...entryHTMLURLs, ...buildFiles.map((fileName) => `./${fileName}`)])]
 
       this.emitFile({
         type: 'asset',
@@ -93,6 +94,7 @@ let nativeRuntime = false
 const REMOTE_CACHE_TIMEOUT = 350
 const PRECACHE_URLS = ${JSON.stringify([...new Set(precacheURLs)], null, 2)}
 const ASSET_HASHES = ${JSON.stringify(assetHashes, null, 2)}
+const REQUIRED_URLS = ${JSON.stringify(requiredURLs, null, 2)}
 
 async function responseHash(response) {
   const bytes = await response.clone().arrayBuffer()
@@ -136,7 +138,7 @@ async function precacheApp() {
           await cache.put(request, legacyCached.clone())
           return
         }
-        throw error
+        if (REQUIRED_URLS.includes(url)) throw error
       }
     }),
   )
