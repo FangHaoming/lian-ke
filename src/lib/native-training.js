@@ -71,7 +71,8 @@ export async function updateNativeWebAssets({ onProgress, signal } = {}) {
       type: 'info',
       duration: 3500,
     })
-    const paths = JSON.parse(assetList || precache)
+    const rawPaths = JSON.parse(assetList || precache)
+    const paths = [...new Set(rawPaths.map((path) => (path === './' ? './index.html' : path)))]
     const remoteHashes = hashSource ? JSON.parse(hashSource) : null
     if (
       !Array.isArray(paths) ||
