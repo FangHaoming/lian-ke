@@ -62,10 +62,7 @@ export function offlineServiceWorker() {
         ...buildFiles.map((fileName) => `./${fileName}`),
         ...publicAssetPaths(),
       ]
-      const precacheURLs = [
-        ...entryHTMLURLs,
-        ...buildFiles.map((fileName) => `./${fileName}`),
-      ]
+      const precacheURLs = []
       const assetHashes = Object.fromEntries(
         [...new Set(assetURLs)].map((path) => {
           const fileName = path === './' ? 'index.html' : path.replace(/^\.\//, '')
@@ -322,6 +319,10 @@ async function networkFirstNavigation(request) {
       fetch(request),
       new Promise((_, reject) => setTimeout(() => reject(new Error('network timeout')), 3500)),
     ])
+    if (network.ok && network.type === 'basic') {
+      const runtime = await caches.open(RUNTIME)
+      await runtime.put(request, network.clone())
+    }
     return network
   } catch {
     return cached || (await matchCached(navigationFallback(new URL(request.url).pathname))) || Response.error()
