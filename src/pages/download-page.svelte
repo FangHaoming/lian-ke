@@ -105,9 +105,21 @@
     {#if nativeTrainingAvailable()}
       <button class="download-manual-update" type="button" on:click={updateWebAssetsManually} disabled={assetUpdateBusy}>
         {assetUpdateBusy
-          ? `更新 Web 资源 ${assetUpdateProgress.percent}% (${assetUpdateProgress.completed}/${assetUpdateProgress.total})`
+          ? `更新界面内容 ${assetUpdateProgress.percent}%`
           : '更新界面内容'}
       </button>
+      {#if assetUpdateBusy}
+        <div class="download-update-progress" aria-live="polite">
+          <div class="download-update-progress-row">
+            <span>正在并发下载界面资源</span>
+            <strong>{assetUpdateProgress.percent}%</strong>
+          </div>
+          <div class="download-update-progress-track">
+            <span style={`width:${assetUpdateProgress.percent}%`}></span>
+          </div>
+          <small>{assetUpdateProgress.completed} / {assetUpdateProgress.total} 个资源已完成</small>
+        </div>
+      {/if}
       <p class="download-manual-update-note">
         仅更新页面界面、文字和图片，不包含 App 原生功能、权限或安装包版本。
       </p>
@@ -301,6 +313,43 @@
     margin: 8px 0 0;
     color: #8299a3;
     font-size: 12px;
+  }
+  .download-update-progress {
+    max-width: 520px;
+    margin-top: 14px;
+    padding: 14px 16px;
+    border: 1px solid #395463;
+    border-radius: 14px;
+    background: #12212a;
+    color: #cbdde2;
+  }
+  .download-update-progress-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+  }
+  .download-update-progress-row strong {
+    color: #b7f36a;
+    font-variant-numeric: tabular-nums;
+  }
+  .download-update-progress-track {
+    height: 8px;
+    margin: 10px 0 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #2a3c44;
+  }
+  .download-update-progress-track span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: #b7f36a;
+    transition: width 180ms ease;
+  }
+  .download-update-progress small {
+    color: #8299a3;
+    font-size: 11px;
   }
   .download-features {
     display: grid;

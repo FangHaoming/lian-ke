@@ -78,16 +78,24 @@ export async function updateNativeWebAssets({ onProgress } = {}) {
       throw new Error('资源清单路径无效')
     }
     onProgress?.({ completed: 0, total: paths.length, percent: 0 })
-    for (const [index, path] of paths.entries()) {
-      const relativePath = path.replace(/^\.\//, '') || 'index.html'
-      await NativeTraining.downloadAsset({
-        version,
-        path: relativePath,
-        url: `${new URL(relativePath, 'https://fanghaoming.github.io/lian-ke/app-assets/').toString()}?v=${encodeURIComponent(version)}`,
-      })
-      const completed = index + 1
-      onProgress?.({ completed, total: paths.length, percent: Math.round((completed / paths.length) * 100) })
+    const concurrency = 6
+    let nextIndex = 0
+    let completed = 0
+    const downloadOne = async () => {
+      while (true) {
+        const index = nextIndex++
+        if (index >= paths.length) return
+        const relativePath = paths[index].replace(/^\.\//, '') || 'index.html'
+        await NativeTraining.downloadAsset({
+          version,
+          path: relativePath,
+          url: `${new URL(relativePath, 'https://fanghaoming.github.io/lian-ke/app-assets/').toString()}?v=${encodeURIComponent(version)}`,
+        })
+        completed += 1
+        onProgress?.({ completed, total: paths.length, percent: Math.round((completed / paths.length) * 100) })
+      }
     }
+    await Promise.all(Array.from({ length: Math.min(concurrency, paths.length) }, downloadOne))
     await NativeTraining.activateAssetVersion({
       version,
       paths: [...new Set(paths.map((path) => path.replace(/^\.\//, '') || 'index.html'))],
